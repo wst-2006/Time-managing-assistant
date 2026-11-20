@@ -4,6 +4,7 @@ import type { AppDatabase } from "@personal-ai/db/client";
 import { healthDailyActuals, healthDailyReferences, healthProfiles, healthWeekPlans } from "@personal-ai/db/schema";
 import {
   healthPlanContentSchema,
+  healthProfileSchema,
   localDatesForHealthWeek,
   type HealthDailyActualInput,
   type HealthPlanContent,
@@ -33,12 +34,18 @@ export class HealthPlanBaseChangedError extends Error {
 }
 export class HealthActivePlanRequiredError extends Error {}
 
+/** Profiles written by earlier builds are upgraded to the current short form when read. */
+function withCurrentProfile<T extends { profile: unknown }>(record: T): T {
+  const parsed = healthProfileSchema.safeParse(record.profile);
+  return parsed.success ? { ...record, profile: parsed.data } : record;
+}
+
 export class HealthService {
   constructor(private readonly db: AppDatabase) {}
 
   async getProfile() {
     const [profile] = await this.db.select().from(healthProfiles).where(eq(healthProfiles.id, primaryHealthProfileId)).limit(1);
-    return profile ?? null;
+    return profile ? withCurrentProfile(profile) : null;
   }
 
   async saveProfile(profile: HealthProfile, expectedVersion?: number | null) {
@@ -235,7 +242,7 @@ export class HealthService {
   private async requireProfile(db: AppDatabase) {
     const [profile] = await db.select().from(healthProfiles).where(eq(healthProfiles.id, primaryHealthProfileId)).limit(1);
     if (!profile) throw new HealthProfileNotFoundError();
-    return profile;
+    return withCurrentProfile(profile);
   }
 
   private async requirePlan(db: AppDatabase, id: string): Promise<HealthPlanWithDays> {

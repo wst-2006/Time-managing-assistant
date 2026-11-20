@@ -1,5 +1,5 @@
 import type { ZodIssue } from "zod";
-import { generatedHealthPlanContentSchema, healthPlanContentSchema, type HealthPlanContent, type HealthProfile } from "./health.js";
+import { generatedHealthPlanContentSchema, healthActivityLevelLabels, healthEatingContextLabels, healthGoalLabels, healthPlanContentSchema, type HealthPlanContent, type HealthProfile } from "./health.js";
 
 /*
  * 健康参考的“模板 → 网页版 AI → 粘贴回来”流程。
@@ -368,8 +368,22 @@ export function buildHealthFixPrompt(issues: HealthAnswerIssue[]): string {
 const WEEKDAY_LABELS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 function describeProfile(profile: HealthProfile | null): string {
-  if (!profile) return "（用户还没有在软件里填写健康资料，请在生成前先问清楚：性别、年龄、身高、体重、目标、饮食场景、忌口和补充剂情况。）";
-  return JSON.stringify(profile, null, 2);
+  if (!profile) return "（用户还没有在软件里填写健康资料，请在生成前先问清楚：性别、年龄、身高、体重、日常活动量和主要目标。）";
+  const sex = profile.sex === "male" ? "男" : profile.sex === "female" ? "女" : "未说明";
+  const bmi = profile.weightKg / ((profile.heightCm / 100) ** 2);
+  const lines = [
+    `- 性别：${sex}；年龄：${profile.age} 岁`,
+    `- 身高 ${profile.heightCm} cm，体重 ${profile.weightKg} kg（BMI 约 ${bmi.toFixed(1)}）`,
+    `- 日常活动量：${healthActivityLevelLabels[profile.activityLevel]}`,
+    `- 主要目标：${healthGoalLabels[profile.goal]}${profile.targetWeightKg ? `，目标体重约 ${profile.targetWeightKg} kg` : ""}`
+  ];
+  if (profile.exercise) lines.push(`- 平时的运动：${profile.exercise}`);
+  if (profile.eatingContext) lines.push(`- 吃饭主要靠：${healthEatingContextLabels[profile.eatingContext]}`);
+  if (profile.likedFoods.length) lines.push(`- 爱吃 / 常吃：${profile.likedFoods.join("、")}`);
+  if (profile.avoidFoods.length) lines.push(`- 不吃 / 过敏 / 不适合：${profile.avoidFoods.join("、")}（必须完全避开）`);
+  if (profile.bodyNotes) lines.push(`- 身体情况：${profile.bodyNotes}`);
+  if (profile.city) lines.push(`- 所在城市：${profile.city}`);
+  return lines.join("\n");
 }
 
 const dayExample = {
@@ -416,6 +430,8 @@ export function buildHealthPromptTemplate(input: { profile: HealthProfile | null
     "",
     "【要求】",
     "只根据我上面给出的资料生成，不要推断性格、体质、疾病或心理状态。",
+    "请按我的性别、年龄、体重、活动量和目标分别估算每日范围，不要套用通用模板；如果我写了爱吃的食物、吃饭场景、城市或这周的特别情况，菜单要明显体现出来。",
+    "7 天的三餐示例要轮换，同一道菜一周内最多出现两次；训练多或活动多的日子可以适当提高碳水，休息日可以略低，并在 nutritionDirection 里说明原因。",
     "返回 JSON：{overview:string,supplements:string[],days:[7 个日对象]}。",
     HEALTH_PLAN_OUTPUT_CONTRACT,
     "字段名必须严格遵守软件契约：nutritionTargets 使用 carbohydrateGrams、fatGrams、fiberGrams、hydrationLiters、macroRatioPercent；hydrationGuidance 和 plateGuidance 必须是字符串数组；foodReference 必须使用 proteinOptions、fiberOptions、carbOptions、fatOptions；fruitOptions 必须是水果字符串数组；seasonalPoem 有内容时必须同时返回 title、author、excerpt、relevance。不要使用 calories、proteinFoods、stapleFoods、vegetables 或其他同义字段，也不要返回 movement、exercise、training、workout。",

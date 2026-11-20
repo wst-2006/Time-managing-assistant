@@ -60,6 +60,7 @@ test("网页版 AI 的回答经代码检查后成为候选，确认后持久化�
     await page.clock.setFixedTime(new Date("2099-01-04T10:00:00+08:00"));
     await page.goto("/");
     await page.getByRole("button", { name: "健康", exact: true }).click();
+    await expect(page.locator('.workspace-layer.current[data-layer-view="health"]')).toHaveCount(1, { timeout: 3000 });
     await expect(page.getByText("用网页版 AI 生成本周参考", { exact: true })).toBeVisible();
 
     await page.getByLabel("这周的特别情况").fill("周三要出差");

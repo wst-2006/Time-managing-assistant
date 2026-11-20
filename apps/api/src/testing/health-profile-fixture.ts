@@ -3,15 +3,19 @@ import { healthProfiles } from "@personal-ai/db/schema";
 import { primaryHealthProfileId } from "../health-service.js";
 
 export const testHealthProfile = {
-  city: null,
-  basics: { sex: "male", age: 20, heightCm: 175, weightKg: 65, bodyFatPercent: 16, waistCm: 71.5 },
-  goals: ["增肌"],
-  stageWeightGoal: { minimumKg: 66, maximumKg: 67 },
-  considerations: ["左膝不适"],
-  activity: { sessionsPerWeek: 5, usualDurationMinutes: { minimum: 60, maximum: 120 }, preferredActivities: ["力量训练", "骑行"], avoidHighRisk: true },
-  food: { mealContext: "食堂或外卖", mealTimes: { breakfast: "07:30", lunch: "12:00", dinner: "18:30" }, dislikes: ["海鲜"], commonFoods: ["番茄炒鸡蛋"] },
-  supplements: { current: ["维生素 D"], considering: ["肌酸"], avoids: ["蛋白粉"] },
-  notes: "Test profile."
+  sex: "male",
+  age: 20,
+  heightCm: 175,
+  weightKg: 65,
+  activityLevel: "high",
+  goal: "gain_muscle",
+  targetWeightKg: 67,
+  exercise: "力量训练每周 4 次，周末骑车",
+  eatingContext: "canteen",
+  likedFoods: ["番茄炒鸡蛋"],
+  avoidFoods: ["海鲜"],
+  bodyNotes: "左膝不适",
+  city: null
 };
 
 /** Health candidates require a saved profile; tests seed one into their in-memory database. */

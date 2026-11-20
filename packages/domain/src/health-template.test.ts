@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildHealthFixPrompt, buildHealthPromptTemplate, parseHealthAnswer } from "./health-template.js";
-import { localDatesForHealthWeek } from "./health.js";
+import { healthProfileSchema, localDatesForHealthWeek } from "./health.js";
 
 const day = {
   nutritionDirection: "维持正常餐盘结构。",
@@ -63,5 +63,31 @@ describe("health answer parsing", () => {
     expect(template).toContain("这周出差");
     expect(template).toContain("```json");
     expect(template).toContain("proteinOptions");
+  });
+
+  it("describes a filled profile in plain Chinese, including the optional details", () => {
+    const profile = healthProfileSchema.parse({
+      sex: "female", age: 21, heightCm: 163, weightKg: 55, activityLevel: "moderate", goal: "lose_fat",
+      targetWeightKg: 52, exercise: "跑步每周 3 次", eatingContext: "canteen", likedFoods: ["番茄炒蛋"], avoidFoods: ["香菜"],
+      bodyNotes: "胃不太好", city: "北京"
+    });
+    const template = buildHealthPromptTemplate({ profile, weekStart: "2026-11-15", solarTerm: "立冬", dates: localDatesForHealthWeek("2026-11-15") });
+    for (const text of ["女", "163 cm", "BMI 约 20.7", "中等", "减脂", "52 kg", "跑步每周 3 次", "食堂为主", "番茄炒蛋", "香菜", "胃不太好", "北京"]) {
+      expect(template).toContain(text);
+    }
+    expect(template).not.toContain("\"activityLevel\"");
+  });
+
+  it("upgrades a profile saved in the old long form", () => {
+    const upgraded = healthProfileSchema.parse({
+      city: null,
+      basics: { sex: "male", age: 20, heightCm: 175, weightKg: 65, bodyFatPercent: 16, waistCm: 71.5 },
+      goals: ["增肌"], stageWeightGoal: { minimumKg: 66, maximumKg: 67 }, considerations: ["左膝不适"],
+      activity: { sessionsPerWeek: 5, usualDurationMinutes: { minimum: 60, maximum: 120 }, preferredActivities: ["力量训练"], avoidHighRisk: true },
+      food: { mealContext: "食堂", mealTimes: { breakfast: "07:30", lunch: "12:00", dinner: "18:30" }, dislikes: ["海鲜"], commonFoods: ["鸡蛋"] },
+      supplements: { current: [], considering: [], avoids: [] }, notes: null
+    });
+    expect(upgraded).toMatchObject({ sex: "male", activityLevel: "high", goal: "gain_muscle", targetWeightKg: 66.5, avoidFoods: ["海鲜"], likedFoods: ["鸡蛋"], bodyNotes: "左膝不适" });
+    expect(upgraded.exercise).toContain("力量训练");
   });
 });

@@ -271,3 +271,14 @@
   .health-template-steps > li { border-right: 0; border-bottom: var(--rule) solid var(--ink); }
   .health-template-steps > li:last-child { border-bottom: 0; }
 }
+
+/* Profile: activity level and goal as square choice chips */
+.health-choice { display: flex; flex-wrap: wrap; gap: 8px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.health-choice legend { width: 100%; margin-bottom: 8px; font-size: var(--fs-12); color: var(--ink-2); }
+.health-choice label { position: relative; display: inline-flex; cursor: pointer; }
+.health-choice input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.health-choice span { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 12px; border: var(--rule) solid var(--ink); background: var(--red); color: var(--ink); font-size: var(--fs-13); line-height: 1.35; transition: background var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard), box-shadow var(--dur-1) var(--ease-standard); }
+.health-choice label:hover span { background: var(--cream); }
+.health-choice input:checked + span { background: var(--ink); color: var(--red); box-shadow: 3px 3px 0 var(--cream); }
+.health-choice input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 3px; }
+@media (max-width: 720px) { .health-profile-form { grid-template-columns: minmax(0, 1fr); } }

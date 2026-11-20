@@ -3,41 +3,84 @@ import { reviewDateSchema } from "./review.js";
 
 const textList = z.array(z.string().trim().min(1).max(160)).max(24);
 
-export const healthProfileSchema = z.object({
-  city: z.string().trim().min(1).max(120).nullable(),
-  basics: z.object({
-    sex: z.enum(["male", "female", "other"]),
-    age: z.number().int().min(16).max(120),
-    heightCm: z.number().int().min(120).max(230),
-    weightKg: z.number().min(30).max(300),
-    bodyFatPercent: z.number().min(1).max(70).nullable(),
-    waistCm: z.number().min(40).max(200).nullable()
-  }).strict(),
-  goals: textList.min(1),
-  stageWeightGoal: z.object({ minimumKg: z.number().min(30).max(300), maximumKg: z.number().min(30).max(300) }).strict(),
-  considerations: textList,
-  activity: z.object({
-    sessionsPerWeek: z.number().int().min(0).max(14),
-    usualDurationMinutes: z.object({ minimum: z.number().int().min(0).max(360), maximum: z.number().int().min(0).max(480) }).strict(),
-    preferredActivities: textList,
-    avoidHighRisk: z.boolean()
-  }).strict(),
-  food: z.object({
-    mealContext: z.string().trim().min(1).max(400),
-    mealTimes: z.object({ breakfast: z.string().trim().min(1).max(20), lunch: z.string().trim().min(1).max(20), dinner: z.string().trim().min(1).max(20) }).strict(),
-    dislikes: textList,
-    commonFoods: textList
-  }).strict(),
-  supplements: z.object({ current: textList, considering: textList, avoids: textList }).strict(),
-  notes: z.string().trim().max(2000).nullable()
-}).strict().superRefine((profile, context) => {
-  if (profile.stageWeightGoal.minimumKg > profile.stageWeightGoal.maximumKg) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["stageWeightGoal"], message: "Weight goal minimum cannot exceed maximum" });
-  }
-  if (profile.activity.usualDurationMinutes.minimum > profile.activity.usualDurationMinutes.maximum) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["activity", "usualDurationMinutes"], message: "Duration minimum cannot exceed maximum" });
-  }
-});
+export const healthActivityLevelSchema = z.enum(["sedentary", "light", "moderate", "high"]);
+export const healthGoalSchema = z.enum(["lose_fat", "gain_muscle", "maintain", "energy"]);
+export const healthEatingContextSchema = z.enum(["canteen", "takeout", "cook", "mixed"]);
+
+export const healthActivityLevelLabels: Record<z.infer<typeof healthActivityLevelSchema>, string> = {
+  sedentary: "久坐为主（几乎不运动）",
+  light: "轻度（每周运动 1–2 次或日常走动较多）",
+  moderate: "中等（每周运动 3–4 次）",
+  high: "高强度（每周运动 5 次以上或体力劳动）"
+};
+export const healthGoalLabels: Record<z.infer<typeof healthGoalSchema>, string> = {
+  lose_fat: "减脂", gain_muscle: "增肌", maintain: "保持体重", energy: "改善精力与作息"
+};
+export const healthEatingContextLabels: Record<z.infer<typeof healthEatingContextSchema>, string> = {
+  canteen: "食堂为主", takeout: "外卖为主", cook: "自己做饭为主", mixed: "几种都有"
+};
+
+/**
+ * Health profile: six required basics, plus a few optional details that keep weekly
+ * references from all looking the same.
+ */
+const healthProfileObjectSchema = z.object({
+  sex: z.enum(["male", "female", "other"]),
+  age: z.number().int().min(12).max(120),
+  heightCm: z.number().min(120).max(230),
+  weightKg: z.number().min(30).max(300),
+  activityLevel: healthActivityLevelSchema,
+  goal: healthGoalSchema,
+  targetWeightKg: z.number().min(30).max(300).nullable(),
+  exercise: z.string().trim().max(300).nullable(),
+  eatingContext: healthEatingContextSchema.nullable(),
+  likedFoods: textList,
+  avoidFoods: textList,
+  bodyNotes: z.string().trim().max(500).nullable(),
+  city: z.string().trim().min(1).max(120).nullable()
+}).strict();
+
+/** Profiles saved by earlier builds used a longer nested form; convert them on the way in. */
+export function upgradeLegacyHealthProfile(value: unknown): unknown {
+  if (!value || typeof value !== "object" || !("basics" in value)) return value;
+  const legacy = value as {
+    city?: string | null;
+    basics?: { sex?: string; age?: number; heightCm?: number; weightKg?: number };
+    goals?: string[];
+    stageWeightGoal?: { minimumKg?: number; maximumKg?: number };
+    considerations?: string[];
+    activity?: { sessionsPerWeek?: number; preferredActivities?: string[]; usualDurationMinutes?: { minimum?: number; maximum?: number } };
+    food?: { mealContext?: string; dislikes?: string[]; commonFoods?: string[] };
+    notes?: string | null;
+  };
+  const sessions = legacy.activity?.sessionsPerWeek ?? 0;
+  const goalText = (legacy.goals ?? []).join(" ");
+  const target = legacy.stageWeightGoal;
+  const duration = legacy.activity?.usualDurationMinutes;
+  const exerciseParts = [
+    legacy.activity?.preferredActivities?.length ? legacy.activity.preferredActivities.join("、") : "",
+    sessions ? `每周约 ${sessions} 次` : "",
+    duration?.minimum && duration?.maximum ? `每次 ${duration.minimum}–${duration.maximum} 分钟` : ""
+  ].filter(Boolean);
+  const bodyNotes = [...(legacy.considerations ?? []), legacy.notes ?? ""].map((item) => item.trim()).filter(Boolean).join("；");
+  return {
+    sex: legacy.basics?.sex,
+    age: legacy.basics?.age,
+    heightCm: legacy.basics?.heightCm,
+    weightKg: legacy.basics?.weightKg,
+    activityLevel: sessions >= 5 ? "high" : sessions >= 3 ? "moderate" : sessions >= 1 ? "light" : "sedentary",
+    goal: /增肌|增重/.test(goalText) ? "gain_muscle" : /减脂|减重|瘦/.test(goalText) ? "lose_fat" : /精力|睡眠|作息/.test(goalText) ? "energy" : "maintain",
+    targetWeightKg: target?.minimumKg && target?.maximumKg ? Math.round(((target.minimumKg + target.maximumKg) / 2) * 10) / 10 : null,
+    exercise: exerciseParts.length ? exerciseParts.join("，").slice(0, 300) : null,
+    eatingContext: null,
+    likedFoods: (legacy.food?.commonFoods ?? []).slice(0, 24),
+    avoidFoods: (legacy.food?.dislikes ?? []).slice(0, 24),
+    bodyNotes: bodyNotes ? bodyNotes.slice(0, 500) : null,
+    city: legacy.city ?? null
+  };
+}
+
+export const healthProfileSchema = z.preprocess(upgradeLegacyHealthProfile, healthProfileObjectSchema);
 
 export const healthMovementCategorySchema = z.enum(["strength", "volleyball", "running", "walking", "cycling", "recovery", "rest"]);
 export const healthIntensitySchema = z.enum(["rest", "low", "moderate", "high"]);

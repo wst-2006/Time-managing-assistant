@@ -4,11 +4,8 @@ const weekStart = "2099-01-18";
 const profile = {
   id: "3a1c7d0c-86ed-4e5f-b9fb-4b7df5bf93e1", version: 1,
   profile: {
-    city: null, basics: { sex: "male", age: 20, heightCm: 175, weightKg: 65, bodyFatPercent: 16, waistCm: 71.5 }, goals: ["增肌"],
-    stageWeightGoal: { minimumKg: 66, maximumKg: 67 }, considerations: ["左膝不适"],
-    activity: { sessionsPerWeek: 5, usualDurationMinutes: { minimum: 60, maximum: 120 }, preferredActivities: ["力量训练", "骑行"], avoidHighRisk: true },
-    food: { mealContext: "食堂或外卖", mealTimes: { breakfast: "07:30", lunch: "12:00", dinner: "18:30" }, dislikes: ["海鲜"], commonFoods: ["番茄炒鸡蛋"] },
-    supplements: { current: ["维生素 D"], considering: ["肌酸"], avoids: ["蛋白粉"] }, notes: "不需要每日打卡。"
+    sex: "male", age: 20, heightCm: 175, weightKg: 65, activityLevel: "high", goal: "gain_muscle", targetWeightKg: 67,
+    exercise: "力量训练每周 4 次", eatingContext: "canteen", likedFoods: ["番茄炒鸡蛋"], avoidFoods: ["海鲜"], bodyNotes: "左膝不适", city: null
   }
 };
 
@@ -24,7 +21,7 @@ const activePlan = {
   }))
 };
 
-test("完整健康资料表单保存所有用户主动维护的字段", async ({ page }) => {
+test("健康资料：六项必填加若干选填，保存后摘要立即更新", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2099-01-18T10:00:00+08:00"));
   let saved: Record<string, unknown> | null = null;
   await page.route("**/api/v1/health/**", async (route) => {
@@ -42,33 +39,28 @@ test("完整健康资料表单保存所有用户主动维护的字段", async ({
 
   await page.goto("/");
   await page.getByRole("button", { name: "健康", exact: true }).click();
+  await expect(page.locator('.workspace-layer.current[data-layer-view="health"]')).toHaveCount(1, { timeout: 3000 });
   await page.getByRole("button", { name: "查看或修改资料", exact: true }).click();
-  await expect(page.getByText("基础资料", { exact: true })).toBeVisible();
-  await expect(page.getByText("活动偏好", { exact: true })).toBeVisible();
-  await expect(page.getByText("饮食与补充剂", { exact: true })).toBeVisible();
-  await page.getByLabel("当前城市（可留空）").fill("示例城市");
+  await expect(page.getByText("必填 · 六项就够", { exact: true })).toBeVisible();
   await page.getByLabel("年龄").fill("21");
   await page.getByLabel("身高（cm）").fill("176");
-  await page.getByLabel("当前体重（kg）").fill("66");
-  await page.getByLabel("每周活动次数").fill("4");
-  await page.getByLabel("用餐场景").fill("食堂、外卖或外出时自行选择。");
-  await page.getByLabel("当前补充剂").fill("鱼油，维生素 D");
-  await page.getByLabel("避免高风险或容易受伤的活动建议").uncheck();
-  await page.getByRole("button", { name: "保存我主动填写的资料", exact: true }).click();
+  await page.getByLabel("体重（kg）", { exact: true }).fill("66");
+  await page.getByText("中等（每周运动 3–4 次）", { exact: true }).click();
+  await page.getByText("减脂", { exact: true }).click();
+  await page.getByLabel("吃饭主要靠").selectOption("takeout");
+  await page.getByLabel("爱吃 / 常吃的（逗号分隔）").fill("牛肉面，酸奶");
+  await page.getByLabel("所在城市").fill("示例城市");
+  await page.getByRole("button", { name: "保存资料", exact: true }).click();
 
   await expect.poll(() => saved).not.toBeNull();
   expect(saved).toMatchObject({
     expectedVersion: 1,
     profile: {
-      city: "示例城市",
-      basics: { sex: "male", age: 21, heightCm: 176, weightKg: 66, bodyFatPercent: 16, waistCm: 71.5 },
-      stageWeightGoal: { minimumKg: 66, maximumKg: 67 },
-      activity: { sessionsPerWeek: 4, usualDurationMinutes: { minimum: 60, maximum: 120 }, preferredActivities: ["力量训练", "骑行"], avoidHighRisk: false },
-      food: { mealContext: "食堂、外卖或外出时自行选择。", mealTimes: { breakfast: "07:30", lunch: "12:00", dinner: "18:30" } },
-      supplements: { current: ["鱼油", "维生素 D"], considering: ["肌酸"], avoids: ["蛋白粉"] }
+      sex: "male", age: 21, heightCm: 176, weightKg: 66, activityLevel: "moderate", goal: "lose_fat", targetWeightKg: 67,
+      exercise: "力量训练每周 4 次", eatingContext: "takeout", likedFoods: ["牛肉面", "酸奶"], avoidFoods: ["海鲜"], bodyNotes: "左膝不适", city: "示例城市"
     }
   });
-  await expect(page.getByText("176 cm · 66 kg · 增肌", { exact: true })).toBeVisible();
+  await expect(page.getByText("176 cm · 66 kg · 减脂", { exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

@@ -1,21 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { Check, ChevronLeft, ChevronRight, ClipboardPenLine, Copy, HeartPulse, Leaf, LoaderCircle, MapPin, Quote, Sparkles, X } from "lucide-react";
 import { buildHealthFixPrompt, buildHealthPromptTemplate, parseHealthAnswer, type HealthAnswerIssue } from "@personal-ai/domain/health-template";
-import { localDatesForHealthWeek, type HealthProfile } from "@personal-ai/domain/health";
+import { healthActivityLevelLabels, healthEatingContextLabels, healthGoalLabels, localDatesForHealthWeek, type HealthProfile } from "@personal-ai/domain/health";
 import { resolveSolarTerm } from "./solar-terms";
 import { PosterMark } from "./ui/poster";
 
-type Profile = {
-  city: string | null;
-  basics: { sex: "male" | "female" | "other"; age: number; heightCm: number; weightKg: number; bodyFatPercent: number | null; waistCm: number | null };
-  goals: string[];
-  stageWeightGoal: { minimumKg: number; maximumKg: number };
-  considerations: string[];
-  activity: { sessionsPerWeek: number; usualDurationMinutes: { minimum: number; maximum: number }; preferredActivities: string[]; avoidHighRisk: boolean };
-  food: { mealContext: string; mealTimes: { breakfast: string; lunch: string; dinner: string }; dislikes: string[]; commonFoods: string[] };
-  supplements: { current: string[]; considering: string[]; avoids: string[] };
-  notes: string | null;
-};
+type Profile = HealthProfile;
 type StoredProfile = { id: string; version: number; profile: Profile };
 type DayReference = {
   id: string;
@@ -385,45 +375,22 @@ export function HealthWorkspace() {
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const optionalNumber = (name: string) => {
-      const value = String(form.get(name) ?? "").trim();
-      return value ? Number(value) : null;
-    };
+    const text = (name: string) => String(form.get(name) ?? "").trim();
+    const optionalNumber = (name: string) => text(name) ? Number(text(name)) : null;
     const next: Profile = {
-      city: String(form.get("city") ?? "").trim() || null,
-      basics: {
-        sex: String(form.get("sex")) as Profile["basics"]["sex"],
-        age: Number(form.get("age")),
-        heightCm: Number(form.get("heightCm")),
-        weightKg: Number(form.get("weightKg")),
-        bodyFatPercent: optionalNumber("bodyFatPercent"),
-        waistCm: optionalNumber("waistCm")
-      },
-      goals: listText(String(form.get("goals") ?? "")),
-      stageWeightGoal: { minimumKg: Number(form.get("stageWeightMinimumKg")), maximumKg: Number(form.get("stageWeightMaximumKg")) },
-      considerations: listText(String(form.get("considerations") ?? "")),
-      activity: {
-        sessionsPerWeek: Number(form.get("sessionsPerWeek")),
-        usualDurationMinutes: { minimum: Number(form.get("usualDurationMinimum")), maximum: Number(form.get("usualDurationMaximum")) },
-        preferredActivities: listText(String(form.get("preferredActivities") ?? "")),
-        avoidHighRisk: form.get("avoidHighRisk") === "on"
-      },
-      food: {
-        mealContext: String(form.get("mealContext") ?? "").trim(),
-        mealTimes: {
-          breakfast: String(form.get("breakfastTime") ?? "").trim(),
-          lunch: String(form.get("lunchTime") ?? "").trim(),
-          dinner: String(form.get("dinnerTime") ?? "").trim()
-        },
-        dislikes: listText(String(form.get("dislikes") ?? "")),
-        commonFoods: listText(String(form.get("commonFoods") ?? ""))
-      },
-      supplements: {
-        current: listText(String(form.get("currentSupplements") ?? "")),
-        considering: listText(String(form.get("consideringSupplements") ?? "")),
-        avoids: listText(String(form.get("avoidsSupplements") ?? ""))
-      },
-      notes: String(form.get("notes") ?? "").trim() || null
+      sex: text("sex") as Profile["sex"],
+      age: Number(text("age")),
+      heightCm: Number(text("heightCm")),
+      weightKg: Number(text("weightKg")),
+      activityLevel: text("activityLevel") as Profile["activityLevel"],
+      goal: text("goal") as Profile["goal"],
+      targetWeightKg: optionalNumber("targetWeightKg"),
+      exercise: text("exercise") || null,
+      eatingContext: (text("eatingContext") || null) as Profile["eatingContext"],
+      likedFoods: listText(text("likedFoods")),
+      avoidFoods: listText(text("avoidFoods")),
+      bodyNotes: text("bodyNotes") || null,
+      city: text("city") || null
     };
     setBusy(true); setError(null);
     try {
@@ -537,40 +504,30 @@ export function HealthWorkspace() {
     {loading ? <div className="health-loading"><LoaderCircle className="spin" /><span>正在读取本周健康参考</span></div> : <>
       <section className="health-context-card">
           <div className="health-context-icon"><HeartPulse /></div>
-        <div><p className="section-kicker">你的资料</p><strong>{profile ? `${profile.profile.basics.heightCm} cm · ${profile.profile.basics.weightKg} kg · ${profile.profile.goals.slice(0, 2).join(" / ")}` : "尚未建立健康资料"}</strong><small><MapPin />{profile?.profile.city ?? "未设置城市"}</small></div>
+        <div><p className="section-kicker">你的资料</p><strong>{profile ? `${profile.profile.heightCm} cm · ${profile.profile.weightKg} kg · ${healthGoalLabels[profile.profile.goal]}` : "尚未建立健康资料"}</strong><small><MapPin />{profile?.profile.city ?? "未设置城市"}</small></div>
         <button className="quiet-button" type="button" onClick={() => setEditingProfile((value) => !value)}><ClipboardPenLine />{editingProfile ? "收起资料" : profile ? "查看或修改资料" : "填写健康资料"}</button>
       </section>
       {editingProfile && <form className="health-profile-form" onSubmit={saveProfile}>
-        <h3 className="wide">基础资料</h3>
-        <label><span>当前城市（可留空）</span><input name="city" defaultValue={profile?.profile.city ?? ""} maxLength={120} placeholder="例如：输入城市名称" /></label>
-        <label><span>性别</span><select name="sex" defaultValue={profile?.profile.basics.sex}><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></label>
-        <label><span>年龄</span><input name="age" type="number" min="16" max="120" step="1" defaultValue={profile?.profile.basics.age} required /></label>
-        <label><span>身高（cm）</span><input name="heightCm" type="number" min="120" max="230" step="1" defaultValue={profile?.profile.basics.heightCm} required /></label>
-        <label><span>当前体重（kg）</span><input name="weightKg" type="number" min="30" max="300" step="0.1" defaultValue={profile?.profile.basics.weightKg} required /></label>
-        <label><span>体脂率（%）</span><input name="bodyFatPercent" type="number" min="1" max="70" step="0.1" defaultValue={profile?.profile.basics.bodyFatPercent ?? ""} /></label>
-        <label><span>腰围（cm）</span><input name="waistCm" type="number" min="40" max="200" step="0.1" defaultValue={profile?.profile.basics.waistCm ?? ""} /></label>
-        <label className="wide"><span>当前目标（逗号或换行分隔）</span><textarea name="goals" rows={2} defaultValue={profile?.profile.goals?.join("，")} required /></label>
-        <label><span>阶段目标下限（kg）</span><input name="stageWeightMinimumKg" type="number" min="30" max="300" step="0.1" defaultValue={profile?.profile.stageWeightGoal.minimumKg} required /></label>
-        <label><span>阶段目标上限（kg）</span><input name="stageWeightMaximumKg" type="number" min="30" max="300" step="0.1" defaultValue={profile?.profile.stageWeightGoal.maximumKg} required /></label>
-        <label className="wide"><span>需要考虑的情况（逗号或换行分隔）</span><textarea name="considerations" rows={3} defaultValue={profile?.profile.considerations?.join("\n")} required /></label>
-        <h3 className="wide">活动偏好</h3>
-        <label><span>每周活动次数</span><input name="sessionsPerWeek" type="number" min="0" max="14" step="1" defaultValue={profile?.profile.activity.sessionsPerWeek} required /></label>
-        <label><span>单次时长下限（分钟）</span><input name="usualDurationMinimum" type="number" min="0" max="360" step="1" defaultValue={profile?.profile.activity.usualDurationMinutes.minimum} required /></label>
-        <label><span>单次时长上限（分钟）</span><input name="usualDurationMaximum" type="number" min="0" max="480" step="1" defaultValue={profile?.profile.activity.usualDurationMinutes.maximum} required /></label>
-        <label className="wide"><span>偏好的活动（逗号或换行分隔）</span><textarea name="preferredActivities" rows={2} defaultValue={profile?.profile.activity.preferredActivities?.join("，")} /></label>
-        <label className="health-checkbox wide"><input name="avoidHighRisk" type="checkbox" defaultChecked={profile?.profile.activity.avoidHighRisk} /><span>避免高风险或容易受伤的活动建议</span></label>
-        <h3 className="wide">饮食与补充剂</h3>
-        <label className="wide"><span>用餐场景</span><textarea name="mealContext" rows={2} defaultValue={profile?.profile.food.mealContext} required /></label>
-        <label><span>早餐时间</span><input name="breakfastTime" type="time" defaultValue={profile?.profile.food.mealTimes.breakfast} required /></label>
-        <label><span>午餐时间</span><input name="lunchTime" type="time" defaultValue={profile?.profile.food.mealTimes.lunch} required /></label>
-        <label><span>晚餐时间</span><input name="dinnerTime" type="time" defaultValue={profile?.profile.food.mealTimes.dinner} required /></label>
-        <label className="wide"><span>不喜欢或不适合的食物（逗号或换行分隔）</span><textarea name="dislikes" rows={2} defaultValue={profile?.profile.food.dislikes?.join("，")} /></label>
-        <label className="wide"><span>常见食物（逗号或换行分隔）</span><textarea name="commonFoods" rows={3} defaultValue={profile?.profile.food.commonFoods?.join("，")} /></label>
-        <label><span>当前补充剂</span><textarea name="currentSupplements" rows={2} defaultValue={profile?.profile.supplements.current?.join("，")} /></label>
-        <label><span>未来考虑的补充剂</span><textarea name="consideringSupplements" rows={2} defaultValue={profile?.profile.supplements.considering?.join("，")} /></label>
-        <label><span>不使用的补充剂</span><textarea name="avoidsSupplements" rows={2} defaultValue={profile?.profile.supplements.avoids?.join("，")} /></label>
-        <label className="wide"><span>补充说明（可选）</span><textarea name="notes" rows={2} defaultValue={profile?.profile.notes ?? ""} maxLength={2000} /></label>
-        <footer className="wide"><button className="primary-button" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" /> : <Check />}保存我主动填写的资料</button></footer>
+        <h3 className="wide">必填 · 六项就够</h3>
+        <label><span>性别</span><select name="sex" defaultValue={profile?.profile.sex ?? "male"}><option value="male">男</option><option value="female">女</option><option value="other">不便说明</option></select></label>
+        <label><span>年龄</span><input name="age" type="number" min="12" max="120" step="1" defaultValue={profile?.profile.age} required /></label>
+        <label><span>身高（cm）</span><input name="heightCm" type="number" min="120" max="230" step="0.5" defaultValue={profile?.profile.heightCm} required /></label>
+        <label><span>体重（kg）</span><input name="weightKg" type="number" min="30" max="300" step="0.1" defaultValue={profile?.profile.weightKg} required /></label>
+        <fieldset className="wide health-choice"><legend>日常活动量</legend>
+          {(Object.keys(healthActivityLevelLabels) as Profile["activityLevel"][]).map((level) => <label key={level}><input type="radio" name="activityLevel" value={level} defaultChecked={(profile?.profile.activityLevel ?? "light") === level} required /><span>{healthActivityLevelLabels[level]}</span></label>)}
+        </fieldset>
+        <fieldset className="wide health-choice"><legend>主要目标</legend>
+          {(Object.keys(healthGoalLabels) as Profile["goal"][]).map((goal) => <label key={goal}><input type="radio" name="goal" value={goal} defaultChecked={(profile?.profile.goal ?? "maintain") === goal} required /><span>{healthGoalLabels[goal]}</span></label>)}
+        </fieldset>
+        <h3 className="wide">选填 · 写得越具体，每周参考越不一样</h3>
+        <label><span>目标体重（kg）</span><input name="targetWeightKg" type="number" min="30" max="300" step="0.1" defaultValue={profile?.profile.targetWeightKg ?? ""} /></label>
+        <label><span>吃饭主要靠</span><select name="eatingContext" defaultValue={profile?.profile.eatingContext ?? ""}><option value="">不填</option>{(Object.keys(healthEatingContextLabels) as NonNullable<Profile["eatingContext"]>[]).map((key) => <option key={key} value={key}>{healthEatingContextLabels[key]}</option>)}</select></label>
+        <label className="wide"><span>平时做什么运动</span><input name="exercise" maxLength={300} defaultValue={profile?.profile.exercise ?? ""} placeholder="例如：力量训练每周 3 次，周末打球" /></label>
+        <label className="wide"><span>爱吃 / 常吃的（逗号分隔）</span><input name="likedFoods" defaultValue={profile?.profile.likedFoods.join("，") ?? ""} placeholder="例如：番茄炒蛋，牛肉面，酸奶" /></label>
+        <label className="wide"><span>不吃 / 过敏 / 不适合的（逗号分隔）</span><input name="avoidFoods" defaultValue={profile?.profile.avoidFoods.join("，") ?? ""} placeholder="例如：香菜，海鲜" /></label>
+        <label className="wide"><span>身体情况</span><input name="bodyNotes" maxLength={500} defaultValue={profile?.profile.bodyNotes ?? ""} placeholder="例如：膝盖不太好，胃怕凉" /></label>
+        <label><span>所在城市</span><input name="city" maxLength={120} defaultValue={profile?.profile.city ?? ""} placeholder="用于结合当地时令" /></label>
+        <footer className="wide"><button className="primary-button" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" /> : <Check />}保存资料</button></footer>
       </form>}
       <section className="health-template" aria-labelledby="health-template-title">
         <header>
@@ -669,10 +626,10 @@ export function HealthWorkspace() {
       {visiblePlan ? <section className="health-plan" ref={candidateSectionRef}>
         <header className="health-plan-header"><div><p className="section-kicker">{candidate ? "待确认版本" : "本周生效版本"}</p><h2>{visiblePlan.solarTerm} · {visiblePlan.city ?? "未设置城市"}</h2></div>{candidate && <div className="candidate-actions"><button className="quiet-button" type="button" disabled={busy} onClick={() => void discardCandidate()}>放弃候选</button><button className="primary-button" type="button" disabled={busy} onClick={() => void confirmCandidate()}>{busy ? <LoaderCircle className="spin" /> : <Check />}确认并使用</button></div>}</header>
         <section className="health-week-summary" aria-label="本周摘要">
-          <div><p className="section-kicker">本周摘要</p><strong>{profile?.profile.goals.slice(0,3).join("、") || "按已保存资料生成的本周参考"}</strong><p>{visiblePlan.overview}</p></div>
+          <div><p className="section-kicker">本周摘要</p><strong>{profile ? healthGoalLabels[profile.profile.goal] : "按已保存资料生成的本周参考"}</strong><p>{visiblePlan.overview}</p></div>
           <dl>
-            <div><dt>每周运动</dt><dd>{profile ? `${profile.profile.activity.sessionsPerWeek} 次` : "未提供"}</dd></div>
-            <div><dt>单次时长</dt><dd>{profile ? `${profile.profile.activity.usualDurationMinutes.minimum}–${profile.profile.activity.usualDurationMinutes.maximum}m` : "未提供"}</dd></div>
+            <div><dt>活动量</dt><dd>{profile ? healthActivityLevelLabels[profile.profile.activityLevel].replace(/（.*$/, "") : "未提供"}</dd></div>
+            <div><dt>BMI</dt><dd>{profile ? (profile.profile.weightKg / ((profile.profile.heightCm / 100) ** 2)).toFixed(1) : "未提供"}</dd></div>
             <div><dt>每日蛋白</dt><dd>{selectedReference ? `${selectedReference.content.proteinRangeGrams.minimum}–${selectedReference.content.proteinRangeGrams.maximum}g` : "未提供"}</dd></div>
             <div><dt>每日饮水</dt><dd>{selectedReference?.content.nutritionTargets ? `${selectedReference.content.nutritionTargets.hydrationLiters.minimum}–${selectedReference.content.nutritionTargets.hydrationLiters.maximum}L` : "当前参考未提供"}</dd></div>
           </dl>
