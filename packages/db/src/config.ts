@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
-const configuredEnvFile = process.env.PERSONAL_AI_ENV_FILE;
+const configuredEnvFile = process.env.TMA_ENV_FILE ?? process.env.PERSONAL_AI_ENV_FILE;
 config({
   path: configuredEnvFile ? resolve(configuredEnvFile) : resolve(sourceDirectory, "../../../.env")
 });

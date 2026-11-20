@@ -345,7 +345,7 @@ fn install_tray(app: &AppHandle) -> tauri::Result<()> {
 
     TrayIconBuilder::with_id("personal-ai-tray")
         .icon(icon)
-        .tooltip("个人 AI 助理")
+        .tooltip("时间管理助手")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {

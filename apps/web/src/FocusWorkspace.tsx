@@ -644,30 +644,6 @@ export function FocusWorkspace({
     }
   }
 
-  async function planAiStructure(instructions: string | null): Promise<void> {
-    if (!selected || selected.scheduleKind !== "exact") return;
-    setBusy(true);
-    setError(null);
-    try {
-      const candidate = await request<{ focusStructure: FocusStructureRecord }>(
-        "/api/v1/focus-structures/ai-candidates", "POST", {
-          taskId: selected.id,
-          taskVersion: selected.version,
-          taskScheduleRevision: selected.scheduleRevision,
-          instructions
-        });
-      const normalized = normalizeStructure(candidate.focusStructure);
-      if (!normalized) throw new Error("focus_structure_invalid_response");
-      setCandidateStructure(normalized);
-    } catch (error: any) {
-      setError(error.body?.error === "focus_structure_task_conflict"
-        ? "任务排期已经变化，请刷新后再让 AI 安排。"
-        : error.body?.message ?? "AI 暂时无法安排，现有结构没有变化。");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function confirmStructure(): Promise<void> {
     if (!selected || !candidateStructure) return;
     setBusy(true);
@@ -1300,7 +1276,7 @@ export function FocusWorkspace({
                 <ThemedFocusTimer theme={focusTheme} value={clockValue} progress={timerProgress} resting={currentSegment?.segmentType === "break"} empty={!displayTask} />
                 <small>{fixedEndLabel ? `固定结束于 ${fixedEndLabel}` : "选择任务后显示固定结束时间。"}</small>
               </div>
-              {selected?.scheduleKind === "exact" && selected.startAt && selected.endAt && !locksSelectedStructure && (loadedStructureKey !== structureKey ? <p className="focus-structure-loading">正在恢复已保存的专注结构…</p> : <FocusStructureEditor task={{ id: selected.id, startAt: selected.startAt, endAt: selected.endAt, timeZone: selected.timeZone }} active={activeStructure} candidate={candidateStructure} busy={busy} onSave={saveStructure} onPlanAi={planAiStructure} onConfirm={confirmStructure} onConfirmDraft={confirmStructureDraft} onDiscard={discardCandidate} />)}
+              {selected?.scheduleKind === "exact" && selected.startAt && selected.endAt && !locksSelectedStructure && (loadedStructureKey !== structureKey ? <p className="focus-structure-loading">正在恢复已保存的专注结构…</p> : <FocusStructureEditor task={{ id: selected.id, startAt: selected.startAt, endAt: selected.endAt, timeZone: selected.timeZone }} active={activeStructure} candidate={candidateStructure} busy={busy} onSave={saveStructure} onConfirm={confirmStructure} onConfirmDraft={confirmStructureDraft} onDiscard={discardCandidate} />)}
               <div className="focus-controls">
                 {stage === "idle" && <button className="focus-main-action" disabled={!isFocusStartEligibleTask(selected) || busy || !activeStructure} onClick={() => void begin()}><Play />{selected && !activeStructure ? "先确认专注结构" : "我会准时开始"}</button>}
               </div>
@@ -1315,7 +1291,7 @@ export function FocusWorkspace({
               </div>
               {loadedStructureKey !== structureKey
                 ? <p className="focus-structure-loading">正在恢复已保存的专注结构…</p>
-                : <FocusStructureEditor task={{ id: selected.id, startAt: selected.startAt, endAt: selected.endAt, timeZone: selected.timeZone }} active={activeStructure} candidate={candidateStructure} busy={busy} onSave={saveStructure} onPlanAi={planAiStructure} onConfirm={confirmStructure} onConfirmDraft={confirmStructureDraft} onDiscard={discardCandidate} />}
+                : <FocusStructureEditor task={{ id: selected.id, startAt: selected.startAt, endAt: selected.endAt, timeZone: selected.timeZone }} active={activeStructure} candidate={candidateStructure} busy={busy} onSave={saveStructure} onConfirm={confirmStructure} onConfirmDraft={confirmStructureDraft} onDiscard={discardCandidate} />}
               <div className="focus-secondary-actions">
                 {selected.id === nextSequentialTaskId
                   ? <button type="button" className="focus-execution-primary" disabled={busy || !activeStructure} onClick={() => void armSelectedDuringExecution()}><Play />我会准时开始</button>

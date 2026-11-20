@@ -456,3 +456,46 @@
 .focus-task-slip.selected > span, .focus-task-slip.selected > strong, .focus-task-slip.selected > small { color: var(--red) !important; }
 .focus-task-slip.selected:hover:not(:disabled) { background: var(--ink); box-shadow: 6px 6px 0 rgba(22, 0, 0, .35); }
 .focus-task-slips > p { border-radius: 0; border: var(--rule) dashed var(--ink); color: var(--ink-2); }
+
+/* ---------------------------------------------------------------------------
+   Poster skin for the separate focus window (default “红色海报” theme):
+   ink title bar, red paper, square ink-outlined controls — same language as the main window.
+   --------------------------------------------------------------------------- */
+.focus-mini.focus-theme-ink { background: var(--red); color: var(--ink); border: var(--rule) solid var(--ink); }
+.focus-mini.focus-theme-ink .focus-mini-titlebar { background: var(--ink); color: var(--red); border-bottom: 0; font-family: var(--font-mono); letter-spacing: .08em; }
+.focus-mini.focus-theme-ink .focus-mini-titlebar button { color: var(--red); border-radius: 0; }
+.focus-mini.focus-theme-ink .focus-mini-titlebar button:hover { background: var(--red); color: var(--ink); }
+.focus-mini.focus-theme-ink .focus-mini-heading span { font-family: var(--font-mono); letter-spacing: .14em; color: var(--ink); }
+.focus-mini.focus-theme-ink .focus-mini-heading strong { font-family: var(--font-display-zh); font-weight: 400; font-size: 24px; letter-spacing: .02em; color: var(--ink); background: var(--red); padding: 0 .2em; }
+.focus-mini.focus-theme-ink :is(.focus-mini-clock small, .focus-mini-quote, .focus-mini-confirm-hint, .focus-mini-confirmed-state) { color: var(--ink); background: var(--red); padding: 0 .35em; width: fit-content; margin-inline: auto; font-family: var(--font-mono); letter-spacing: .04em; }
+.focus-mini.focus-theme-ink .lcd-segment.active, .focus-mini.focus-theme-ink .lcd-colon { fill: var(--ink); }
+.focus-mini.focus-theme-ink .lcd-segment.inactive { fill: var(--ink); opacity: .08; }
+.focus-mini.focus-theme-ink .focus-mini-progress::before { background: var(--red); border: var(--rule) solid var(--ink); border-radius: 0; height: 8px; }
+.focus-mini.focus-theme-ink .focus-mini-progress i::before { background: var(--ink); height: 8px; border-radius: 0; }
+.focus-mini.focus-theme-ink .focus-mini-progress b { background: var(--red); border: var(--rule) solid var(--ink); border-radius: 0; box-shadow: none; }
+.focus-mini.focus-theme-ink .focus-mini-controls button { border: var(--rule) solid var(--ink); border-radius: 0; background: var(--red); color: var(--ink); font-family: var(--font-ui); font-weight: 600; box-shadow: 2px 2px 0 var(--ink); transition: transform var(--dur-1) var(--ease-standard), box-shadow var(--dur-1) var(--ease-standard); }
+.focus-mini.focus-theme-ink .focus-mini-controls button.primary { background: var(--ink); color: var(--red); }
+.focus-mini.focus-theme-ink .focus-mini-controls button:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); background: var(--cream); color: var(--ink); }
+.focus-mini.focus-theme-ink .focus-mini-controls button.primary:hover:not(:disabled) { background: var(--ink); color: var(--cream); }
+.focus-mini.focus-theme-ink .focus-mini-controls button.danger { color: var(--ink); text-decoration: line-through; text-decoration-thickness: 1px; }
+.focus-mini.focus-theme-ink .focus-mini-controls button:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 0 0 0 var(--ink); }
+
+/* Evaluation inside the focus window */
+.focus-mini.focus-mini-evaluation.focus-theme-ink { background: var(--red); }
+.focus-mini.focus-mini-evaluation.focus-theme-ink .focus-mini-evaluation-body { padding: 0 18px 20px; }
+.focus-mini.focus-theme-ink .focus-evaluation-timeout { margin: 0 -18px 16px; padding: 7px 18px; background: var(--ink); color: var(--red); font: 500 11px/1.4 var(--font-mono); letter-spacing: .06em; text-align: left; }
+.focus-mini.focus-theme-ink .focus-evaluation-sheet { background: transparent; padding: 0; }
+.focus-mini.focus-theme-ink .focus-evaluation-heading { border-bottom: var(--rule) solid var(--ink); padding-bottom: 14px; }
+.focus-mini.focus-theme-ink .focus-evaluation-heading p { color: var(--ink); font: 500 11px/1.3 var(--font-mono); letter-spacing: .14em; }
+.focus-mini.focus-theme-ink .focus-evaluation-heading h1 { font: 400 30px/1.15 var(--font-display-zh); color: var(--ink); }
+.focus-theme-ink :is(.focus-evaluation-outcomes, .focus-evaluation-feelings) button { border: var(--rule) solid var(--ink); border-radius: 0; background: var(--red); color: var(--ink); box-shadow: none; }
+.focus-theme-ink :is(.focus-evaluation-outcomes, .focus-evaluation-feelings) button:hover:not(.selected) { background: var(--cream); }
+.focus-theme-ink .focus-evaluation-outcomes button.selected,
+.focus-theme-ink .focus-evaluation-feelings .feeling-satisfied.selected { background: var(--ink); color: var(--red); border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.focus-theme-ink .focus-evaluation-feelings .feeling-neutral.selected { background: repeating-linear-gradient(115deg, var(--ink) 0 2px, var(--red) 2px 7px); color: var(--ink); border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.focus-theme-ink .focus-evaluation-feelings .feeling-neutral.selected > * { background: var(--red); padding: 0 .3em; }
+.focus-theme-ink .focus-evaluation-feelings .feeling-dissatisfied.selected { background: var(--cream); color: var(--ink); border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.focus-theme-ink :is(.focus-evaluation-progress input, .focus-evaluation-note textarea) { border: var(--rule) solid var(--ink); border-radius: 0; background: var(--red-2, var(--red)); color: var(--ink); }
+.focus-theme-ink .focus-evaluation-note textarea::placeholder { color: var(--ink-3); }
+.focus-theme-ink .focus-evaluation-footer button { border-radius: 0; background: var(--ink); color: var(--red); box-shadow: 3px 3px 0 var(--cream); }
+.focus-theme-ink .focus-evaluation-footer button:hover:not(:disabled) { background: var(--ink); color: var(--cream); }

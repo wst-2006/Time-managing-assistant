@@ -78,7 +78,7 @@ export function CyberFocusEvaluation(props: CyberFocusEvaluationProps) {
 
   return <section className="cyber-evaluation" aria-labelledby="cyber-evaluation-title">
     <FocusMotionBackdrop theme="cyber" evaluation />
-    <p className="cyber-copyright">PERSONAL AI ASSISTANT / SESSION REVIEW</p>
+    <p className="cyber-copyright">TIME MANAGING ASSISTANT / SESSION REVIEW</p>
     <p className="cyber-prompt">PS C:\Focus\review&gt; evaluate --latest<span className="focus-terminal-cursor" aria-hidden="true" /></p>
     <h1 id="cyber-evaluation-title">{props.taskTitle}</h1>
 

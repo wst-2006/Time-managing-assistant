@@ -38,8 +38,8 @@ struct BundledLaunch {
     runtime: PathBuf,
     node: PathBuf,
     api: PathBuf,
-    worker: PathBuf,
     user_env: PathBuf,
+    data_directory: PathBuf,
     log_directory: PathBuf,
 }
 
@@ -101,14 +101,8 @@ impl LocalRuntime {
             .ok_or_else(|| "standalone runtime is missing from the installed app".to_string())?;
         let node = runtime.join("node.exe");
         let api = runtime.join("api").join("dist").join("server.js");
-        let worker = runtime.join("worker").join("dist").join("worker.js");
-        let migration = runtime
-            .join("api")
-            .join("node_modules")
-            .join("@personal-ai")
-            .join("db")
-            .join("dist")
-            .join("migrate.js");
+        // Migrations ship inside the bundled db package; the API applies them to the
+        // embedded database on start, so there is nothing to install or configure.
         let migration_journal = runtime
             .join("api")
             .join("node_modules")
@@ -121,8 +115,6 @@ impl LocalRuntime {
 
         if !node.is_file()
             || !api.is_file()
-            || !worker.is_file()
-            || !migration.is_file()
             || !migration_journal.is_file()
             || !bundled_env_template.is_file()
         {
@@ -142,33 +134,26 @@ impl LocalRuntime {
             &app_data_dir,
             &format!("bundled runtime selected: {}", runtime.display()),
         );
+        // Optional settings (only Feishu today). Created once from the template so the
+        // user has a file to edit; an empty file is a perfectly valid configuration.
         let user_env = app_data_dir.join(".env");
         if !user_env.is_file() {
             fs::copy(&bundled_env_template, &user_env).map_err(|error| {
                 format!("failed to initialize application configuration: {error}")
             })?;
-            return Err(format!(
-                "application configuration was created at {}; fill in the local database settings and restart",
-                user_env.display()
-            ));
         }
-        let configuration = fs::read_to_string(&user_env)
-            .map_err(|error| format!("failed to read application configuration: {error}"))?;
-        if configuration.contains("replace-with-url-encoded-password") {
-            return Err(format!(
-                "application configuration at {} still contains placeholders; fill in the local database settings and restart",
-                user_env.display()
-            ));
-        }
+        let data_directory = app_data_dir.join("data");
+        fs::create_dir_all(&data_directory)
+            .map_err(|error| format!("failed to create the data folder: {error}"))?;
 
-        // A previous release could leave API and worker children alive after its
+        // A previous release could leave its API child alive after its
         // desktop shell closed. Clean this app's known bundled runtimes before
         // checking port 3000; never touch a source-tree Node process.
         let mut bundled_nodes = vec![node.clone(), app_data_dir.join("runtime").join("node.exe")];
         if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
             bundled_nodes.push(
                 PathBuf::from(local_app_data)
-                    .join("Personal AI Assistant")
+                    .join("Time Managing Assistant")
                     .join("runtime")
                     .join("node.exe"),
             );
@@ -182,14 +167,12 @@ impl LocalRuntime {
             );
         }
 
-        run_bundled_migrations(&runtime, &node, &migration, &user_env, &app_data_dir)?;
-
         let launch = BundledLaunch {
             runtime: runtime.clone(),
             node: node.clone(),
             api: api.clone(),
-            worker: worker.clone(),
             user_env: user_env.clone(),
+            data_directory: data_directory.clone(),
             log_directory: app_data_dir.clone(),
         };
         *self
@@ -198,7 +181,7 @@ impl LocalRuntime {
             .map_err(|_| "local runtime launch lock poisoned")? = Some(launch);
 
         let mut api_child =
-            match self.spawn_node(&runtime, &node, &api, &user_env, &app_data_dir, "api") {
+            match self.spawn_node(&runtime, &node, &api, &user_env, &data_directory, &app_data_dir, "api") {
                 Ok(child) => child,
                 Err(error) => {
                     self.start_monitor(app);
@@ -211,38 +194,10 @@ impl LocalRuntime {
             return Err(error);
         }
 
-        let mut worker_child =
-            match self.spawn_node(&runtime, &node, &worker, &user_env, &app_data_dir, "worker") {
-                Ok(child) => child,
-                Err(error) => {
-                    stop_process_tree(api_child);
-                    self.start_monitor(app);
-                    return Err(error);
-                }
-            };
-        thread::sleep(Duration::from_millis(300));
-        match worker_child.try_wait() {
-            Ok(Some(status)) => {
-                stop_process_tree(api_child);
-                self.start_monitor(app);
-                return Err(format!(
-                    "bundled worker exited during startup with status {status}; inspect worker.stderr.log"
-                ));
-            }
-            Ok(None) => {}
-            Err(error) => {
-                stop_process_tree(api_child);
-                stop_process_tree(worker_child);
-                self.start_monitor(app);
-                return Err(format!("failed to inspect bundled worker process: {error}"));
-            }
-        }
-
         let mut children = match self.children.lock() {
             Ok(children) => children,
             Err(_) => {
                 stop_process_tree(api_child);
-                stop_process_tree(worker_child);
                 self.start_monitor(app);
                 return Err("local runtime lock poisoned".to_string());
             }
@@ -250,10 +205,6 @@ impl LocalRuntime {
         children.push(ManagedChild {
             service: "api",
             child: api_child,
-        });
-        children.push(ManagedChild {
-            service: "worker",
-            child: worker_child,
         });
         drop(children);
 
@@ -273,7 +224,7 @@ impl LocalRuntime {
             .children
             .lock()
             .map_err(|_| "local runtime lock poisoned")?;
-        for script in ["dev:api", "dev:worker"] {
+        for script in ["dev:api"] {
             let mut command = Command::new(pnpm_command());
             command.args(["--dir", root.to_string_lossy().as_ref(), script]);
             configure_command(&mut command);
@@ -345,7 +296,7 @@ impl LocalRuntime {
                         pending_restarts.push(service);
                     }
                 }
-                for service in ["api", "worker"] {
+                for service in ["api"] {
                     if !running_services.contains(&service) && !pending_restarts.contains(&service)
                     {
                         pending_restarts.push(service);
@@ -377,34 +328,21 @@ impl LocalRuntime {
         launch: &BundledLaunch,
         service: &'static str,
     ) -> Result<(), String> {
-        let entrypoint = match service {
-            "api" => &launch.api,
-            "worker" => &launch.worker,
-            _ => return Err(format!("unsupported bundled service: {service}")),
-        };
+        if service != "api" {
+            return Err(format!("unsupported bundled service: {service}"));
+        }
         let mut child = self.spawn_node(
             &launch.runtime,
             &launch.node,
-            entrypoint,
+            &launch.api,
             &launch.user_env,
+            &launch.data_directory,
             &launch.log_directory,
             service,
         )?;
-        if service == "api" {
-            if let Err(error) = wait_for_local_api(&mut child) {
-                stop_process_tree(child);
-                return Err(error);
-            }
-        } else {
-            thread::sleep(Duration::from_millis(800));
-            if let Some(status) = child
-                .try_wait()
-                .map_err(|error| format!("failed to inspect bundled worker process: {error}"))?
-            {
-                return Err(format!(
-                    "bundled worker exited during restart with status {status}"
-                ));
-            }
+        if let Err(error) = wait_for_local_api(&mut child) {
+            stop_process_tree(child);
+            return Err(error);
         }
 
         self.children
@@ -424,6 +362,7 @@ impl LocalRuntime {
         node: &Path,
         entrypoint: &Path,
         env_file: &Path,
+        data_directory: &Path,
         log_directory: &Path,
         service: &str,
     ) -> Result<Child, String> {
@@ -447,7 +386,8 @@ impl LocalRuntime {
             .arg(&entrypoint_argument)
             .current_dir(runtime)
             .env("NODE_ENV", "production")
-            .env("PERSONAL_AI_ENV_FILE", env_file)
+            .env("TMA_ENV_FILE", env_file)
+            .env("TMA_DATA_DIR", data_directory)
             .env("API_HOST", "127.0.0.1")
             .env("API_PORT", "3000")
             .stdout(Stdio::from(stdout))
@@ -510,55 +450,6 @@ fn append_desktop_log(directory: &Path, message: &str) {
     if let Ok(mut log) = OpenOptions::new().create(true).append(true).open(path) {
         let _ = writeln!(log, "[{timestamp}] {message}");
     }
-}
-
-fn run_bundled_migrations(
-    runtime: &Path,
-    node: &Path,
-    migration: &Path,
-    env_file: &Path,
-    log_directory: &Path,
-) -> Result<(), String> {
-    let stdout_path = log_directory.join("migration.stdout.log");
-    let stderr_path = log_directory.join("migration.stderr.log");
-    rotate_log_if_needed(&stdout_path);
-    rotate_log_if_needed(&stderr_path);
-    let stdout = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&stdout_path)
-        .map_err(|error| format!("failed to open migration stdout log: {error}"))?;
-    let stderr = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&stderr_path)
-        .map_err(|error| format!("failed to open migration stderr log: {error}"))?;
-    let migration_argument = node_entrypoint_argument(runtime, migration);
-    let mut command = Command::new(node);
-    command
-        .arg(&migration_argument)
-        .current_dir(runtime)
-        .env("NODE_ENV", "production")
-        .env("PERSONAL_AI_ENV_FILE", env_file)
-        .env(
-            "PERSONAL_AI_MIGRATION_BACKUP_DIR",
-            log_directory.join("backups").join("migrations"),
-        )
-        .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr));
-    configure_command(&mut command);
-    let status = command
-        .status()
-        .map_err(|error| format!("failed to start guarded database migration: {error}"))?;
-    if status.success() {
-        append_desktop_log(log_directory, "guarded database migration check completed");
-        return Ok(());
-    }
-    Err(format!(
-        "guarded database migration stopped with status {status}; inspect {} and {}",
-        stdout_path.display(),
-        stderr_path.display()
-    ))
 }
 
 fn rotate_log_if_needed(path: &Path) {
@@ -654,11 +545,6 @@ fn bundled_runtime_dir(app: &AppHandle) -> Result<Option<PathBuf>, String> {
     Ok(candidates.into_iter().find(|runtime| {
         runtime.join("node.exe").is_file()
             && runtime.join("api").join("dist").join("server.js").is_file()
-            && runtime
-                .join("worker")
-                .join("dist")
-                .join("worker.js")
-                .is_file()
     }))
 }
 
@@ -870,7 +756,7 @@ pub(crate) fn confirm_full_exit() -> bool {
         value.encode_utf16().chain(std::iter::once(0)).collect()
     }
 
-    let title = wide("彻底退出个人 AI 助理");
+    let title = wide("彻底退出时间管理助手");
     let body = wide("彻底退出后，本地提醒服务和飞书提醒将停止。\n\n确定要彻底退出吗？");
     unsafe {
         MessageBoxW(
@@ -898,7 +784,7 @@ fn show_startup_error(message: &str) {
     fn wide(value: &str) -> Vec<u16> {
         value.encode_utf16().chain(std::iter::once(0)).collect()
     }
-    let title = wide("个人 AI 助理启动失败");
+    let title = wide("时间管理助手启动失败");
     let body = wide(message);
     unsafe {
         MessageBoxW(
@@ -912,7 +798,7 @@ fn show_startup_error(message: &str) {
 
 #[cfg(not(windows))]
 fn show_startup_error(message: &str) {
-    eprintln!("Personal AI Assistant startup failed: {message}");
+    eprintln!("Time Managing Assistant startup failed: {message}");
 }
 
 fn internal_command_exit_code() -> Option<i32> {
@@ -1006,7 +892,7 @@ fn main() {
                     }
                     if !should_start_hidden() || !retrying {
                         show_startup_error(&format!(
-                            "后台服务暂时没有启动，软件不会再静默闪退。\n\n{error}\n\n{}\n请查看应用数据目录中的 desktop-runtime.log、api.stderr.log 和 worker.stderr.log。",
+                            "后台服务暂时没有启动，软件不会再静默闪退。\n\n{error}\n\n{}\n请查看应用数据目录中的 desktop-runtime.log 和 api.stderr.log。",
                             if retrying {
                                 "软件会留在后台自动重试。"
                             } else {
@@ -1026,7 +912,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("failed to run Personal AI Assistant desktop shell");
+        .expect("failed to run Time Managing Assistant desktop shell");
     app.run(|app, event| match event {
         RunEvent::WindowEvent { label, event, .. }
             if focus_companion::handle_window_event(app, &label, &event) => {}

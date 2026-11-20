@@ -32,7 +32,6 @@ type Props = {
   candidate: FocusStructureRecord | null;
   busy: boolean;
   onSave: (segments: FocusSegment[], source: "manual" | "template") => Promise<void>;
-  onPlanAi: (instructions: string | null) => Promise<void>;
   onConfirm: () => Promise<void>;
   onConfirmDraft: (segments: FocusSegment[]) => Promise<void>;
   onDiscard: () => Promise<void>;
@@ -45,7 +44,7 @@ const distributions: Array<{ value: FocusDistribution | "custom"; label: string 
   { value: "custom", label: "自定义" }
 ];
 
-export function FocusStructureEditor({ task, active, candidate, busy, onSave, onPlanAi, onConfirm, onConfirmDraft, onDiscard }: Props) {
+export function FocusStructureEditor({ task, active, candidate, busy, onSave, onConfirm, onConfirmDraft, onDiscard }: Props) {
   const totalMinutes = Math.round((new Date(task.endAt).getTime() - new Date(task.startAt).getTime()) / 60_000);
   const defaultBreak = totalMinutes >= 120 ? 15 : totalMinutes >= 90 ? 10 : 5;
   const [focusCount, setFocusCount] = useState(1);
@@ -54,7 +53,6 @@ export function FocusStructureEditor({ task, active, candidate, busy, onSave, on
   const [segments, setSegments] = useState<FocusSegment[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [aiInstructions, setAiInstructions] = useState("");
   const dragRef = useRef<null | { boundaryIndex: number; startX: number; width: number; initial: FocusSegment[] }>(null);
   const maxCount = totalMinutes === 30 ? 1 : Math.max(1, Math.floor(totalMinutes / (30 + Math.max(5, breakMinutes))));
 
@@ -190,7 +188,7 @@ export function FocusStructureEditor({ task, active, candidate, busy, onSave, on
       <header className="structure-heading">
         <div>
           <p className="section-kicker">执行结构</p>
-          <strong>{candidate ? candidate.source === "ai" ? "AI 候选，等待你确认" : "候选方案，等待确认" : usingActive ? "当前使用方案" : active ? "已调整，等待确认" : "先安排这段时间"}</strong>
+          <strong>{candidate ? "候选方案，等待确认" : usingActive ? "当前使用方案" : active ? "已调整，等待确认" : "先安排这段时间"}</strong>
         </div>
         <span>{timeRange} · {totalMinutes} 分钟</span>
       </header>
@@ -259,23 +257,6 @@ export function FocusStructureEditor({ task, active, candidate, busy, onSave, on
         </div>
       )}
 
-      <details className="structure-ai-disclosure">
-        <summary><Sparkles /><span><strong>需要 AI 帮你拆分？</strong><small>按需展开，不影响当前结构。</small></span></summary>
-        <div className="structure-ai-planner">
-          <textarea
-            aria-label="AI 专注结构临时要求"
-            rows={2}
-            maxLength={1000}
-            placeholder="例如：分成 3 段，段间休息 5 分钟"
-            disabled={busy}
-            value={aiInstructions}
-            onChange={(event) => setAiInstructions(event.target.value)}
-          />
-          <button type="button" className="focus-secondary" disabled={busy} onClick={() => void onPlanAi(aiInstructions.trim() || null)}>
-            <Sparkles />{candidate?.source === "ai" ? "重新安排" : "生成候选"}
-          </button>
-        </div>
-      </details>
 
       <div className="structure-timeline" aria-label="专注结构时间带">
         {timeline.map((segment, index) => (

@@ -24,7 +24,7 @@ export function LaunchSplash() {
   }, [visible]);
 
   if (!visible) return null;
-  return <section className={`ink-loading-screen ${leaving ? "is-leaving" : ""}`} aria-label="正在打开个人 AI 助手" aria-live="polite">
+  return <section className={`ink-loading-screen ${leaving ? "is-leaving" : ""}`} aria-label="正在打开时间管理助手" aria-live="polite">
     <div className="ink-loading-center">
       <span className="ink-loading-seal" aria-hidden="true">序</span>
     </div>

@@ -1,22 +1,22 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const runtimeRoot = join(repositoryRoot, "apps", "desktop", "src-tauri", "runtime");
-const envFile = join(repositoryRoot, ".env");
 const node = join(runtimeRoot, "node.exe");
 const api = join(runtimeRoot, "api", "dist", "server.js");
-const worker = join(runtimeRoot, "worker", "dist", "worker.js");
-const migration = join(runtimeRoot, "api", "node_modules", "@personal-ai", "db", "dist", "migrate.js");
 const migrationFolder = join(runtimeRoot, "api", "node_modules", "@personal-ai", "db", "drizzle");
 const migrationJournal = join(migrationFolder, "meta", "_journal.json");
 const bundledEnv = join(runtimeRoot, ".env");
 const port = "39091";
+// A throwaway data folder: verification never touches the builder's own data.
+const dataDirectory = mkdtempSync(join(tmpdir(), "tma-runtime-verify-"));
 
-if (!existsSync(node) || !existsSync(api) || !existsSync(worker) || !existsSync(migration) || !existsSync(migrationJournal)) {
+if (!existsSync(node) || !existsSync(api) || !existsSync(migrationJournal)) {
   throw new Error("standalone runtime is missing; run pnpm prepare:desktop-runtime first");
 }
 const journal = JSON.parse(readFileSync(migrationJournal, "utf8"));
@@ -24,13 +24,10 @@ const latestMigration = journal.entries?.at(-1)?.tag;
 if (typeof latestMigration !== "string" || !existsSync(join(migrationFolder, `${latestMigration}.sql`))) {
   throw new Error("standalone runtime is missing the latest Drizzle migration");
 }
-if (!existsSync(envFile)) {
-  throw new Error("local verification requires the ignored repository .env file");
-}
 if (existsSync(bundledEnv)) {
   throw new Error("standalone runtime must never contain the private repository .env file");
 }
-for (const entrypoint of [api, worker, migration]) {
+for (const entrypoint of [api]) {
   const syntax = spawnSync(node, ["--check", entrypoint], { cwd: runtimeRoot, encoding: "utf8" });
   if (syntax.status !== 0) {
     throw new Error(`standalone entrypoint syntax check failed for ${entrypoint}: ${syntax.stderr || syntax.stdout}`);
@@ -44,9 +41,11 @@ const child = spawn(node, [api], {
     ...process.env,
     API_HOST: "127.0.0.1",
     API_PORT: port,
-    PERSONAL_AI_ENV_FILE: envFile,
-    // External Feishu delivery was already accepted separately. Packaging QA
-    // verifies the local runtime without opening a duplicate long connection.
+    TMA_DATA_DIR: dataDirectory,
+    TMA_ENV_FILE: join(runtimeRoot, ".env.example"),
+    // Packaging QA verifies the local runtime without opening a Feishu connection.
+    FEISHU_APP_ID: "",
+    FEISHU_APP_SECRET: "",
     FEISHU_CALLBACK_TRANSPORT: "http"
   }
 });
@@ -82,10 +81,8 @@ try {
     ].filter(Boolean).join("; ");
     throw new Error(`standalone API did not become healthy (${diagnostics || "no process diagnostics"})`);
   }
-  const capabilities = await fetchJson(`http://127.0.0.1:${port}/api/v1/health/capabilities`);
-  if (typeof capabilities.sleepImageAnalysis !== "boolean") {
-    throw new Error("standalone health capability response is missing sleepImageAnalysis");
-  }
+  const profile = await fetch(`http://127.0.0.1:${port}/api/v1/health/profile`);
+  if (!profile.ok) throw new Error(`standalone health profile read returned HTTP ${profile.status}`);
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit"
   }).format(new Date());
@@ -100,15 +97,16 @@ try {
       throw new Error("standalone focus structure response is malformed");
     }
   }
-  console.log("standalone-runtime-health-capabilities: ok");
+  console.log("standalone-runtime-health-profile-read: ok");
   console.log("standalone-runtime-task-read: ok");
   console.log(`standalone-runtime-focus-structure-read: ${exactTask ? "ok" : "skipped (no exact task today)"}`);
-  console.log("standalone-runtime-worker-syntax: ok");
-  console.log(`standalone-runtime-migrations: ok (${latestMigration})`);
+  console.log(`standalone-runtime-embedded-database: ok (${latestMigration})`);
   console.log("standalone-runtime-private-env-excluded: ok");
   console.log("standalone-runtime-health: ok");
 } finally {
   child.kill();
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 500));
+  rmSync(dataDirectory, { recursive: true, force: true });
 }
 
 async function fetchJson(url) {

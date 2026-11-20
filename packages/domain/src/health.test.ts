@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createManualHealthPlanCandidateSchema, generatedHealthPlanContentSchema, healthPlanContentSchema, healthSleepRevisionCandidateSchema, healthWeekStartSchema, localDatesForHealthWeek, saveHealthDailyActualSchema, sleepImageAnalysisRequestSchema, sleepImageAnalysisSchema } from "./health.js";
+import { createManualHealthPlanCandidateSchema, generatedHealthPlanContentSchema, healthPlanContentSchema, healthWeekStartSchema, localDatesForHealthWeek, saveHealthDailyActualSchema } from "./health.js";
 
 const day = {
   nutritionDirection: "正常餐盘结构，优先蛋白质和两类蔬菜。",
@@ -111,27 +111,7 @@ describe("health reference contracts", () => {
     }).success).toBe(true);
   });
 
-  it("accepts only constrained user-uploaded image inputs and visible metrics", () => {
-    const png = `data:image/png;base64,${Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64")}`;
-    expect(sleepImageAnalysisRequestSchema.safeParse({ localDate: "2026-08-02", fileName: "sleep.png", mimeType: "image/png", dataUrl: png }).success).toBe(true);
-    expect(sleepImageAnalysisRequestSchema.safeParse({ localDate: "2026-08-02", fileName: "sleep.svg", mimeType: "image/svg+xml", dataUrl: "data:image/svg+xml;base64,PHN2Zz4=" }).success).toBe(false);
-    expect(sleepImageAnalysisSchema.safeParse({
-      totalSleepMinutes: 420, deepSleepMinutes: null, lightSleepMinutes: null, remSleepMinutes: null,
-      awakeCount: null, sleepStart: null, wakeTime: "07:30", deviceScore: null, deviceNotes: null,
-      visibleMetrics: ["总睡眠 7 小时"], interpretation: ["截图显示总睡眠约 7 小时。"], limitations: ["仅基于截图中可见信息。"]
-    }).success).toBe(true);
-  });
 
-  it("accepts a sleep revision only with an explicit weekly target and analysis id", () => {
-    expect(healthSleepRevisionCandidateSchema.safeParse({
-      weekStart: "2026-08-02",
-      sleepAnalysisId: "00000000-0000-4000-8000-000000000001"
-    }).success).toBe(true);
-    expect(healthSleepRevisionCandidateSchema.safeParse({
-      weekStart: "2026-08-03",
-      sleepAnalysisId: "not-a-uuid"
-    }).success).toBe(false);
-  });
 
   it("requires a complete valid week when the user creates a manual candidate", () => {
     const content = { overview: "由用户手动调整的本周参考。", supplements: ["查看产品标签。"], days: Array.from({ length: 7 }, () => day) };

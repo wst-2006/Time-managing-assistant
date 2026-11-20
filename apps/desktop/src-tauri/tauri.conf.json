@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Personal AI Assistant",
-  "version": "0.1.44",
-  "identifier": "com.personalai.assistant",
+  "productName": "Time Managing Assistant",
+  "version": "0.2.0",
+  "identifier": "com.wst2006.timemanagingassistant",
   "build": {
     "beforeDevCommand": "corepack pnpm --dir ../.. dev:local",
     "beforeBuildCommand": "corepack pnpm --dir ../web build",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "个人 AI 助理",
+        "title": "时间管理助手",
         "visible": false,
         "width": 1200,
         "height": 820,
@@ -26,8 +26,12 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "resources": ["runtime/**/*"],
+    "targets": [
+      "nsis"
+    ],
+    "resources": [
+      "runtime/**/*"
+    ],
     "windows": {
       "nsis": {
         "installerHooks": "installer/installer-hooks.nsh"

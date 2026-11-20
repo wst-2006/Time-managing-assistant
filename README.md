@@ -1,101 +1,86 @@
-# Personal AI Assistant
+# 时间管理助手 · Time Managing Assistant
 
-> 一个 Windows 优先、本地运行、由用户掌握最终决定权的个人任务与成长助手。
+> 一个装上就能用的本地时间管理软件：排任务、专注计时、给完成情况打分，再加一份可选的每周健康参考。
 
-Personal AI Assistant 不只是任务清单。它把“今天准备做什么”连接到排期、专注、复盘、成长和健康参考，同时让 AI 始终停留在候选、整理和回应的位置：**任何计划变更都必须由用户确认。**
+不需要安装数据库，不需要任何 API 密钥，数据只存在你自己的电脑上。
 
-当前版本：`0.1.44` · 单用户 · Windows 优先 · Local-first
+## 四件事
 
-## 它能做什么
+### 1. 任务安排（今日 / 规划）
 
-### 今天：把任务真正放进一天
+- 上午、下午、晚上三张时间页，当前时段始终在最前面；也可以切到全天视图。
+- 在时间轴空白处拖动就能新建任务，半小时一格；拖动、拉伸即可改时间。
+- 快速记录先放进“未排期”，之后拖到时间轴上。
+- 时间冲突不会被悄悄覆盖，必须你明确保留。
+- 规划页记录月度 / 季度 / 年度的长期目标和里程碑（只记录，不会自动生成任务）。
 
-- 上午、下午、晚上以层叠时间页展示，当前时间页始终处于最前方。
-- 已排期任务与未排期任务分开管理。
-- 未排期任务可拖入完整时间轴，形成明确的开始和结束时间。
-- 时间冲突不会静默覆盖；调整计划仍需用户确认。
-- 想法、问题、正式任务和补录记录保持独立。
+### 2. 专注计时（专注）
 
-### 专注：从准备到评价的完整闭环
-
-- 固定任务开始前一分钟出现准备窗口。
-- 用户明确确认后才进入专注；专注阶段不能暂停或取消。
-- 专注窗口独立存在，可隐藏、置顶或固定在屏幕角落。
-- 支持连续专注、段内休息、末段可跳过休息和最终评价。
+- 有确切时间的任务开始前一分钟进入准备，你确认“我会准时开始”后到点自动开始。
+- 专注中不能暂停或提前结束；可以把整段时间拆成若干专注段和休息段。
+- 独立的专注小窗可以置顶、锁定、收起。
 - 五套计时主题：红色海报（默认）、素简翻页、辉光电子管、蒸汽波、赛博终端。
-- 桌面弹窗、评价、飞书卡片和提示可以分别关闭；全部关闭时也可把应用当作安静的备忘录。
 
-### AI：帮助整理，但不替用户做决定
+### 3. 完成情况打分（专注结束 / 复盘 / 成长）
 
-- 用自然语言整理任务、想法和问题候选。
-- 从长期计划生成可编辑的任务树候选。
-- 对冲突或计划变化给出建议，但不会自动改动时间表。
-- 在复盘和健康页面保留可恢复的对话记录。
+- 每次专注结束弹出评价窗：客观结果（完成 / 部分完成 / 未完成）和主观感受（满意 / 一般 / 不满意）分开记录。
+- 复盘页汇总这一天：计划了几项、完成了几项、有效专注多少分钟、每项任务的结果和感受。
+- 成长页给今天做六维打分（五档刻度），并用竹子和年度趋势图展示长期变化。
 
+### 4. 个人健康（可选）
 
-### 复盘、日记与成长
+软件不接入任何 AI。生成每周健康参考的方式是：
 
-- 保存用户自己的每日复盘，并可选择请求 AI 回应。
-- 在本地保留复盘与日记素材。
-- 六维回看采用五层六边形阶段刻度，只能落在 `20 / 40 / 60 / 80 / 100` 五档顶点。
-- 成长页通过真实任务、专注和反馈呈现趋势、竹子阶段与情绪痕迹。
+1. 在健康页填好自己的资料，点 **复制提问模板**；
+2. 把模板发给任意网页版 AI（DeepSeek、Kimi、豆包、ChatGPT 都可以）；
+3. 把 AI 的回答整段粘贴回来，点 **检查并生成候选**。
 
-### 健康参考
+软件会用代码逐项检查回答格式。不符合的地方会用中文列出来，并给你一段“修正说明”可以直接发回给 AI。检查通过后先成为待确认候选，你确认后才替换本周参考。也可以完全手动编辑。
 
-- 以“周笺 + 日处方”组织饮食、饮水、运动和安全提醒。
-- AI 生成内容先成为候选，确认后才成为当周参考。
-- 健康建议不会自动创建或更改任务。
-- 支持可选的睡眠截图分析；没有可用视觉模型时会明确提示不可用。
+### 飞书提醒（可选）
 
-### 个性化与数据控制
+如果你用飞书，可以让任务开始前在手机上收到卡片，直接点“开始”或“另有安排”。不用就不用配置，提醒会留在软件里。见 [docs/FEISHU_LOCAL_USAGE.md](docs/FEISHU_LOCAL_USAGE.md)。
 
-- 统一设置5种专注计时主题。
-- 窗口位置、通知、飞书卡片、健康页和评价流程。
-- 本地逻辑备份由用户主动下载，不包含 API Key 或数据库密码。
+## 安装
+
+### Windows 安装包（推荐）
+
+到 [Releases](https://github.com/wst-2006/Time-managing-assistant/releases) 下载 `Time Managing Assistant_x.y.z_x64-setup.exe`，双击安装即可。安装包自带运行环境和数据库，不需要额外装任何东西。
+
+数据和设置保存在 `%APPDATA%\com.wst2006.timemanagingassistant\` 下（`data` 文件夹是数据库，`.env` 是可选设置）。
+
+### 从源码运行
+
+需要 Node.js 22+（自带 Corepack）。
+
+```bash
+corepack enable
+corepack pnpm install
+corepack pnpm dev:local      # 启动本地服务 (127.0.0.1:3000) 和界面 (http://localhost:5173)
+```
+
+数据默认存在 `~/.time-managing-assistant/data`。想换位置，复制 `.env.example` 为 `.env` 并设置 `TMA_DATA_DIR`。
+
+### 自己打包安装程序
+
+在 Windows 上安装 Rust 后运行 `corepack pnpm build:desktop`。也可以推送一个 `v*` 标签，让 GitHub Actions（`.github/workflows/release.yml`）自动打包并附到 Release。
+
+## 数据与备份
+
+- 顶栏的“备份所有数据”会下载一份完整的 JSON 备份，不包含任何密钥。
+- 也可以退出软件后直接复制整个 `data` 文件夹。
 - 回收站支持保留期限和一键清空。
 
-## 隐私与安全边界
+## 开发
 
-- 应用是本地优先、单用户结构；API、Worker 和 PostgreSQL 均运行在用户自己的电脑上。
-发现凭据泄露时，请先撤销或轮换凭据，再处理 Git 历史。完整边界见 [SECURITY.md](SECURITY.md)。
+```bash
+corepack pnpm check      # 类型检查
+corepack pnpm test       # 单元与接口测试（内存数据库）
+corepack pnpm test:e2e   # 浏览器测试（临时数据文件夹，不会碰到真实数据）
+```
 
-## 普通用户从零开始
+结构说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，界面约定见 [docs/DESIGN.md](docs/DESIGN.md)。
 
-目前发布版需要：
+## 许可
 
-- Windows 10/11 x64；
-- PostgreSQL 18.x；
-- GitHub Release 中提供的 Windows 安装包；
-- 可选的 DeepSeek、飞书或视觉服务账号。
-
-第一次安装时，从以下文档开始：
-
-1. [Windows 安装与数据库准备](docs/INSTALLATION.md)
-2. [DeepSeek、飞书和视觉服务配置](docs/INTEGRATIONS.md)
-3. 启动软件后进入左侧“设置 / 个性化”，决定是否启用专注窗口、评价、飞书卡片和健康参考。
-
-外部服务全部是可选项。没有配置 AI 或飞书时，任务、排期、专注、复盘、成长和本地备忘录功能仍可独立使用。
-
-
-
-## 当前限制
-
-- 电脑关闭时，本地 Worker 和飞书提醒不会继续运行。
-- 当前没有云端同步、多人协作或移动端客户端。
-- 首个 Windows 版本可能尚未进行商业代码签名，Windows SmartScreen 可能显示信誉提醒。
-- PostgreSQL 仍是外部本地依赖，尚未内置到安装包。
-- 外部 AI 和飞书能力取决于用户自己的账号、额度、网络和服务可用性。
-
-## 贡献、发布与许可证
-
-- 贡献规则：[CONTRIBUTING.md](CONTRIBUTING.md)
-- 架构说明：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- GitHub 发布计划：[docs/GITHUB_PUBLICATION_PLAN.md](docs/GITHUB_PUBLICATION_PLAN.md)
-- 首次创建仓库与发布：[docs/GITHUB_FIRST_PUBLISH.md](docs/GITHUB_FIRST_PUBLISH.md)
-- 开源许可证：[Apache License 2.0](LICENSE)
-
-本项目采用 Apache License 2.0。允许使用、修改和再发布，并包含明确的专利授权；再发布时需要遵守许可证中的版权、许可证与变更说明要求。
-
----
-
-**English summary:** A local-first, single-user Windows task and growth assistant covering scheduling, focus sessions, review, AI-assisted planning, health references and privacy-controlled external integrations. All plan changes remain subject to explicit user confirmation.
+见 [LICENSE](LICENSE)。

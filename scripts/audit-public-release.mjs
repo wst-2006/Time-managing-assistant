@@ -31,7 +31,7 @@ for (const file of publicFiles) {
   if (personalPathPattern.test(content)) findings.push(`${file}: local user path detected`);
 }
 
-const requiredFiles = [".env.example", "README.md", "SECURITY.md", "CONTRIBUTING.md", "docs/GITHUB_PUBLICATION_PLAN.md"];
+const requiredFiles = [".env.example", "README.md", "SECURITY.md", "LICENSE"];
 for (const file of requiredFiles) if (!existsSync(join(root, file))) findings.push(`${file}: required publication file is missing`);
 
 const ignore = readFileSync(join(root, ".gitignore"), "utf8");

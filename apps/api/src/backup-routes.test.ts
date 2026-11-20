@@ -26,7 +26,7 @@ describe("logical backup export route", () => {
     expect(response.statusCode).toBe(200);
     expect(response.headers["content-type"]).toContain("application/json");
     expect(response.headers["cache-control"]).toBe("no-store");
-    expect(response.headers["content-disposition"]).toMatch(/attachment; filename="personal-ai-assistant-backup-20260802T123456789Z\.json"/);
+    expect(response.headers["content-disposition"]).toMatch(/attachment; filename="time-managing-assistant-backup-20260802T123456789Z\.json"/);
     expect(response.json()).toMatchObject({
       format: logicalBackupFormat,
       formatVersion: logicalBackupFormatVersion,

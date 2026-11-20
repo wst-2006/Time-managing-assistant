@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-if (process.env.PERSONAL_AI_E2E_ISOLATED !== "1") {
+if (process.env.TMA_E2E_ISOLATED !== "1") {
   throw new Error(
-    "Playwright E2E requires the isolated runner. Use `pnpm test:e2e` so tests cannot connect to the user's live database."
+    "Playwright E2E requires the isolated runner. Use `pnpm test:e2e` so tests run against a throwaway data folder instead of your real one."
   );
 }
 
@@ -32,15 +32,15 @@ export default defineConfig({
     {
       command: "pnpm --dir ../api start",
       url: `${apiBaseUrl}/health`,
-      env: { API_PORT: apiPort, FEISHU_CALLBACK_TRANSPORT: "http" },
-      reuseExistingServer: true,
+      env: { API_PORT: apiPort, FEISHU_CALLBACK_TRANSPORT: "http", TMA_DATA_DIR: process.env.TMA_DATA_DIR ?? "", TMA_DISABLE_BACKGROUND_JOBS: "1" },
+      reuseExistingServer: false,
       timeout: 30_000
     },
     {
       command: `pnpm exec vite --host 127.0.0.1 --port ${webPort}`,
       url: webBaseUrl,
       env: { VITE_API_BASE_URL: apiBaseUrl },
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 30_000
     }
   ]

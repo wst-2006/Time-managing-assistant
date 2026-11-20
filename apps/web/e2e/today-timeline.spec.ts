@@ -1,6 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { connectVerifiedDatabase } from "@personal-ai/db/client";
-import { loadDatabaseConfig } from "@personal-ai/db/config";
+import { connectE2EDatabase } from "./support/database";
 import { desktopCommandRequests, focusSessionSegmentRuns, focusSessions, focusStructureSegments, focusStructures, focusTimerJobs, reminderJobs, taskConflictAcceptances, taskFeedback, taskLegacyMetadata, taskLifecycleEvents, taskOutcomes, tasks } from "@personal-ai/db/schema";
 import { eq, inArray, or } from "drizzle-orm";
 
@@ -64,7 +63,7 @@ async function createExactTask(
 
 async function cleanup(request:APIRequestContext, ids:string[]) {
   if(!ids.length)return;
-  const {client,db}=await connectVerifiedDatabase(loadDatabaseConfig());
+  const {client,db}=await connectE2EDatabase();
   try{await db.transaction(async(tx)=>{
     await tx.delete(desktopCommandRequests).where(inArray(desktopCommandRequests.taskId,ids));
     await tx.delete(reminderJobs).where(inArray(reminderJobs.taskId,ids));
@@ -82,7 +81,6 @@ async function cleanup(request:APIRequestContext, ids:string[]) {
 }
 
 async function createUnscheduledTask(page:Page,title:string){
-  await page.getByRole("button",{name:"任务",exact:true}).click();
   await page.getByLabel("快速记录内容").fill(title);
   const created=page.waitForResponse((response)=>response.url()===`${apiBase}/api/v1/tasks`&&response.request().method()==="POST"&&response.status()===201);
   await page.locator(".quick-capture").getByRole("button",{name:"保存",exact:true}).click();
@@ -116,18 +114,11 @@ async function timelinePoint(page:Page, hour:number, minute=0,surface:TimelineSu
 }
 
 test.describe("真实今日时间轴",()=>{
-  test("完整添加只在任务页签显示，想法和问题恢复不可交互灯泡",async({page})=>{
+  test("快速记录只记任务，完整添加打开任务表单",async({page})=>{
     await page.goto("/");
     await expect(page.locator(".timeline-date").getByRole("button",{name:"完整添加"})).toHaveCount(0);
     const quickCapture=page.locator(".quick-capture");
-    await expect(quickCapture.getByRole("button",{name:"完整添加",exact:true})).toBeVisible();
-    await page.getByRole("button",{name:"想法",exact:true}).click();
-    await expect(quickCapture.getByRole("button",{name:"完整添加",exact:true})).toHaveCount(0);
-    await expect(quickCapture.locator(".quick-lightbulb")).toBeVisible();
-    await expect(quickCapture.locator(".quick-lightbulb")).toHaveCSS("pointer-events","none");
-    await page.getByRole("button",{name:"问题",exact:true}).click();
-    await expect(quickCapture.getByRole("button",{name:"完整添加",exact:true})).toHaveCount(0);
-    await page.getByRole("button",{name:"任务",exact:true}).click();
+    await expect(quickCapture.getByLabel("快速记录内容")).toBeVisible();
     await quickCapture.getByRole("button",{name:"完整添加",exact:true}).click();
     await expect(page.getByRole("dialog",{name:"让这项安排足够清楚"})).toBeVisible();
   });
@@ -472,7 +463,7 @@ test.describe("真实今日时间轴",()=>{
   test("拖动今天已过去时段可补录、记录结果并刷新恢复",async({page,request})=>{
     const ids:string[]=[];const title=`E2E 当天补录 ${Date.now().toString(36)}`;
     const currentDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-    const {client,db}=await connectVerifiedDatabase(loadDatabaseConfig());
+    const {client,db}=await connectE2EDatabase();
     try{
       await page.goto("/");
       await expect(page.getByLabel("时间轴日期")).toHaveValue(currentDate);
@@ -647,12 +638,12 @@ test.describe("真实今日时间轴",()=>{
     await page.goto("/");
     const rail=page.locator(".app-rail");
     await rail.getByRole("button",{name:"复盘",exact:true}).click();
-    await rail.getByRole("button",{name:"日记",exact:true}).click();
+    await rail.getByRole("button",{name:"规划",exact:true}).click();
     await rail.getByRole("button",{name:"成长",exact:true}).click();
     await expect(page.locator(".view-transition-stage")).toHaveAttribute("data-view","growth");
     await expect(page.locator("html")).toHaveAttribute("data-view-direction","forward");
     await expect(page.locator('.workspace-layer.current[data-layer-view="growth"]')).toHaveCount(1,{timeout:1800});
-    await expect(page.locator(".review-page,.diary-page,.today-workspace")).toHaveCount(0);
+    await expect(page.locator(".review-page,.long-range-workspace,.today-workspace")).toHaveCount(0);
   });
 
   test("任务列表默认三项，其他任务折叠，回收站通过图标搜索和恢复",async({page,request})=>{

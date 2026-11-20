@@ -1,29 +1,24 @@
-# Feishu Local Usage
+# 飞书提醒（可选）
 
-This local-first integration needs no Cloudflare Tunnel, public URL, or cloud
-server. The Windows desktop runtime starts the API and Worker on this computer,
-then the API makes an outbound long connection to Feishu.
+不用飞书也完全可以使用本软件：提醒会留在软件里。只有当你想在手机上收到“任务快开始了”的卡片时，才需要配置飞书。
 
-## One-Time Platform Setting
+不需要公网地址、内网穿透或云服务器：软件在你的电脑上运行，由本地服务主动连到飞书（长连接）。
 
-In the existing Feishu app's Event Subscription page, add the app event
-`im.message.receive_v1` (Receive Message). Keep the already configured card
-action callback enabled. Publish the app version after saving the event change.
+## 一次性设置
 
-The existing local `.env` needs `FEISHU_APP_ID`, `FEISHU_APP_SECRET`, and
-`FEISHU_TARGET_OPEN_ID`; no new secret is introduced for text intake.
+1. 在[飞书开放平台](https://open.feishu.cn/)创建一个企业自建应用，开启“机器人”能力，并在“事件与回调”里启用卡片回调（长连接方式）。
+2. 打开软件数据目录里的 `.env`（Windows 安装版位于 `%APPDATA%\com.wst2006.timemanagingassistant\.env`），填写：
 
-## Expected Behavior
+   ```env
+   FEISHU_APP_ID=你的 App ID
+   FEISHU_APP_SECRET=你的 App Secret
+   FEISHU_TARGET_OPEN_ID=接收提醒的人的 open_id
+   ```
 
-1. Start the desktop application while the computer is on.
-2. Send the configured bot a text message containing a task, idea, or question.
-3. The bot returns a candidate card. Confirming it creates exactly one formal
-   task or one inbox entry. Replaying the same Feishu message does not create a
-   duplicate.
-4. A task with incomplete timing or an exact-time conflict is not saved from
-   Feishu. The bot asks the user to open the desktop application, where the
-   user can complete fields or explicitly keep a conflict.
+3. 重启软件。
 
-Only the configured `FEISHU_TARGET_OPEN_ID` can operate the cards or create
-intake candidates. The integration neither changes an existing task nor
-auto-reschedules a plan.
+## 会发生什么
+
+- 有确切开始时间的任务，开始前会收到一张卡片，可以直接点“开始”或“另有安排”。
+- 只有 `FEISHU_TARGET_OPEN_ID` 对应的人能操作卡片。
+- 飞书只负责提醒和确认，不会自动改动你的计划；改时间仍然在软件里完成。

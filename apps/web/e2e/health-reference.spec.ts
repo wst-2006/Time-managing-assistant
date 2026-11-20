@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { connectVerifiedDatabase } from "@personal-ai/db/client";
-import { loadDatabaseConfig } from "@personal-ai/db/config";
-import { healthDailyReferences, healthWeekConversationMessages, healthWeekConversations, healthWeekPlans } from "@personal-ai/db/schema";
+import { connectE2EDatabase } from "./support/database";
+import { healthDailyReferences, healthWeekPlans } from "@personal-ai/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
 const apiBase = process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:3100";
@@ -37,15 +36,10 @@ async function seedCandidate(page: Page, weekStart: string) {
 }
 
 async function cleanupWeek(weekStart: string) {
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
-    const conversations = await db.select({ id: healthWeekConversations.id }).from(healthWeekConversations).where(eq(healthWeekConversations.weekStart, weekStart));
     const plans = await db.select({ id: healthWeekPlans.id }).from(healthWeekPlans).where(eq(healthWeekPlans.weekStart, weekStart));
     await db.transaction(async (transaction) => {
-      if (conversations.length) {
-        await transaction.delete(healthWeekConversationMessages).where(inArray(healthWeekConversationMessages.conversationId, conversations.map((conversation) => conversation.id)));
-        await transaction.delete(healthWeekConversations).where(eq(healthWeekConversations.weekStart, weekStart));
-      }
       if (plans.length) {
         await transaction.delete(healthDailyReferences).where(inArray(healthDailyReferences.healthWeekPlanId, plans.map((plan) => plan.id)));
         await transaction.delete(healthWeekPlans).where(eq(healthWeekPlans.weekStart, weekStart));
@@ -54,34 +48,40 @@ async function cleanupWeek(weekStart: string) {
   } finally { await client.end(); }
 }
 
-test("健康参考候选经确认后持久化，且不创建任务", async ({ page }) => {
+test("网页版 AI 的回答经代码检查后成为候选，确认后持久化，且不创建任务", async ({ page, context }) => {
   test.setTimeout(60_000);
   const weekStart = "2099-01-04";
   let taskWrites = 0;
   page.on("request", (request) => { if (request.url().endsWith("/api/v1/tasks") && request.method() === "POST") taskWrites += 1; });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 
   try {
+    await cleanupWeek(weekStart);
     await page.clock.setFixedTime(new Date("2099-01-04T10:00:00+08:00"));
-    await seedCandidate(page, weekStart);
     await page.goto("/");
     await page.getByRole("button", { name: "健康", exact: true }).click();
-    await expect(page.getByText("候选尚未生效", { exact: true })).toBeVisible();
-    const collaborationToggle = page.locator(".health-collaboration-toggle");
-    await expect(collaborationToggle).toHaveAttribute("aria-expanded", "false");
-    await expect(page.getByLabel("本周健康想法")).toBeVisible();
-    await expect(page.locator(".health-conversation-ledger")).toHaveCount(0);
-    await collaborationToggle.click();
-    await expect(collaborationToggle).toHaveAttribute("aria-expanded", "true");
-    await expect(page.locator(".health-conversation-ledger")).toBeVisible();
+    await expect(page.getByText("用网页版 AI 生成本周参考", { exact: true })).toBeVisible();
 
-    const weekResponse = await page.request.get(`${apiBase}/api/v1/health/weeks/${weekStart}`);
-    const seededPlan = ((await weekResponse.json()) as { candidate: unknown }).candidate;
-    await page.route("**/api/v1/health/weeks/ai-candidates", async (route) => {
-      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ plan: seededPlan }) });
-    });
-    await page.getByRole("button", { name: "根据本页交流生成候选", exact: true }).click();
-    await expect(collaborationToggle).toHaveAttribute("aria-expanded", "false");
-    await expect(page.locator(".health-conversation-ledger")).toHaveCount(0);
+    await page.getByLabel("这周的特别情况").fill("周三要出差");
+    await page.getByRole("button", { name: "复制提问模板", exact: true }).click();
+    await expect(page.getByRole("button", { name: "已复制提问模板", exact: true })).toBeVisible();
+    const template = await page.evaluate(() => navigator.clipboard.readText());
+    expect(template).toContain("周三要出差");
+    expect(template).toContain("2099-01-04");
+    expect(template).toContain("```json");
+
+    await page.getByLabel("AI 的回答").fill("好的：\n```json\n{\"overview\": \"只写了一半\", \"days\": []}\n```");
+    await page.getByRole("button", { name: "检查并生成候选", exact: true }).click();
+    await expect(page.locator(".health-template-issues")).toContainText("没有保存");
+    await page.getByRole("button", { name: "复制修正说明发回给 AI", exact: true }).click();
+    await expect(page.getByRole("button", { name: "已复制修正说明", exact: true })).toBeVisible();
+    await expect(page.getByText("候选尚未生效", { exact: true })).toHaveCount(0);
+
+    const answer = `这是你要的本周参考。\n\`\`\`json\n${JSON.stringify(healthContent(), null, 2)}\n\`\`\`\n祝你这周顺利！`;
+    await page.getByLabel("AI 的回答").fill(answer);
+    await page.getByRole("button", { name: "检查并生成候选", exact: true }).click();
+    await expect(page.getByText("候选尚未生效", { exact: true })).toBeVisible();
+    await expect(page.locator(".health-template-issues")).toHaveCount(0);
     const proteinScale = page.locator('.health-target-row[data-tone="protein"]');
     const waterScale = page.locator('.health-target-row[data-tone="water"]');
     await expect(proteinScale).toContainText("90–120g");
@@ -112,10 +112,8 @@ test("390px 移动端可查看健康候选且不发生横向溢出", async ({ pa
     await page.goto("/");
     await page.getByRole("button", { name: "健康", exact: true }).click();
     await expect(page.getByText("候选尚未生效", { exact: true })).toBeVisible();
-    const collaborationToggle = page.locator(".health-collaboration-toggle");
-    await expect(collaborationToggle).toHaveAttribute("aria-expanded", "false");
-    await collaborationToggle.click();
-    await expect(page.getByLabel("本周健康想法")).toBeVisible();
+    await expect(page.getByRole("button", { name: "复制提问模板", exact: true })).toBeVisible();
+    await expect(page.getByLabel("AI 的回答")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   } finally { await cleanupWeek(weekStart); }
 });
@@ -166,7 +164,7 @@ test("手动编辑周参考会持久化为待确认候选，并只在确认后�
   } finally { await cleanupWeek(weekStart); }
 });
 
-test("今日摘要和健康问答保持边界，不自动创建任务", async ({ page }) => {
+test("今日摘要可打开完整健康参考，不自动创建任务", async ({ page }) => {
   test.setTimeout(75_000);
   const weekStart = "2099-06-07";
   let taskWrites = 0;
@@ -187,9 +185,7 @@ test("今日摘要和健康问答保持边界，不自动创建任务", async ({
     await expect(summary).toContainText("蛋白质来源");
     await summary.getByRole("button", { name: "打开完整健康参考", exact: true }).click();
 
-    await page.getByRole("button", { name: "按今天食材协商", exact: true }).click();
-    await expect(page.getByLabel("AI 输入内容")).toHaveValue(/不要自动修改本周健康参考/);
-    await page.getByRole("complementary", { name: "AI 助手" }).getByLabel("关闭 AI 助手").click();
+    await expect(page.getByText("本周生效版本", { exact: true })).toBeVisible();
 
     await page.reload();
     await page.getByRole("button", { name: "健康", exact: true }).click();
@@ -200,7 +196,7 @@ test("今日摘要和健康问答保持边界，不自动创建任务", async ({
     await expect(page.getByLabel("今日健康参考摘要")).toContainText("打开完整健康参考");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     expect(taskWrites).toBe(0);
-    const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+    const { client, db } = await connectE2EDatabase();
     try { expect((await db.select().from(healthWeekPlans).where(andWeek(weekStart, "active"))).length).toBe(1); }
     finally { await client.end(); }
   } finally {

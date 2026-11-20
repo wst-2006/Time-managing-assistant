@@ -1,7 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
-import { connectVerifiedDatabase } from "@personal-ai/db/client";
-import { loadDatabaseConfig } from "@personal-ai/db/config";
+import { connectE2EDatabase } from "./support/database";
 import {
   desktopCommandRequests,
   focusSessionOperations,
@@ -26,7 +25,7 @@ import { OverdueTaskWorker } from "../../worker/src/overdue-task-worker.js";
 const apiBase = process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:3100";
 
 async function cleanup(_request:APIRequestContext, id:string) {
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     const sessionRows = await db.select({ id: focusSessions.id }).from(focusSessions).where(eq(focusSessions.taskId, id));
     const structureRows = await db.select({ id: focusStructures.id }).from(focusStructures).where(eq(focusStructures.taskId, id));
@@ -56,7 +55,7 @@ async function cleanup(_request:APIRequestContext, id:string) {
 }
 
 async function expirePreparation(id: string) {
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     await db.update(focusSessions).set({ preparingEndsAt: new Date(Date.now() - 1_000) }).where(eq(focusSessions.id, id));
     await db.update(focusTimerJobs).set({ dueAt: new Date(Date.now() - 1_000) }).where(and(
@@ -70,7 +69,7 @@ async function expirePreparation(id: string) {
 }
 
 async function runFocusWorker(now: Date, sessionId?: string, kind?: "preparation_start" | "preparation_complete" | "confirmation_timeout" | "segment_transition") {
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     const worker = new FocusTimerWorker(db);
     return await worker.processNext(now, sessionId && kind ? { focusSessionId: sessionId, kind } : undefined);
@@ -80,7 +79,7 @@ async function runFocusWorker(now: Date, sessionId?: string, kind?: "preparation
 }
 
 async function makeSegmentTransitionDue(sessionId: string, now: Date) {
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     await db.update(focusTimerJobs).set({ dueAt: now }).where(and(
       eq(focusTimerJobs.focusSessionId, sessionId),
@@ -97,7 +96,7 @@ async function createStructureEditorTask() {
   const localDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
   const id = randomUUID();
   const title = `E2E 结构编辑器 ${Date.now().toString(36)}`;
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     await db.insert(tasks).values({
       id,
@@ -128,7 +127,7 @@ async function createLateStartTask() {
   const title = `E2E 晚开始 ${Date.now().toString(36)}`;
   const startAt = new Date(base.getTime() - 90 * 60_000);
   const endAt = new Date(startAt.getTime() + 120 * 60_000);
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     await db.insert(tasks).values({
       id: taskId,
@@ -177,7 +176,7 @@ async function createUnstructuredRunningTask() {
   const taskId = randomUUID();
   const sessionId = randomUUID();
   const title = `E2E 无结构倒计时 ${Date.now().toString(36)}`;
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     await db.insert(tasks).values({
       id: taskId,
@@ -217,7 +216,7 @@ async function createCurrentExactTask(title: string) {
   }).format(now);
   const id = randomUUID();
   const structureId = randomUUID();
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     await db.insert(tasks).values({
       id,
@@ -265,7 +264,7 @@ function clockTextToSeconds(value: string): number {
 }
 
 async function cleanupStructureEditorTask(id: string) {
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     const structures = await db.select({ id: focusStructures.id }).from(focusStructures).where(eq(focusStructures.taskId, id));
     for (const structure of structures) {
@@ -498,238 +497,8 @@ test("390px 移动端可恢复真实专注会话并保持固定计时", async ({
   }
 });
 
-test("另有安排只生成候选，用户确认表单后才修改排期", async ({ page, request }) => {
-  test.setTimeout(120_000);
-  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-  const candidateDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() + 24 * 60 * 60 * 1000));
-  const title = `E2E 另有安排 ${Date.now().toString(36)}`;
-  let taskId = "";
-  let taskVersion = 0;
-  let taskScheduleRevision = 0;
-  let taskLocalDate = date;
-  let taskStartAt = "";
-  let taskEndAt = "";
-  let taskWrites = 0;
-  let receivedPayload: { taskId: string; message: string } | null = null;
-  page.on("request", (outgoing) => {
-    if ((outgoing.method() === "PATCH" || outgoing.method() === "DELETE") && outgoing.url().includes("/api/v1/tasks/")) taskWrites += 1;
-  });
-  await page.route("**/api/v1/ai/plan-change-advisories", async (route) => {
-    receivedPayload = route.request().postDataJSON() as { taskId: string; message: string };
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ advisory: {
-        referenceDate: date,
-        taskId,
-        taskVersion,
-        taskScheduleRevision,
-        summary: "下午仍有空间，但请由你决定是否移动当前任务。",
-        feasibility: "risky",
-        affectedTasks: [{ id: taskId, title, lifecycleStatus: "open", scheduleKind: "exact", localDate: taskLocalDate, daypart: null, startAt: taskStartAt, endAt: taskEndAt, timeZone: "Asia/Shanghai", version: taskVersion, scheduleRevision: taskScheduleRevision, canReschedule: true }],
-        options: [
-          { title: "保持原计划", detail: "先处理临时安排，稍后回到原任务。", adjustments: [] },
-          { title: "明天上午处理", detail: "先检查候选时间，再由你明确保存。", adjustments: [{
-            taskId,
-            taskTitle: title,
-            scheduleKind: "exact",
-            localDate: null,
-            daypart: null,
-            startAt: `${candidateDate}T09:00:00+08:00`,
-            endAt: `${candidateDate}T10:00:00+08:00`,
-            timeZone: "Asia/Shanghai",
-            reason: "今天临时有事，候选调整到明天上午。",
-            currentScheduleKind: "exact",
-            currentLocalDate: taskLocalDate,
-            currentDaypart: null,
-            currentStartAt: taskStartAt,
-            currentEndAt: taskEndAt,
-            expectedVersion: taskVersion,
-            expectedScheduleRevision: taskScheduleRevision
-          }] }
-        ],
-        warnings: ["当前建议没有修改任何任务。"]
-      } })
-    });
-  });
-  try {
-    const task = await createCurrentExactTask(title);
-    taskId = task.id;
-    taskVersion = task.version;
-    taskScheduleRevision = task.scheduleRevision;
-    taskLocalDate = task.localDate;
-    taskStartAt = task.startAt;
-    taskEndAt = task.endAt;
-    const reminder = await request.post(`${apiBase}/api/v1/focus-sessions`, { data: { taskId, expectedTaskVersion: task.version, mode: "remind" } });
-    expect(reminder.status()).toBe(201);
 
-    await page.goto("/");
-    await page.locator(".app-rail").getByRole("button", { name: "专注", exact: true }).click();
-    await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-    const stopped = page.waitForResponse((response) => response.url().endsWith("/respond") && response.request().method() === "POST" && response.status() === 200);
-    await page.getByRole("button", { name: "另有安排", exact: true }).click();
-    await stopped;
 
-    await expect(page.getByRole("heading", { name: "先看影响，再由你决定。", exact: true })).toBeVisible();
-    await page.getByLabel("变更说明").fill("临时要处理一件事，下午才有时间。");
-    const consulted = page.waitForResponse((response) => response.url().endsWith("/plan-change-advisories") && response.request().method() === "POST" && response.status() === 200);
-    await page.getByRole("button", { name: "查看协商建议", exact: true }).click();
-    await consulted;
-    await expect(page.getByText("下午仍有空间，但请由你决定是否移动当前任务。", { exact: true })).toBeVisible();
-    await expect(page.getByText("保持原计划", { exact: true })).toBeVisible();
-    expect(receivedPayload).toEqual({ taskId, message: "临时要处理一件事，下午才有时间。" });
-    expect(taskWrites).toBe(0);
-
-    const detail = await request.get(`${apiBase}/api/v1/tasks/${taskId}`);
-    expect(detail.status()).toBe(200);
-    expect((await detail.json()).task).toMatchObject({ id: taskId, lifecycleStatus: "open", version: task.version, scheduleRevision: 1 });
-    const current = await request.get(`${apiBase}/api/v1/focus-sessions/current-execution`);
-    expect((await current.json()).session).toBeNull();
-
-    await page.getByRole("button", { name: "打开确认表单", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "把今天放回时间里。", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "检查清楚，再决定是否保存", exact: true })).toBeVisible();
-    const dialog = page.getByRole("dialog", { name: "检查清楚，再决定是否保存" });
-    await expect(dialog.getByText("尚未修改任务", { exact: true })).toBeVisible();
-    await expect(dialog.locator('input[type="date"]')).toHaveValue(candidateDate);
-    await expect(dialog.locator('input[type="time"]').nth(0)).toHaveValue("09:00");
-    await expect(dialog.locator('input[type="time"]').nth(1)).toHaveValue("10:00");
-    expect(taskWrites).toBe(0);
-
-    const saved = page.waitForResponse((response) => response.url().endsWith(`/api/v1/tasks/${taskId}`) && response.request().method() === "PATCH" && response.status() === 200);
-    await dialog.getByRole("button", { name: "确认并保存调整", exact: true }).click();
-    await saved;
-    expect(taskWrites).toBe(1);
-
-    await page.reload();
-    const afterRefresh = await request.get(`${apiBase}/api/v1/tasks/${taskId}`);
-    expect((await afterRefresh.json()).task).toMatchObject({ lifecycleStatus: "open", version: task.version + 1, scheduleRevision: task.scheduleRevision + 1, scheduleKind: "exact" });
-    await page.getByLabel("时间轴日期").fill(candidateDate);
-    await page.getByRole("button", { name: "查看上午时间轴", exact: true }).click();
-    await expect(page.locator(`[data-task-id="${taskId}"]`)).toContainText("09:00–10:00");
-  } finally {
-    if (taskId) await cleanup(request, taskId);
-  }
-});
-
-test("协商后任务版本变化会拒绝过期排期候选", async ({ page, request }) => {
-  test.setTimeout(120_000);
-  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-  const candidateDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() + 24 * 60 * 60 * 1000));
-  const title = `E2E 过期协商 ${Date.now().toString(36)}`;
-  let taskId = "";
-  let taskVersion = 0;
-  let taskScheduleRevision = 0;
-  let taskLocalDate = date;
-  let taskStartAt = "";
-  let taskEndAt = "";
-  await page.route("**/api/v1/ai/plan-change-advisories", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ advisory: {
-        referenceDate: date,
-        taskId,
-        taskVersion,
-        taskScheduleRevision,
-        summary: "这是绑定当前版本的候选。",
-        feasibility: "feasible",
-        affectedTasks: [{ id: taskId, title, lifecycleStatus: "open", scheduleKind: "exact", localDate: taskLocalDate, daypart: null, startAt: taskStartAt, endAt: taskEndAt, timeZone: "Asia/Shanghai", version: taskVersion, scheduleRevision: taskScheduleRevision, canReschedule: true }],
-        options: [{ title: "明天处理", detail: "打开表单后仍需确认。", adjustments: [{
-          taskId,
-          taskTitle: title,
-          scheduleKind: "exact",
-          localDate: null,
-          daypart: null,
-          startAt: `${candidateDate}T09:00:00+08:00`,
-          endAt: `${candidateDate}T10:00:00+08:00`,
-          timeZone: "Asia/Shanghai",
-          reason: "候选排期。",
-          currentScheduleKind: "exact",
-          currentLocalDate: taskLocalDate,
-          currentDaypart: null,
-          currentStartAt: taskStartAt,
-          currentEndAt: taskEndAt,
-          expectedVersion: taskVersion,
-          expectedScheduleRevision: taskScheduleRevision
-        }] }],
-        warnings: []
-      } })
-    });
-  });
-  try {
-    const task = await createCurrentExactTask(title);
-    taskId = task.id;
-    taskVersion = task.version;
-    taskScheduleRevision = task.scheduleRevision;
-    taskLocalDate = task.localDate;
-    taskStartAt = task.startAt;
-    taskEndAt = task.endAt;
-    const reminder = await request.post(`${apiBase}/api/v1/focus-sessions`, { data: { taskId, expectedTaskVersion: task.version, mode: "remind" } });
-    expect(reminder.status()).toBe(201);
-
-    await page.goto("/");
-    await page.locator(".app-rail").getByRole("button", { name: "专注", exact: true }).click();
-    await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "另有安排", exact: true }).click();
-    await page.getByLabel("变更说明").fill("改到明天。 ");
-    await page.getByRole("button", { name: "查看协商建议", exact: true }).click();
-    await expect(page.getByRole("button", { name: "打开确认表单", exact: true })).toBeVisible();
-
-    const changed = await request.patch(`${apiBase}/api/v1/tasks/${taskId}`, { data: { expectedVersion: task.version, title: `${title} 已更新` } });
-    expect(changed.status()).toBe(200);
-    await page.getByRole("button", { name: "打开确认表单", exact: true }).click();
-
-    await expect(page.getByText("这条协商候选已经过期：任务在协商后发生了变化。请重新打开任务发起协商。", { exact: true })).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "检查清楚，再决定是否保存" })).toHaveCount(0);
-    const detail = await request.get(`${apiBase}/api/v1/tasks/${taskId}`);
-    expect((await detail.json()).task).toMatchObject({ title: `${title} 已更新`, scheduleKind: "exact", version: task.version + 1, scheduleRevision: task.scheduleRevision });
-  } finally {
-    if (taskId) await cleanup(request, taskId);
-  }
-});
-
-test("390px 下另有安排协商可用且不发生横向溢出", async ({ page, request }) => {
-  test.setTimeout(120_000);
-  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-  const title = `E2E 移动协商 ${Date.now().toString(36)}`;
-  let taskId = "";
-  await page.route("**/api/v1/ai/plan-change-advisories", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ advisory: {
-        referenceDate: date,
-        taskId,
-        taskVersion: 1,
-        taskScheduleRevision: 1,
-        summary: "请先决定是否回到时间轴修改。",
-        feasibility: "needs_clarification",
-        affectedTasks: [],
-        options: [{ title: "暂时保留", detail: "任务仍在原安排中。", adjustments: [] }],
-        warnings: ["这只是建议。"]
-      } })
-    });
-  });
-  try {
-    const task = await createCurrentExactTask(title);
-    taskId = task.id;
-    const reminder = await request.post(`${apiBase}/api/v1/focus-sessions`, { data: { taskId, expectedTaskVersion: task.version, mode: "remind" } });
-    expect(reminder.status()).toBe(201);
-
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/");
-    await page.locator(".mobile-nav").getByRole("button", { name: "专注", exact: true }).click();
-    await page.getByRole("button", { name: "另有安排", exact: true }).click();
-    await expect(page.getByLabel("变更说明")).toBeVisible();
-    await page.getByLabel("变更说明").fill("临时调整一下。");
-    await page.getByRole("button", { name: "查看协商建议", exact: true }).click();
-    await expect(page.getByText("暂时保留", { exact: true })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  } finally {
-    if (taskId) await cleanup(request, taskId);
-  }
-});
 
 test("准备倒计时结束后未确认会进入等待开始且不计入专注", async ({ page, request }) => {
   test.setTimeout(120_000);
@@ -741,7 +510,7 @@ test("准备倒计时结束后未确认会进入等待开始且不计入专注",
     const started = await request.post(`${apiBase}/api/v1/focus-sessions`, { data: { taskId, expectedTaskVersion: task.version, mode: "remind" } });
     expect(started.status()).toBe(201);
     const session = (await started.json()).session as { id: string };
-    const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+    const { client, db } = await connectE2EDatabase();
     try {
       await db.update(focusTimerJobs).set({ dueAt: new Date(Date.now() - 1_000) }).where(and(
         eq(focusTimerJobs.focusSessionId, session.id),
@@ -757,7 +526,7 @@ test("准备倒计时结束后未确认会进入等待开始且不计入专注",
     expect(body.task).toMatchObject({ lifecycleStatus: "open", currentOutcome: null, scheduleRevision: 1 });
     expect(body.outcomes.some((outcome) => outcome.focusSessionId === session.id && outcome.source === "system")).toBe(false);
 
-    const verification = await connectVerifiedDatabase(loadDatabaseConfig());
+    const verification = await connectE2EDatabase();
     try {
       const [stored] = await verification.db.select().from(focusSessions).where(eq(focusSessions.id, session.id));
       expect(stored).toMatchObject({ state: "awaiting_late_start", startedAt: null, activeSinceAt: null, rawActiveSeconds: 0, effectiveFocusSeconds: 0 });
@@ -784,7 +553,7 @@ test("软件未打开时任务开始 5 分钟无响应仍由 Reminder Worker 持
   const startAt = new Date("2026-08-06T09:00:00+08:00");
   const endAt = new Date("2026-08-06T10:00:00+08:00");
   const followUpAt = new Date(startAt.getTime() + 5 * 60_000);
-  const connection = await connectVerifiedDatabase(loadDatabaseConfig());
+  const connection = await connectE2EDatabase();
   try {
     const leftovers = await connection.db.select({ id: tasks.id }).from(tasks)
       .where(like(tasks.title, "E2E 离线无响应 %"));
@@ -843,7 +612,7 @@ test("软件未打开时任务开始 5 分钟无响应仍由 Reminder Worker 持
     expect(body.task).toMatchObject({ lifecycleStatus: "closed", currentOutcome: "not_completed", scheduleRevision: 2 });
     expect(body.outcomes.some((outcome) => outcome.focusSessionId && outcome.outcome === "not_completed" && outcome.source === "system")).toBe(true);
     expect(body.feedback.some((item) => item.focusSessionId && item.satisfaction === "dissatisfied")).toBe(true);
-    const verification = await connectVerifiedDatabase(loadDatabaseConfig());
+    const verification = await connectE2EDatabase();
     try {
       const [session] = await verification.db.select().from(focusSessions).where(eq(focusSessions.taskId, taskId));
       expect(session).toMatchObject({ state: "ended", rawActiveSeconds: 0, effectiveFocusSeconds: 0 });
@@ -860,7 +629,7 @@ test("开机补偿扫描会将无会话和仅确认但未运行的过期任务�
   const taskWithoutSession = randomUUID();
   const armedTask = randomUUID();
   const armedSession = randomUUID();
-  const connection = await connectVerifiedDatabase(loadDatabaseConfig());
+  const connection = await connectE2EDatabase();
   try {
     await connection.db.insert(tasks).values([
       {
@@ -918,7 +687,7 @@ test("开机补偿扫描会将无会话和仅确认但未运行的过期任务�
       expect(body.outcomes).toContainEqual(expect.objectContaining({ outcome: "not_completed", source: "system" }));
       expect(body.feedback).toContainEqual(expect.objectContaining({ satisfaction: "dissatisfied" }));
     }
-    const verification = await connectVerifiedDatabase(loadDatabaseConfig());
+    const verification = await connectE2EDatabase();
     try {
       const sessions = await verification.db.select().from(focusSessions)
         .where(inArray(focusSessions.taskId, [taskWithoutSession, armedTask]));
@@ -1004,7 +773,7 @@ test("真实结构执行会持久化段运行并自动切换到休息段", async
     const confirmedStart = await request.post(`${apiBase}/api/v1/focus-sessions/${currentSession.id}/skip-preparation`, { data: { expectedVersion: currentSession.version } });
     expect(confirmedStart.status()).toBe(200);
 
-    const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+    const { client, db } = await connectE2EDatabase();
     try {
       const current = (await db.select().from(focusSessions).where(eq(focusSessions.id, session.id)))[0];
       expect(current?.state).toBe("running");
@@ -1045,7 +814,7 @@ test("晚开始按原结构当前位置继续并把过去段落记为跳过", as
     const confirmed = await request.post(`${apiBase}/api/v1/focus-sessions/${currentSession.id}/skip-preparation`, { data: { expectedVersion: currentSession.version } });
     expect(confirmed.status()).toBe(200);
 
-    const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+    const { client, db } = await connectE2EDatabase();
     try {
       const [running] = await db.select().from(focusSessions).where(eq(focusSessions.id, session.id));
       expect(running?.state).toBe("running");
@@ -1076,7 +845,7 @@ test("晚开始按原结构当前位置继续并把过去段落记为跳过", as
     const boundary = new Date(task.startAt.getTime() + 115 * 60_000);
     await makeSegmentTransitionDue(session.id, boundary);
     expect(await runFocusWorker(boundary, session.id, "segment_transition")).toBe("completed");
-    const verification = await connectVerifiedDatabase(loadDatabaseConfig());
+    const verification = await connectE2EDatabase();
     try {
       const runs = await verification.db.select().from(focusSessionSegmentRuns)
         .where(eq(focusSessionSegmentRuns.focusSessionId, session.id));
@@ -1151,83 +920,3 @@ test("手动专注结构可直接确认，也可暂存候选后刷新恢复", as
   }
 });
 
-test("AI 专注安排只生成待确认候选且不会自动启用", async ({ page, request }) => {
-  test.setTimeout(120_000);
-  const task = await createStructureEditorTask();
-  const candidateId = randomUUID();
-  let confirmRequests = 0;
-  let receivedPayload: {
-    taskId: string;
-    taskVersion: number;
-    taskScheduleRevision: number;
-    instructions: string | null;
-  } | null = null;
-  page.on("request", (outgoing) => {
-    if (outgoing.method() === "POST" && outgoing.url().endsWith("/confirm")) confirmRequests += 1;
-  });
-  await page.route("**/api/v1/focus-structures/ai-candidates", async (route) => {
-    receivedPayload = route.request().postDataJSON() as {
-      taskId: string;
-      taskVersion: number;
-      taskScheduleRevision: number;
-      instructions: string | null;
-    };
-    await route.fulfill({
-      status: 201,
-      contentType: "application/json",
-      body: JSON.stringify({
-        focusStructure: {
-          id: candidateId,
-          taskId: task.id,
-          taskScheduleRevision: 1,
-          state: "candidate",
-          source: "ai",
-          version: 1,
-          totalStartAt: new Date(`${task.localDate}T09:00:00+08:00`).toISOString(),
-          totalEndAt: new Date(`${task.localDate}T12:00:00+08:00`).toISOString(),
-          confirmedAt: null,
-          supersededAt: null,
-          invalidatedAt: null,
-          invalidationReason: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          segments: [
-            { id: randomUUID(), focusStructureId: candidateId, position: 0, segmentType: "focus", durationMinutes: 50 },
-            { id: randomUUID(), focusStructureId: candidateId, position: 1, segmentType: "break", durationMinutes: 5 },
-            { id: randomUUID(), focusStructureId: candidateId, position: 2, segmentType: "focus", durationMinutes: 55 },
-            { id: randomUUID(), focusStructureId: candidateId, position: 3, segmentType: "break", durationMinutes: 5 },
-            { id: randomUUID(), focusStructureId: candidateId, position: 4, segmentType: "focus", durationMinutes: 60 },
-            { id: randomUUID(), focusStructureId: candidateId, position: 5, segmentType: "break", durationMinutes: 5 }
-          ]
-        }
-      })
-    });
-  });
-
-  try {
-    await page.goto("/");
-    await openTaskStructureEditor(page, task.title, task.localDate);
-    const instructions = page.getByLabel("AI 专注结构临时要求");
-    await instructions.fill("拆成 3 段，前短后长");
-    await expect(instructions).toHaveValue("拆成 3 段，前短后长");
-    await instructions.press("Tab");
-    await page.getByRole("button", { name: "生成 AI 候选", exact: true }).click();
-
-    await expect(page.getByText("AI 候选，等待你确认", { exact: true })).toBeVisible();
-    await expect(page.locator(".structure-timeline > div")).toHaveCount(6);
-    await expect(page.getByRole("button", { name: "确认并使用", exact: true })).toBeVisible();
-    expect(confirmRequests).toBe(0);
-    expect(receivedPayload).toEqual({
-      taskId: task.id,
-      taskVersion: 1,
-      taskScheduleRevision: 1,
-      instructions: "拆成 3 段，前短后长"
-    });
-
-    const stored = await request.get(`${apiBase}/api/v1/tasks/${task.id}/focus-structures`);
-    expect(stored.status()).toBe(200);
-    expect(((await stored.json()) as { focusStructures: unknown[] }).focusStructures).toHaveLength(0);
-  } finally {
-    await cleanupStructureEditorTask(task.id);
-  }
-});

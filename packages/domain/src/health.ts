@@ -184,9 +184,6 @@ export const createHealthPlanCandidateSchema = z.object({
   weekStart: healthWeekStartSchema,
   specialContext: z.string().trim().max(1000).nullable().optional()
 }).strict();
-export const healthCollaborationMessageInputSchema = z.object({
-  content: z.string().trim().min(1).max(4_000)
-}).strict();
 export const createManualHealthPlanCandidateSchema = z.object({
   weekStart: healthWeekStartSchema,
   specialContext: z.string().trim().max(1000).nullable().optional(),
@@ -206,49 +203,11 @@ export const saveHealthDailyActualSchema = z.object({
   fiberGrams: z.number().int().min(0).max(200).nullable(),
   waterMilliliters: z.number().int().min(0).max(10_000).nullable()
 }).strict();
-export const healthSleepRevisionCandidateSchema = z.object({
-  weekStart: healthWeekStartSchema,
-  sleepAnalysisId: z.string().uuid(),
-  specialContext: z.string().trim().max(1000).nullable().optional()
-}).strict();
-
-const sleepImageMimeTypeSchema = z.enum(["image/png", "image/jpeg", "image/webp"]);
-// A 6 MiB image expands to just over 8 MiB when encoded as base64.
-const sleepImageDataUrlSchema = z.string().max(8_500_000).regex(
-  /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/,
-  "sleep screenshot must be a base64 PNG, JPEG, or WebP data URL"
-);
-
-export const sleepImageAnalysisRequestSchema = z.object({
-  localDate: reviewDateSchema,
-  fileName: z.string().trim().min(1).max(160),
-  mimeType: sleepImageMimeTypeSchema,
-  dataUrl: sleepImageDataUrlSchema
-}).strict();
-
-export const sleepImageAnalysisSchema = z.object({
-  totalSleepMinutes: z.number().int().min(0).max(1440).nullable(),
-  deepSleepMinutes: z.number().int().min(0).max(1440).nullable(),
-  lightSleepMinutes: z.number().int().min(0).max(1440).nullable(),
-  remSleepMinutes: z.number().int().min(0).max(1440).nullable(),
-  awakeCount: z.number().int().min(0).max(100).nullable(),
-  sleepStart: z.string().trim().max(80).nullable(),
-  wakeTime: z.string().trim().max(80).nullable(),
-  deviceScore: z.number().min(0).max(100).nullable(),
-  deviceNotes: z.string().trim().max(800).nullable(),
-  visibleMetrics: z.array(z.string().trim().min(1).max(160)).max(24),
-  interpretation: z.array(z.string().trim().min(1).max(320)).max(12),
-  limitations: z.array(z.string().trim().min(1).max(320)).min(1).max(12)
-}).strict();
-
 export type HealthProfile = z.infer<typeof healthProfileSchema>;
 export type HealthDailyReference = z.infer<typeof healthDailyReferenceSchema>;
 export type HealthPlanContent = z.infer<typeof healthPlanContentSchema>;
 export type ManualHealthPlanCandidate = z.infer<typeof createManualHealthPlanCandidateSchema>;
 export type HealthDailyActualInput = z.infer<typeof saveHealthDailyActualSchema>;
-export type SleepImageAnalysisRequest = z.infer<typeof sleepImageAnalysisRequestSchema>;
-export type SleepImageAnalysis = z.infer<typeof sleepImageAnalysisSchema>;
-export type HealthSleepRevisionCandidate = z.infer<typeof healthSleepRevisionCandidateSchema>;
 
 export function localDatesForHealthWeek(weekStart: string): string[] {
   const start = new Date(`${weekStart}T00:00:00.000Z`);

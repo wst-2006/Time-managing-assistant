@@ -185,7 +185,7 @@ function createSdkChannel(config: FeishuLongConnectionConfig): FeishuChannelClie
     transport: "websocket",
     handshakeTimeoutMs: config.handshakeTimeoutMs,
     logger: createRedactedSdkLogger(),
-    source: "personal-ai-assistant"
+    source: "time-managing-assistant"
   });
   return new SdkFeishuChannel(channel);
 }

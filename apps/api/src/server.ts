@@ -2,6 +2,7 @@ import { openDatabase } from "@personal-ai/db/client";
 import { loadDatabaseConfig } from "@personal-ai/db/config";
 import { startBackgroundJobs } from "@personal-ai/worker/loops";
 import { buildApp } from "./app.js";
+import { registerE2ESqlRoute } from "./e2e-sql-route.js";
 import { loadServerConfig } from "./config.js";
 import { PostgresTaskStore } from "./task-repository.js";
 import { TaskService } from "./task-service.js";
@@ -48,7 +49,12 @@ const app = buildApp({
   feishuWebhookService: feishuActions && feishuWebhookConfig ? new FeishuWebhookService(feishuWebhookConfig, feishuActions) : undefined
 });
 
-const backgroundJobs = startBackgroundJobs(database.db, process.env, { warn: (message) => app.log.warn(message), error: (message, error) => app.log.error({ err: error }, String(message)) });
+if (process.env.TMA_E2E_ISOLATED === "1") registerE2ESqlRoute(app, database.pglite);
+
+// Isolated browser tests drive the reminder/focus workers themselves, step by step.
+const backgroundJobs = process.env.TMA_DISABLE_BACKGROUND_JOBS === "1"
+  ? { stop: async () => undefined }
+  : startBackgroundJobs(database.db, process.env, { warn: (message) => app.log.warn(message), error: (message, error) => app.log.error({ err: error }, String(message)) });
 
 app.addHook("onClose", async () => {
   await backgroundJobs.stop();

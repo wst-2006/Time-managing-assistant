@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const finalRuntimeRoot = join(repositoryRoot, "apps", "desktop", "src-tauri", "runtime");
 const envTemplateSource = join(repositoryRoot, ".env.example");
-const stagingRoot = join(tmpdir(), `personal-ai-assistant-runtime-${process.pid}`);
+const stagingRoot = join(tmpdir(), `time-managing-assistant-runtime-${process.pid}`);
 const runtimeRoot = join(stagingRoot, "runtime");
 
 if (!existsSync(envTemplateSource)) {
@@ -36,7 +36,8 @@ const runPnpm = (args) =>
   });
 
 // Build before deploying. Keeping this explicit avoids recursively invoking the
-// root build script and makes the API/Worker artifacts part of the release input.
+// root build script and makes the API artifacts part of the release input.
+// The worker is a library now: its background jobs run inside the API process.
 for (const packageName of ["@personal-ai/domain", "@personal-ai/db", "@personal-ai/api", "@personal-ai/worker"]) {
   runPnpm(["--filter", packageName, "build"]);
 }
@@ -50,7 +51,6 @@ const deploy = (packageName, outputDirectory) => {
 
 try {
   deploy("@personal-ai/api", join(stagingRoot, "api"));
-  deploy("@personal-ai/worker", join(stagingRoot, "worker"));
 } finally {
   // pnpm deploy temporarily changes the workspace install to production mode.
   // Always restore the development workspace, including after a failed deploy.
@@ -120,13 +120,12 @@ const copyFlatService = (service) => {
 };
 
 copyFlatService("api");
-copyFlatService("worker");
 
 // `pnpm deploy` may omit package-owned files that are not part of the compiled
-// output. The installed app runs guarded migrations before starting its API,
-// so keep the complete Drizzle journal beside every deployed db package.
+// output. The API migrates its embedded database on start, so the SQL files and
+// journal must sit beside the deployed db package.
 const migrationSource = join(repositoryRoot, "packages", "db", "drizzle");
-for (const service of ["api", "worker"]) {
+for (const service of ["api"]) {
   const deployedDbPackage = join(runtimeRoot, service, "node_modules", "@personal-ai", "db");
   if (!existsSync(deployedDbPackage)) {
     throw new Error(`deployed ${service} runtime is missing @personal-ai/db`);
@@ -136,8 +135,8 @@ for (const service of ["api", "worker"]) {
 
 // The runtime is intentionally copied from the machine used to build this private
 // single-user release, so the installed app does not depend on a system Node install.
-// Never copy the builder's .env: installers must not contain database passwords or
-// API keys. The app creates a user-owned config file from this template on first run.
+// Never copy the builder's .env: installers must not contain Feishu secrets.
+// The app creates a user-owned (optional) settings file from this template on first run.
 copyFileSync(process.execPath, join(runtimeRoot, "node.exe"));
 copyFileSync(envTemplateSource, join(runtimeRoot, ".env.example"));
 
@@ -148,4 +147,4 @@ rmSync(stagingRoot, { recursive: true, force: true });
 
 console.log("Prepared standalone desktop runtime:");
 console.log(`  ${finalRuntimeRoot}`);
-console.log("  Included Node, API, Worker, production dependencies, and local configuration.");
+console.log("  Included Node, the API (with its embedded database and background jobs), and the settings template.");

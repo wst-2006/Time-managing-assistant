@@ -1,4 +1,4 @@
-name: Public CI
+name: CI
 
 on:
   push:
@@ -11,19 +11,17 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
+      - uses: actions/checkout@v4
 
       - name: Enable Corepack
         run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
 
       - name: Install dependencies
         run: corepack pnpm install --frozen-lockfile
@@ -34,8 +32,9 @@ jobs:
       - name: Type-check workspace
         run: corepack pnpm check
 
-      - name: Run database-free unit tests
-        run: corepack pnpm test:unit
+      # Every test uses an in-memory embedded database: nothing to install.
+      - name: Unit and API tests
+        run: corepack pnpm test
 
-      - name: Build publishable web and server packages
+      - name: Build
         run: corepack pnpm build

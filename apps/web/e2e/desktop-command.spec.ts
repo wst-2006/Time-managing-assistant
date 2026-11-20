@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import { connectVerifiedDatabase } from "@personal-ai/db/client";
-import { loadDatabaseConfig } from "@personal-ai/db/config";
+import { connectE2EDatabase } from "./support/database";
 import { desktopCommandRequests, tasks } from "@personal-ai/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -12,7 +11,7 @@ test("飞书打开任务命令只在 Windows 软件加载对应任务后完成",
   const title = `E2E 飞书打开桌面任务 ${Date.now().toString(36)}`;
   const startAt = new Date(Math.ceil((Date.now() + 30 * 60_000) / (30 * 60_000)) * (30 * 60_000));
   const endAt = new Date(startAt.getTime() + 30 * 60_000);
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
 
   try {
     await db.insert(tasks).values({

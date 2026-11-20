@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type DragEvent, type FormEvent } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardPenLine, HeartPulse, Leaf, LoaderCircle, MapPin, MessageCircleQuestion, Quote, RefreshCcw, Send, Sparkles, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { Check, ChevronLeft, ChevronRight, ClipboardPenLine, Copy, HeartPulse, Leaf, LoaderCircle, MapPin, Quote, Sparkles, X } from "lucide-react";
+import { buildHealthFixPrompt, buildHealthPromptTemplate, parseHealthAnswer, type HealthAnswerIssue } from "@personal-ai/domain/health-template";
+import { localDatesForHealthWeek, type HealthProfile } from "@personal-ai/domain/health";
+import { resolveSolarTerm } from "./solar-terms";
 import { PosterMark } from "./ui/poster";
 
 type Profile = {
@@ -66,49 +69,10 @@ type ManualNutritionTargets = {
 };
 type ManualDayDraft = Omit<DayReference["content"], "nutritionTargets"> & { nutritionTargets?: ManualNutritionTargets };
 type ManualPlanDraft = { overview: string; supplements: string; days: ManualDayDraft[] };
-type SleepAnalysis = {
-  id: string;
-  localDate: string;
-  originalFileName: string;
-  mimeType: string;
-  createdAt: string;
-  analysis: {
-    totalSleepMinutes: number | null;
-    deepSleepMinutes: number | null;
-    lightSleepMinutes: number | null;
-    remSleepMinutes: number | null;
-    awakeCount: number | null;
-    sleepStart: string | null;
-    wakeTime: string | null;
-    deviceScore: number | null;
-    deviceNotes: string | null;
-    visibleMetrics: string[];
-    interpretation: string[];
-    limitations: string[];
-  };
-};
-type HealthConversationMessage = {
-  id: string;
-  conversationId: string;
-  role: "user" | "assistant";
-  source: "app" | "feishu" | "ai";
-  content: string;
-  needsClarification: boolean | null;
-  externalMessageId: string | null;
-  createdAt: string;
-};
-type HealthConversationState = {
-  conversation: { id: string; weekStart: string; createdAt: string; updatedAt: string };
-  messages: HealthConversationMessage[];
-  replyInFlight: boolean;
-};
-type HealthAiStage = "idle" | "saving_message" | "replying" | "reply_failed" | "ready" | "preparing_candidate" | "generating_candidate" | "waiting_candidate" | "candidate_ready" | "candidate_failed";
 type ApiError = Error & { status?: number; body?: { error?: string; message?: string } };
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3000";
 const weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-const healthDraftStoragePrefix = "personal-ai.health-collaboration-draft.v1";
-const healthReplyTasks = new Map<string, Promise<HealthConversationState>>();
 
 function shanghaiDate() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
@@ -132,27 +96,6 @@ function listText(value: string) {
 
 function draftLines(value: string) {
   return value.split("\n");
-}
-
-function sleepMetric(label: string, value: number | string | null, suffix = "") {
-  return value === null ? null : <div className="sleep-metric"><span>{label}</span><strong>{value}{suffix}</strong></div>;
-}
-
-const sleepMimeTypes = ["image/png", "image/jpeg", "image/webp"] as const;
-type SleepMimeType = typeof sleepMimeTypes[number];
-
-function sleepMimeTypeFor(file: File): SleepMimeType | null {
-  const declared = file.type.toLowerCase();
-  if ((sleepMimeTypes as readonly string[]).includes(declared)) return declared as SleepMimeType;
-  const extension = file.name.toLowerCase().split(".").pop();
-  if (extension === "png") return "image/png";
-  if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
-  if (extension === "webp") return "image/webp";
-  return null;
-}
-
-function sleepFileExtension(mimeType: SleepMimeType): string {
-  return mimeType === "image/jpeg" ? "jpg" : mimeType.split("/")[1];
 }
 
 function rangeText(range: { minimum: number; maximum: number } | undefined, suffix = "g") {
@@ -197,42 +140,8 @@ function listOrMissing(items: string[] | undefined, className?: string) {
   return items?.length ? <ul className={className}>{items.map((item)=><li key={item}>{item}</li>)}</ul> : <p className="health-field-missing">当前参考未提供；重新生成候选后可补齐。</p>;
 }
 
-function conversationTime(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(date);
-}
 
-function healthAiStatusCopy(stage: HealthAiStage) {
-  switch (stage) {
-    case "saving_message": return "正在保存你的健康说明…";
-    case "replying": return "内容已保存，AI 正在回应…";
-    case "reply_failed": return "内容已经保存，但 AI 尚未回应；可直接重试，不要重复输入。";
-    case "ready": return "AI 已回应。信息足够时，可以根据本页交流生成候选。";
-    case "preparing_candidate": return "正在整理本页交流、健康资料与本周日程…";
-    case "generating_candidate": return "AI 正在生成七日健康候选…";
-    case "waiting_candidate": return "完整七日候选仍在生成，请不要重复点击；本次请求不会因超时自动重复扣费重试。";
-    case "candidate_ready": return "候选已经生成并通过结构校验，已放入下方的待确认区。";
-    case "candidate_failed": return "本次候选没有写入；现有生效参考保持不变。";
-    default: return "可以继续补充本周情况。";
-  }
-}
 
-function healthCollaborationSummaryCopy(input: {
-  stage: HealthAiStage;
-  hasDraft: boolean;
-  replyPending: boolean;
-  needsClarification: boolean;
-  userMessageCount: number;
-  hasReadError: boolean;
-}) {
-  if (input.hasReadError) return "交流暂时无法读取，现有参考不受影响";
-  if (input.hasDraft) return "有一份尚未发送的健康说明";
-  if (input.replyPending) return "说明已保存，等待 AI 回应";
-  if (input.needsClarification) return "AI 等待你补充这一周的情况";
-  if (["saving_message", "replying", "preparing_candidate", "generating_candidate", "waiting_candidate", "candidate_ready", "candidate_failed", "reply_failed"].includes(input.stage)) return healthAiStatusCopy(input.stage);
-  if (input.userMessageCount > 0) return "本周交流已保存，需要时可展开查看或补充";
-  return "尚未交流，需要时展开说明本周情况";
-}
 
 function revisionChanges(previous: DayReference, next: DayReference): string[] {
   const changes: string[] = [];
@@ -338,61 +247,26 @@ async function request<T>(path: string, method = "GET", payload?: Record<string,
   return body as T;
 }
 
-function ensureHealthReply(conversationId: string): Promise<HealthConversationState> {
-  const existing = healthReplyTasks.get(conversationId);
-  if (existing) return existing;
-  const task = request<HealthConversationState>(`/api/v1/health/collaborations/${conversationId}/reply-last`, "POST");
-  healthReplyTasks.set(conversationId, task);
-  void task.then(() => undefined, () => undefined).then(() => {
-    if (healthReplyTasks.get(conversationId) === task) healthReplyTasks.delete(conversationId);
-  });
-  return task;
-}
 
-export function HealthWorkspace({ onAskHealth }:{
-  onAskHealth?:(prompt:string)=>void;
-}) {
+export function HealthWorkspace() {
   const [weekStart, setWeekStart] = useState(() => weekStartFor(shanghaiDate()));
   const [profile, setProfile] = useState<StoredProfile | null>(null);
   const [active, setActive] = useState<HealthPlan | null>(null);
   const [candidate, setCandidate] = useState<HealthPlan | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
-  const [collaboration, setCollaboration] = useState<HealthConversationState | null>(null);
-  const [collaborationDraft, setCollaborationDraft] = useState("");
-  const [collaborationError, setCollaborationError] = useState<string | null>(null);
-  const [collaborationExpanded, setCollaborationExpanded] = useState(false);
-  const [healthAiStage, setHealthAiStage] = useState<HealthAiStage>("idle");
+  const [answerText, setAnswerText] = useState("");
+  const [weekContext, setWeekContext] = useState("");
+  const [answerIssues, setAnswerIssues] = useState<HealthAnswerIssue[]>([]);
+  const [copied, setCopied] = useState<"template" | "fix" | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sleepAnalyses, setSleepAnalyses] = useState<SleepAnalysis[]>([]);
-  const [sleepFile, setSleepFile] = useState<File | null>(null);
-  const [sleepPreviewUrl, setSleepPreviewUrl] = useState<string | null>(null);
-  const [sleepDropActive, setSleepDropActive] = useState(false);
   const [manualDraft, setManualDraft] = useState<ManualPlanDraft | null>(null);
-  const [sleepImageAnalysisAvailable, setSleepImageAnalysisAvailable] = useState<boolean | null>(null);
-  const sleepFileInputRef = useRef<HTMLInputElement | null>(null);
   const candidateSectionRef = useRef<HTMLElement | null>(null);
-  const generationAttemptRef = useRef(0);
   const reloadRequestRef = useRef(0);
-  const replyRecoveryAttemptedRef = useRef(new Set<string>());
   const visiblePlan = candidate ?? active;
   const selectedReference = visiblePlan?.days[selectedDay] ?? null;
-  const sleepDate = selectedReference?.localDate ?? shanghaiDate();
-  const candidateIsUneditedSleepRevision = candidate?.source === "ai" && candidate.sourceSleepAnalysisId !== null;
-  const lastCollaborationMessage = collaboration?.messages.at(-1) ?? null;
-  const replyPending = lastCollaborationMessage?.role === "user";
-  const collaborationUserMessageCount = collaboration?.messages.filter((message) => message.role === "user").length ?? 0;
-  const collaborationSummary = healthCollaborationSummaryCopy({
-    stage: healthAiStage,
-    hasDraft: Boolean(collaborationDraft.trim()),
-    replyPending,
-    needsClarification: lastCollaborationMessage?.role === "assistant" && lastCollaborationMessage.needsClarification === true,
-    userMessageCount: collaborationUserMessageCount,
-    hasReadError: Boolean(collaborationError)
-  });
-
   useEffect(() => { void reload(); }, [weekStart]);
   useEffect(() => {
     const resumeCollaboration = () => {
@@ -405,94 +279,20 @@ export function HealthWorkspace({ onAskHealth }:{
       document.removeEventListener("visibilitychange", resumeCollaboration);
     };
   }, [weekStart]);
-  useEffect(() => { setCollaborationExpanded(false); }, [weekStart]);
-  useEffect(() => {
-    try {
-      setCollaborationDraft(window.localStorage.getItem(`${healthDraftStoragePrefix}.${weekStart}`) ?? "");
-    } catch {
-      setCollaborationDraft("");
-    }
-  }, [weekStart]);
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      try {
-        const key = `${healthDraftStoragePrefix}.${weekStart}`;
-        if (collaborationDraft) window.localStorage.setItem(key, collaborationDraft);
-        else window.localStorage.removeItem(key);
-      } catch {
-        // Draft persistence is a convenience; the saved conversation remains authoritative.
-      }
-    }, 180);
-    return () => window.clearTimeout(timeout);
-  }, [collaborationDraft, weekStart]);
-  useEffect(() => {
-    let cancelled = false;
-    void request<{ sleepImageAnalysis: boolean; feishuClarificationSync: boolean }>("/api/v1/health/capabilities")
-      .then((result) => { if (!cancelled) setSleepImageAnalysisAvailable(result.sleepImageAnalysis); })
-      .catch(() => { if (!cancelled) setSleepImageAnalysisAvailable(false); });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    void request<{ analyses: SleepAnalysis[] }>(`/api/v1/health/sleep-analyses/${sleepDate}`)
-      .then((result) => { if (!cancelled) setSleepAnalyses(result.analyses); })
-      .catch(() => { if (!cancelled) setSleepAnalyses([]); });
-    return () => { cancelled = true; };
-  }, [sleepDate]);
-
-  useEffect(() => {
-    if (!sleepFile) {
-      setSleepPreviewUrl(null);
-      return;
-    }
-    const objectUrl = URL.createObjectURL(sleepFile);
-    setSleepPreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [sleepFile]);
+  useEffect(() => { setAnswerText(""); setAnswerIssues([]); setWeekContext(""); }, [weekStart]);
 
   async function reload() {
     const requestId = ++reloadRequestRef.current;
     setLoading(true);
-    setCollaborationError(null);
     try {
-      const collaborationRequest = request<HealthConversationState>(`/api/v1/health/weeks/${weekStart}/collaboration`).catch(() => null);
-      const [profileResult, weekResult, collaborationResult] = await Promise.all([
+      const [profileResult, weekResult] = await Promise.all([
         request<{ profile: StoredProfile | null }>("/api/v1/health/profile"),
-        request<{ active: HealthPlan | null; candidate: HealthPlan | null }>(`/api/v1/health/weeks/${weekStart}`),
-        collaborationRequest
+        request<{ active: HealthPlan | null; candidate: HealthPlan | null }>(`/api/v1/health/weeks/${weekStart}`)
       ]);
       if (requestId !== reloadRequestRef.current) return;
       setProfile(profileResult.profile);
       setActive(weekResult.active);
       setCandidate(weekResult.candidate);
-      setCollaboration(collaborationResult);
-      if (!collaborationResult) setCollaborationError("本周健康交流暂时无法读取；现有健康参考仍可查看，数据库迁移完成后可在这里继续交流。");
-      else if (collaborationResult.messages.at(-1)?.role === "user") {
-        const lastMessage = collaborationResult.messages.at(-1)!;
-        const conversationId = collaborationResult.conversation.id;
-        const recoveryKey = `${conversationId}:${lastMessage.id}`;
-        const pendingReply = healthReplyTasks.get(conversationId)
-          ?? (!replyRecoveryAttemptedRef.current.has(recoveryKey)
-            ? ensureHealthReply(conversationId)
-            : null);
-        if (pendingReply) replyRecoveryAttemptedRef.current.add(recoveryKey);
-        setHealthAiStage(pendingReply ? "replying" : "reply_failed");
-        if (pendingReply) {
-          void pendingReply.then((result) => {
-            if (requestId !== reloadRequestRef.current) return;
-            setCollaboration(result);
-            setCollaborationError(null);
-            setHealthAiStage("ready");
-          }).catch((requestError) => {
-            if (requestId !== reloadRequestRef.current) return;
-            replyRecoveryAttemptedRef.current.delete(recoveryKey);
-            const serverMessage = requestError instanceof Error ? (requestError as ApiError).body?.message : undefined;
-            setHealthAiStage("reply_failed");
-            setCollaborationError(serverMessage ?? "你的健康说明已经保存，但 AI 暂时没有返回；直接点击“重试回应”即可。");
-          });
-        }
-      } else setHealthAiStage("idle");
       setSelectedDay(0);
       setError(null);
     } catch {
@@ -503,100 +303,57 @@ export function HealthWorkspace({ onAskHealth }:{
     }
   }
 
-  async function refreshCollaboration() {
+
+
+
+
+  async function copyText(text: string, kind: "template" | "fix") {
     try {
-      const result = await request<HealthConversationState>(`/api/v1/health/weeks/${weekStart}/collaboration`);
-      setCollaboration(result);
-      setCollaborationError(null);
-      return result;
+      await navigator.clipboard.writeText(text);
     } catch {
-      setCollaborationError("本周健康交流暂时无法读取；已经确认的健康参考不会受影响。");
-      return null;
+      // Older WebViews: fall back to a hidden textarea.
+      const area = document.createElement("textarea");
+      area.value = text; area.style.position = "fixed"; area.style.opacity = "0";
+      document.body.appendChild(area); area.select();
+      document.execCommand("copy"); area.remove();
     }
+    setCopied(kind);
+    window.setTimeout(() => setCopied((current) => current === kind ? null : current), 2200);
   }
 
-  async function sendHealthMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const content = collaborationDraft.trim();
-    if (!collaboration || !content || busy || replyPending) return;
-    setBusy(true); setError(null); setCollaborationError(null); setHealthAiStage("saving_message");
-    let saved: HealthConversationState;
-    try {
-      saved = await request<HealthConversationState>(`/api/v1/health/collaborations/${collaboration.conversation.id}/messages`, "POST", { content });
-      setCollaboration(saved);
-      setCollaborationDraft("");
-    } catch (requestError) {
-      const code = requestError instanceof Error ? (requestError as ApiError).body?.error : undefined;
-      if (code === "health_collaboration_reply_pending") {
-        await refreshCollaboration();
-        setHealthAiStage("reply_failed");
-        setCollaborationError("上一条说明已经保存，当前只需重试 AI 回应，不需要再次发送。");
-      } else {
-        setHealthAiStage("idle");
-        setCollaborationError("健康说明没有保存成功，请确认本机 API 正在运行后再试；输入内容仍保留在这里。");
-      }
-      setBusy(false);
-      return;
-    }
-
-    setHealthAiStage("replying");
-    try {
-      const replied = await ensureHealthReply(saved.conversation.id);
-      setCollaboration(replied);
-      setHealthAiStage("ready");
-    } catch (requestError) {
-      const serverMessage = requestError instanceof Error ? (requestError as ApiError).body?.message : undefined;
-      setHealthAiStage("reply_failed");
-      setCollaborationError(serverMessage ?? "你的健康说明已经保存，但 AI 暂时没有返回；直接点击“重试回应”即可。");
-    } finally {
-      setBusy(false);
-    }
+  async function copyTemplate() {
+    const template = buildHealthPromptTemplate({
+      profile: (profile?.profile ?? null) as HealthProfile | null,
+      weekStart,
+      solarTerm: resolveSolarTerm(weekStart).term,
+      dates: localDatesForHealthWeek(weekStart),
+      extraContext: weekContext
+    });
+    await copyText(template, "template");
   }
 
-  async function retryHealthReply() {
-    if (!collaboration || !replyPending || busy) return;
-    setBusy(true); setError(null); setCollaborationError(null); setHealthAiStage("replying");
-    try {
-      const replied = await ensureHealthReply(collaboration.conversation.id);
-      setCollaboration(replied);
-      setHealthAiStage("ready");
-    } catch (requestError) {
-      const serverMessage = requestError instanceof Error ? (requestError as ApiError).body?.message : undefined;
-      setHealthAiStage("reply_failed");
-      setCollaborationError(serverMessage ?? "AI 仍未返回回应；你的原文已经保存，不需要重复输入。");
-    } finally {
-      setBusy(false);
-    }
+  async function copyFixPrompt() {
+    await copyText(buildHealthFixPrompt(answerIssues), "fix");
   }
 
-  async function createCandidate() {
-    const attempt = generationAttemptRef.current + 1;
-    generationAttemptRef.current = attempt;
-    setBusy(true); setError(null); setCollaborationError(null); setHealthAiStage("preparing_candidate");
-    const generatingTimer = window.setTimeout(() => {
-      if (generationAttemptRef.current === attempt) setHealthAiStage("generating_candidate");
-    }, 700);
-    const waitingTimer = window.setTimeout(() => {
-      if (generationAttemptRef.current === attempt) setHealthAiStage("waiting_candidate");
-    }, 18_000);
+  /** Check the pasted AI answer with code, then store it as an unconfirmed candidate. */
+  async function importAnswer() {
+    const parsed = parseHealthAnswer(answerText);
+    if (!parsed.ok) { setAnswerIssues(parsed.issues); return; }
+    setAnswerIssues([]);
+    setBusy(true); setError(null);
     try {
-      const result = await request<{ plan: HealthPlan }>("/api/v1/health/weeks/ai-candidates", "POST", {
-        weekStart
+      const result = await request<{ plan: HealthPlan }>("/api/v1/health/weeks/manual-candidates", "POST", {
+        weekStart,
+        specialContext: weekContext.trim() || null,
+        content: parsed.content
       });
-      setCandidate(result.plan); setSelectedDay(0); setHealthAiStage("candidate_ready"); setCollaborationExpanded(false);
+      setCandidate(result.plan); setSelectedDay(0); setAnswerText("");
       window.requestAnimationFrame(() => candidateSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (requestError) {
       const code = requestError instanceof Error ? (requestError as ApiError).body?.error : undefined;
-      const serverMessage = requestError instanceof Error ? (requestError as ApiError).body?.message : undefined;
-      setHealthAiStage("candidate_failed");
-      setError(code === "health_profile_required"
-        ? "请先保存健康资料，再生成本周参考。"
-        : serverMessage ?? "AI 暂时无法生成候选，现有参考保持不变；没有写入替代内容。");
-    } finally {
-      window.clearTimeout(generatingTimer);
-      window.clearTimeout(waitingTimer);
-      setBusy(false);
-    }
+      setError(code === "health_profile_required" ? "请先保存健康资料，再生成本周参考。" : "候选没有保存，原有参考保持不变。请稍后重试。");
+    } finally { setBusy(false); }
   }
 
   async function confirmCandidate() {
@@ -627,7 +384,6 @@ export function HealthWorkspace({ onAskHealth }:{
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!profile) return;
     const form = new FormData(event.currentTarget);
     const optionalNumber = (name: string) => {
       const value = String(form.get(name) ?? "").trim();
@@ -671,107 +427,17 @@ export function HealthWorkspace({ onAskHealth }:{
     };
     setBusy(true); setError(null);
     try {
-      const result = await request<{ profile: StoredProfile }>("/api/v1/health/profile", "PUT", { expectedVersion: profile.version, profile: next });
+      const result = await request<{ profile: StoredProfile }>("/api/v1/health/profile", "PUT", { expectedVersion: profile?.version ?? null, profile: next });
       setProfile(result.profile); setEditingProfile(false);
     } catch { setError("资料保存失败，原资料没有被覆盖。请刷新后重试。"); }
     finally { setBusy(false); }
   }
 
-  async function analyzeSleepScreenshot() {
-    if (!sleepFile) return;
-    if (sleepImageAnalysisAvailable === false) {
-      setError("睡眠截图分析尚未配置可用的视觉模型；本周健康参考的其他功能仍可正常使用。");
-      return;
-    }
-    if (!(sleepMimeTypes as readonly string[]).includes(sleepFile.type) || sleepFile.size > 6 * 1024 * 1024) {
-      setError("请选择不超过 6 MB 的 PNG、JPG 或 WebP 睡眠截图。");
-      return;
-    }
-    setBusy(true); setError(null);
-    try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error("file_read_failed"));
-        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("file_read_failed"));
-        reader.readAsDataURL(sleepFile);
-      });
-      const result = await request<{ analysis: SleepAnalysis }>("/api/v1/health/sleep-analyses", "POST", {
-        localDate: sleepDate,
-        fileName: sleepFile.name,
-        mimeType: sleepFile.type,
-        dataUrl
-      });
-      setSleepAnalyses((items) => [result.analysis, ...items]);
-      setSleepFile(null);
-    } catch (requestError) {
-      const code = requestError instanceof Error ? (requestError as ApiError).body?.error : undefined;
-      setError(code === "sleep_image_analysis_unavailable" ? "视觉分析暂时不可用，原图和分析结果都没有保存。" : "这张截图无法读取，原图和分析结果都没有保存。");
-    } finally { setBusy(false); }
-  }
 
-  function selectSleepFile(file: File | null) {
-    if (!file) return;
-    const mimeType = sleepMimeTypeFor(file);
-    if (!mimeType || file.size > 6 * 1024 * 1024) {
-      setSleepFile(null);
-      setError("请选择不超过 6 MB 的 PNG、JPG 或 WebP 睡眠截图。");
-      return;
-    }
-    const fileName = file.name.trim() || `sleep-${sleepDate}.${sleepFileExtension(mimeType)}`;
-    const normalizedFile = file.type === mimeType && file.name.trim()
-      ? file
-      : new File([file], fileName, { type: mimeType, lastModified: file.lastModified });
-    setSleepFile(normalizedFile);
-    setError(null);
-  }
 
-  function transferredImage(files: FileList | File[]): File | null {
-    return Array.from(files).find((file) => sleepMimeTypeFor(file) !== null) ?? null;
-  }
 
-  function handleSleepDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    setSleepDropActive(false);
-    if (sleepImageAnalysisAvailable === false) return;
-    const file = transferredImage(event.dataTransfer.files);
-    if (!file) {
-      setError("拖入内容中没有可用的 PNG、JPG 或 WebP 图片。");
-      return;
-    }
-    selectSleepFile(file);
-  }
 
-  function handleSleepPaste(event: ClipboardEvent<HTMLDivElement>) {
-    if (sleepImageAnalysisAvailable === false) return;
-    const file = transferredImage(event.clipboardData.files);
-    if (!file) {
-      setError("剪贴板中没有可用的 PNG、JPG 或 WebP 图片。");
-      return;
-    }
-    event.preventDefault();
-    selectSleepFile(file);
-  }
 
-  async function createSleepRevisionCandidate(record: SleepAnalysis) {
-    if (!active) return;
-    setBusy(true); setError(null);
-    try {
-      const result = await request<{ plan: HealthPlan }>("/api/v1/health/weeks/sleep-revision-candidates", "POST", {
-        weekStart,
-        sleepAnalysisId: record.id
-      });
-      setCandidate(result.plan);
-      setSelectedDay(Math.max(0, result.plan.days.findIndex((day) => day.localDate === record.localDate)));
-    } catch (requestError) {
-      const code = requestError instanceof Error ? (requestError as ApiError).body?.error : undefined;
-      const message = code === "health_active_plan_required"
-        ? "请先确认一份本周参考，再请求睡眠修订。"
-        : code === "sleep_analysis_outside_week"
-          ? "这次截图不属于当前周，不能用于修订本周参考。"
-          : "睡眠修订候选暂时无法生成，原本周参考保持不变。";
-      setError(message);
-    } finally { setBusy(false); }
-  }
 
   function openManualEditor() {
     const source = candidate ?? active;
@@ -861,13 +527,6 @@ export function HealthWorkspace({ onAskHealth }:{
     } finally { setBusy(false); }
   }
 
-  function askAboutFood() {
-    if (!selectedReference || !visiblePlan) return;
-    const date = selectedReference.localDate;
-    const referenceState = candidate ? "待确认健康候选" : "已确认健康参考";
-    const prompt = `请根据我 ${date} 的${referenceState}，回答一个具体饮食问题。当前参考是：${selectedReference.content.nutritionDirection}；蛋白质范围 ${selectedReference.content.proteinRangeGrams.minimum}–${selectedReference.content.proteinRangeGrams.maximum} 克；时令蔬菜提示：${selectedReference.content.seasonalVegetables.join("、")}。请先问我具体想吃什么或当前用餐场景，不要自动修改本周健康参考，也不要创建任务。`;
-    onAskHealth?.(prompt);
-  }
 
   return <section className="health-workspace">
     <header className="health-heading poster-header"><PosterMark word="健康" />
@@ -879,68 +538,79 @@ export function HealthWorkspace({ onAskHealth }:{
       <section className="health-context-card">
           <div className="health-context-icon"><HeartPulse /></div>
         <div><p className="section-kicker">你的资料</p><strong>{profile ? `${profile.profile.basics.heightCm} cm · ${profile.profile.basics.weightKg} kg · ${profile.profile.goals.slice(0, 2).join(" / ")}` : "尚未建立健康资料"}</strong><small><MapPin />{profile?.profile.city ?? "未设置城市"}</small></div>
-        <button className="quiet-button" type="button" onClick={() => setEditingProfile((value) => !value)}><ClipboardPenLine />{editingProfile ? "收起资料" : "查看或修改资料"}</button>
+        <button className="quiet-button" type="button" onClick={() => setEditingProfile((value) => !value)}><ClipboardPenLine />{editingProfile ? "收起资料" : profile ? "查看或修改资料" : "填写健康资料"}</button>
       </section>
-      {editingProfile && profile && <form className="health-profile-form" onSubmit={saveProfile}>
+      {editingProfile && <form className="health-profile-form" onSubmit={saveProfile}>
         <h3 className="wide">基础资料</h3>
-        <label><span>当前城市（可留空）</span><input name="city" defaultValue={profile.profile.city ?? ""} maxLength={120} placeholder="例如：输入城市名称" /></label>
-        <label><span>性别</span><select name="sex" defaultValue={profile.profile.basics.sex}><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></label>
-        <label><span>年龄</span><input name="age" type="number" min="16" max="120" step="1" defaultValue={profile.profile.basics.age} required /></label>
-        <label><span>身高（cm）</span><input name="heightCm" type="number" min="120" max="230" step="1" defaultValue={profile.profile.basics.heightCm} required /></label>
-        <label><span>当前体重（kg）</span><input name="weightKg" type="number" min="30" max="300" step="0.1" defaultValue={profile.profile.basics.weightKg} required /></label>
-        <label><span>体脂率（%）</span><input name="bodyFatPercent" type="number" min="1" max="70" step="0.1" defaultValue={profile.profile.basics.bodyFatPercent ?? ""} /></label>
-        <label><span>腰围（cm）</span><input name="waistCm" type="number" min="40" max="200" step="0.1" defaultValue={profile.profile.basics.waistCm ?? ""} /></label>
-        <label className="wide"><span>当前目标（逗号或换行分隔）</span><textarea name="goals" rows={2} defaultValue={profile.profile.goals.join("，")} required /></label>
-        <label><span>阶段目标下限（kg）</span><input name="stageWeightMinimumKg" type="number" min="30" max="300" step="0.1" defaultValue={profile.profile.stageWeightGoal.minimumKg} required /></label>
-        <label><span>阶段目标上限（kg）</span><input name="stageWeightMaximumKg" type="number" min="30" max="300" step="0.1" defaultValue={profile.profile.stageWeightGoal.maximumKg} required /></label>
-        <label className="wide"><span>需要考虑的情况（逗号或换行分隔）</span><textarea name="considerations" rows={3} defaultValue={profile.profile.considerations.join("\n")} required /></label>
+        <label><span>当前城市（可留空）</span><input name="city" defaultValue={profile?.profile.city ?? ""} maxLength={120} placeholder="例如：输入城市名称" /></label>
+        <label><span>性别</span><select name="sex" defaultValue={profile?.profile.basics.sex}><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></label>
+        <label><span>年龄</span><input name="age" type="number" min="16" max="120" step="1" defaultValue={profile?.profile.basics.age} required /></label>
+        <label><span>身高（cm）</span><input name="heightCm" type="number" min="120" max="230" step="1" defaultValue={profile?.profile.basics.heightCm} required /></label>
+        <label><span>当前体重（kg）</span><input name="weightKg" type="number" min="30" max="300" step="0.1" defaultValue={profile?.profile.basics.weightKg} required /></label>
+        <label><span>体脂率（%）</span><input name="bodyFatPercent" type="number" min="1" max="70" step="0.1" defaultValue={profile?.profile.basics.bodyFatPercent ?? ""} /></label>
+        <label><span>腰围（cm）</span><input name="waistCm" type="number" min="40" max="200" step="0.1" defaultValue={profile?.profile.basics.waistCm ?? ""} /></label>
+        <label className="wide"><span>当前目标（逗号或换行分隔）</span><textarea name="goals" rows={2} defaultValue={profile?.profile.goals?.join("，")} required /></label>
+        <label><span>阶段目标下限（kg）</span><input name="stageWeightMinimumKg" type="number" min="30" max="300" step="0.1" defaultValue={profile?.profile.stageWeightGoal.minimumKg} required /></label>
+        <label><span>阶段目标上限（kg）</span><input name="stageWeightMaximumKg" type="number" min="30" max="300" step="0.1" defaultValue={profile?.profile.stageWeightGoal.maximumKg} required /></label>
+        <label className="wide"><span>需要考虑的情况（逗号或换行分隔）</span><textarea name="considerations" rows={3} defaultValue={profile?.profile.considerations?.join("\n")} required /></label>
         <h3 className="wide">活动偏好</h3>
-        <label><span>每周活动次数</span><input name="sessionsPerWeek" type="number" min="0" max="14" step="1" defaultValue={profile.profile.activity.sessionsPerWeek} required /></label>
-        <label><span>单次时长下限（分钟）</span><input name="usualDurationMinimum" type="number" min="0" max="360" step="1" defaultValue={profile.profile.activity.usualDurationMinutes.minimum} required /></label>
-        <label><span>单次时长上限（分钟）</span><input name="usualDurationMaximum" type="number" min="0" max="480" step="1" defaultValue={profile.profile.activity.usualDurationMinutes.maximum} required /></label>
-        <label className="wide"><span>偏好的活动（逗号或换行分隔）</span><textarea name="preferredActivities" rows={2} defaultValue={profile.profile.activity.preferredActivities.join("，")} /></label>
-        <label className="health-checkbox wide"><input name="avoidHighRisk" type="checkbox" defaultChecked={profile.profile.activity.avoidHighRisk} /><span>避免高风险或容易受伤的活动建议</span></label>
+        <label><span>每周活动次数</span><input name="sessionsPerWeek" type="number" min="0" max="14" step="1" defaultValue={profile?.profile.activity.sessionsPerWeek} required /></label>
+        <label><span>单次时长下限（分钟）</span><input name="usualDurationMinimum" type="number" min="0" max="360" step="1" defaultValue={profile?.profile.activity.usualDurationMinutes.minimum} required /></label>
+        <label><span>单次时长上限（分钟）</span><input name="usualDurationMaximum" type="number" min="0" max="480" step="1" defaultValue={profile?.profile.activity.usualDurationMinutes.maximum} required /></label>
+        <label className="wide"><span>偏好的活动（逗号或换行分隔）</span><textarea name="preferredActivities" rows={2} defaultValue={profile?.profile.activity.preferredActivities?.join("，")} /></label>
+        <label className="health-checkbox wide"><input name="avoidHighRisk" type="checkbox" defaultChecked={profile?.profile.activity.avoidHighRisk} /><span>避免高风险或容易受伤的活动建议</span></label>
         <h3 className="wide">饮食与补充剂</h3>
-        <label className="wide"><span>用餐场景</span><textarea name="mealContext" rows={2} defaultValue={profile.profile.food.mealContext} required /></label>
-        <label><span>早餐时间</span><input name="breakfastTime" type="time" defaultValue={profile.profile.food.mealTimes.breakfast} required /></label>
-        <label><span>午餐时间</span><input name="lunchTime" type="time" defaultValue={profile.profile.food.mealTimes.lunch} required /></label>
-        <label><span>晚餐时间</span><input name="dinnerTime" type="time" defaultValue={profile.profile.food.mealTimes.dinner} required /></label>
-        <label className="wide"><span>不喜欢或不适合的食物（逗号或换行分隔）</span><textarea name="dislikes" rows={2} defaultValue={profile.profile.food.dislikes.join("，")} /></label>
-        <label className="wide"><span>常见食物（逗号或换行分隔）</span><textarea name="commonFoods" rows={3} defaultValue={profile.profile.food.commonFoods.join("，")} /></label>
-        <label><span>当前补充剂</span><textarea name="currentSupplements" rows={2} defaultValue={profile.profile.supplements.current.join("，")} /></label>
-        <label><span>未来考虑的补充剂</span><textarea name="consideringSupplements" rows={2} defaultValue={profile.profile.supplements.considering.join("，")} /></label>
-        <label><span>不使用的补充剂</span><textarea name="avoidsSupplements" rows={2} defaultValue={profile.profile.supplements.avoids.join("，")} /></label>
-        <label className="wide"><span>补充说明（可选）</span><textarea name="notes" rows={2} defaultValue={profile.profile.notes ?? ""} maxLength={2000} /></label>
+        <label className="wide"><span>用餐场景</span><textarea name="mealContext" rows={2} defaultValue={profile?.profile.food.mealContext} required /></label>
+        <label><span>早餐时间</span><input name="breakfastTime" type="time" defaultValue={profile?.profile.food.mealTimes.breakfast} required /></label>
+        <label><span>午餐时间</span><input name="lunchTime" type="time" defaultValue={profile?.profile.food.mealTimes.lunch} required /></label>
+        <label><span>晚餐时间</span><input name="dinnerTime" type="time" defaultValue={profile?.profile.food.mealTimes.dinner} required /></label>
+        <label className="wide"><span>不喜欢或不适合的食物（逗号或换行分隔）</span><textarea name="dislikes" rows={2} defaultValue={profile?.profile.food.dislikes?.join("，")} /></label>
+        <label className="wide"><span>常见食物（逗号或换行分隔）</span><textarea name="commonFoods" rows={3} defaultValue={profile?.profile.food.commonFoods?.join("，")} /></label>
+        <label><span>当前补充剂</span><textarea name="currentSupplements" rows={2} defaultValue={profile?.profile.supplements.current?.join("，")} /></label>
+        <label><span>未来考虑的补充剂</span><textarea name="consideringSupplements" rows={2} defaultValue={profile?.profile.supplements.considering?.join("，")} /></label>
+        <label><span>不使用的补充剂</span><textarea name="avoidsSupplements" rows={2} defaultValue={profile?.profile.supplements.avoids?.join("，")} /></label>
+        <label className="wide"><span>补充说明（可选）</span><textarea name="notes" rows={2} defaultValue={profile?.profile.notes ?? ""} maxLength={2000} /></label>
         <footer className="wide"><button className="primary-button" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" /> : <Check />}保存我主动填写的资料</button></footer>
       </form>}
-      <section className={`health-collaboration ${collaborationExpanded ? "is-expanded" : "is-collapsed"}`} aria-label="本周健康交流">
-        <button className="health-collaboration-toggle" type="button" aria-expanded={collaborationExpanded} aria-controls="health-collaboration-panel" onClick={() => setCollaborationExpanded((expanded) => !expanded)}>
-          <span className="health-collaboration-title"><span className="section-kicker">本周笔谈</span><strong>{collaborationSummary}</strong></span>
-          <span className="health-collaboration-meta"><span>{collaborationUserMessageCount} 次说明</span><span>{collaborationExpanded ? "收起聊天记录" : "展开聊天记录"}</span><ChevronDown aria-hidden="true" /></span>
-        </button>
-        <div className="health-collaboration-panel" id="health-collaboration-panel">
-          {collaborationExpanded && <div className="health-conversation-ledger" aria-live="polite">
-            {collaboration?.messages.length ? collaboration.messages.map((message) => <article key={message.id} data-role={message.role}>
-              <div><strong>{message.role === "user" ? "你" : "AI"}</strong><span>{message.source === "feishu" ? "来自飞书 · " : ""}{conversationTime(message.createdAt)}</span>{message.role === "assistant" && message.needsClarification && <i>待补充</i>}</div>
-              <p>{message.content}</p>
-            </article>) : <div className="health-conversation-empty"><Quote /><div><strong>尚未起笔</strong><p>写下这一周需要考虑的作息、训练、饮食或特殊安排。</p></div></div>}
-          </div>}
-          <form className="health-collaboration-composer" onSubmit={sendHealthMessage}>
-            <label htmlFor="health-collaboration-input">告诉 AI 这一周真实需要考虑的情况</label>
-            <textarea id="health-collaboration-input" aria-label="本周健康想法" rows={5} maxLength={4000} value={collaborationDraft} onChange={(event) => setCollaborationDraft(event.target.value)} placeholder="例如：这周想把作息和饮食安排得更规律，并说明需要注意的限制……" />
-            <footer>
-              <small>{profile ? "输入草稿会保留；发送后原文会保存到本周健康交流。" : "请先保存健康资料。"}</small>
-              {replyPending ? <button className="primary-button" type="button" disabled={busy} onClick={() => void retryHealthReply()}>{healthAiStage === "replying" ? <LoaderCircle className="spin" /> : <RefreshCcw />}重试回应</button> : <button className="primary-button" type="submit" disabled={busy || !profile || !collaboration || !collaborationDraft.trim()}>{healthAiStage === "saving_message" || healthAiStage === "replying" ? <LoaderCircle className="spin" /> : <Send />}{healthAiStage === "saving_message" ? "正在保存" : healthAiStage === "replying" ? "等待回应" : "发送给 AI"}</button>}
-            </footer>
-          </form>
-          <div className={`health-ai-status ${healthAiStage}`} role="status"><span aria-hidden="true" />{healthAiStatusCopy(healthAiStage)}</div>
-          {collaborationError && <div className="health-collaboration-error" role="alert">{collaborationError}</div>}
-        </div>
-      </section>
-      <section className="health-generation">
-        <div><p className="section-kicker">本周候选</p><h2>{candidate ? "候选尚未生效" : active ? "当前参考保持稳定" : "生成一份本周参考"}</h2></div>
-        <div className="health-generation-context"><strong>{collaborationUserMessageCount} 条已保存说明</strong><span>{collaborationDraft.trim() ? "还有未发送内容，请先发送" : replyPending ? "上一条说明等待 AI 回应" : "已准备好生成候选"}</span></div>
-        <div className="health-generation-actions"><button className="quiet-button" type="button" disabled={busy || !profile || !visiblePlan} onClick={openManualEditor}><ClipboardPenLine />手动编辑候选</button><button className="primary-button" type="button" disabled={busy || !profile || !collaboration || Boolean(collaborationDraft.trim()) || replyPending} onClick={() => void createCandidate()}>{healthAiStage === "preparing_candidate" || healthAiStage === "generating_candidate" || healthAiStage === "waiting_candidate" ? <LoaderCircle className="spin" /> : <Sparkles />}{healthAiStage === "preparing_candidate" ? "正在整理" : healthAiStage === "generating_candidate" || healthAiStage === "waiting_candidate" ? "正在生成候选" : "根据本页交流生成候选"}</button></div>
+      <section className="health-template" aria-labelledby="health-template-title">
+        <header>
+          <div><p className="section-kicker">本周参考 · 不用 API 密钥</p><h2 id="health-template-title">{candidate ? "候选尚未生效" : active ? "当前参考保持稳定" : "用网页版 AI 生成本周参考"}</h2></div>
+          <button className="quiet-button" type="button" disabled={busy || !profile || !visiblePlan} onClick={openManualEditor}><ClipboardPenLine />手动编辑候选</button>
+        </header>
+        <ol className="health-template-steps">
+          <li>
+            <span className="health-template-step">01</span>
+            <div>
+              <strong>复制提问模板</strong>
+              <p>模板里已经带上你的健康资料、本周日期和固定的回答格式。发给任意网页版 AI（DeepSeek、Kimi、豆包、ChatGPT 都可以）。</p>
+              <label><span>这周的特别情况（可选，会写进模板）</span><textarea aria-label="这周的特别情况" rows={2} maxLength={1000} value={weekContext} onChange={(event) => setWeekContext(event.target.value)} placeholder="例如：周三出差、这周想少吃外卖" /></label>
+              <div className="health-template-actions">
+                <button className="primary-button" type="button" disabled={!profile} onClick={() => void copyTemplate()}>{copied === "template" ? <Check /> : <Copy />}{copied === "template" ? "已复制提问模板" : "复制提问模板"}</button>
+                {!profile && <small>请先在上面保存你的健康资料。</small>}
+              </div>
+            </div>
+          </li>
+          <li>
+            <span className="health-template-step">02</span>
+            <div>
+              <strong>把 AI 的回答整段粘贴回来</strong>
+              <p>直接全选复制 AI 的回答即可，软件会自己找出其中的内容并逐项检查。</p>
+              <label><span>AI 的回答</span><textarea aria-label="AI 的回答" rows={6} value={answerText} onChange={(event) => { setAnswerText(event.target.value); setAnswerIssues([]); }} placeholder="在这里粘贴网页版 AI 的完整回答……" /></label>
+              <div className="health-template-actions">
+                <button className="primary-button" type="button" disabled={busy || !profile || !answerText.trim()} onClick={() => void importAnswer()}>{busy ? <LoaderCircle className="spin" /> : <Check />}检查并生成候选</button>
+              </div>
+              {answerIssues.length > 0 && <div className="health-template-issues" role="alert">
+                <strong>这份回答还有 {answerIssues.length} 处不符合格式，没有保存：</strong>
+                <ul>{answerIssues.slice(0, 6).map((issue) => <li key={issue.path + issue.message}>{issue.message}</li>)}</ul>
+                <button className="quiet-button" type="button" onClick={() => void copyFixPrompt()}>{copied === "fix" ? <Check /> : <Copy />}{copied === "fix" ? "已复制修正说明" : "复制修正说明发回给 AI"}</button>
+              </div>}
+            </div>
+          </li>
+          <li>
+            <span className="health-template-step">03</span>
+            <div><strong>确认后生效</strong><p>检查通过会先生成一份待确认候选，显示在下面。你确认之前，本周已生效的参考不会被替换。</p></div>
+          </li>
+        </ol>
       </section>
       {manualDraft && <form className="health-manual-editor" onSubmit={saveManualCandidate}>
         <header><div><p className="section-kicker">手动周参考候选</p><h2>你决定每一项内容。</h2><small>保存后只会形成待确认候选，不会立即覆盖当前生效版本。</small></div><button className="quiet-button" type="button" disabled={busy} onClick={() => setManualDraft(null)}>取消编辑</button></header>
@@ -1007,8 +677,8 @@ export function HealthWorkspace({ onAskHealth }:{
             <div><dt>每日饮水</dt><dd>{selectedReference?.content.nutritionTargets ? `${selectedReference.content.nutritionTargets.hydrationLiters.minimum}–${selectedReference.content.nutritionTargets.hydrationLiters.maximum}L` : "当前参考未提供"}</dd></div>
           </dl>
         </section>
-        {candidate?.revisionReason && active && candidate.basedOnPlanId === active.id && <section className="health-revision-preview" aria-label={candidateIsUneditedSleepRevision ? "睡眠修订前后差异" : "候选前后差异"}>
-          <header><Sparkles /><div><p className="section-kicker">{candidateIsUneditedSleepRevision ? "本次修订依据" : "候选说明"}</p><strong>候选尚未生效</strong></div></header>
+        {candidate?.revisionReason && active && candidate.basedOnPlanId === active.id && <section className="health-revision-preview" aria-label="候选前后差异">
+          <header><Sparkles /><div><p className="section-kicker">候选说明</p><strong>候选尚未生效</strong></div></header>
           <p>{candidate.revisionReason}</p>
           <div className="health-revision-diff">{planRevisionChanges(active, candidate).map((change) => <div key={change}><strong>本周</strong><span>{change}</span></div>)}{candidate.days.map((day) => {
             const previous = active.days.find((item) => item.dayIndex === day.dayIndex);
@@ -1047,33 +717,8 @@ export function HealthWorkspace({ onAskHealth }:{
             </section>
             <section className="health-meal-sheet health-meal-sheet-bottom"><h3>正餐推荐</h3>{selectedReference.content.mealExamples ? <dl>{([['早餐',selectedReference.content.mealExamples.breakfast],['午餐',selectedReference.content.mealExamples.lunch],['晚餐',selectedReference.content.mealExamples.dinner],['加餐',selectedReference.content.mealExamples.snack]] as Array<[string,string[]]>).map(([label,items])=><div key={label}><dt>{label}</dt><dd>{items.length ? items.join(" · ") : "可不安排"}</dd></div>)}</dl> : <p className="health-field-missing">当前参考未提供正餐示例；重新生成候选后可补齐。</p>}</section>
           </article>
-          <div className="health-reference-actions"><button className="quiet-button" type="button" onClick={askAboutFood}><MessageCircleQuestion />按今天食材协商</button></div>
         </>}
-      </section> : <div className="health-empty"><HeartPulse /><strong>健康资料已准备好后，会在这里生成一份待你确认的本周参考。</strong></div>}
-      <section className="health-sleep-card">
-        <header>
-          <div>
-            <p className="section-kicker">睡眠截图</p>
-            <h2>只读取你主动上传的这一张。</h2>
-            <small>只分析截图中实际出现的时间、时长、阶段、设备评分和说明。选中后会先在这里预览，点击“提交截图并识别”才会发送；原图不会保存，也不会自动修改健康资料或本周参考。</small>
-            {sleepImageAnalysisAvailable === false && <p className="health-capability-note">当前未配置可用的 AI 视觉模型，因此截图分析暂不可用；健康资料、周参考和手动修订不受影响。</p>}
-          </div>
-          <div className="health-sleep-actions">
-            <input ref={sleepFileInputRef} className="sleep-file-input" aria-label="选择睡眠截图" disabled={sleepImageAnalysisAvailable === false} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { selectSleepFile(event.target.files?.[0] ?? null); event.currentTarget.value = ""; }} />
-            <div className="sleep-drop-shell">
-              <div data-testid="sleep-dropzone" className={`sleep-dropzone ${sleepDropActive ? "drag-active" : ""} ${sleepFile ? "has-file" : ""}`} role="button" tabIndex={sleepImageAnalysisAvailable === false ? -1 : 0} aria-label="睡眠截图拖放与粘贴区域" aria-disabled={sleepImageAnalysisAvailable === false} onClick={(event) => { if ((event.target as HTMLElement).closest("button")) return; if (sleepImageAnalysisAvailable !== false) sleepFileInputRef.current?.click(); }} onKeyDown={(event) => { if ((event.key === "Enter" || event.key === " ") && sleepImageAnalysisAvailable !== false) { event.preventDefault(); sleepFileInputRef.current?.click(); } }} onDragEnter={(event) => { event.preventDefault(); setSleepDropActive(true); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; setSleepDropActive(true); }} onDragLeave={() => setSleepDropActive(false)} onDrop={handleSleepDrop} onPaste={handleSleepPaste}>
-                <Upload />
-                <span><strong>{sleepFile ? sleepFile.name : "拖入或粘贴睡眠截图"}</strong><small>{sleepFile ? "已选择，可重新粘贴或更换图片" : "点击框后按 Ctrl+V，或直接把图片拖进来"}</small></span>
-                <button className="sleep-file-picker" type="button" disabled={sleepImageAnalysisAvailable === false} onClick={() => sleepFileInputRef.current?.click()}>{sleepFile ? "更换文件" : "选择文件"}</button>
-              </div>
-              {sleepFile && sleepPreviewUrl && <div className="sleep-preview-shell"><img src={sleepPreviewUrl} alt="已选择的睡眠截图预览" /><small>预览仅在本机显示，提交时按原始清晰度发送。</small></div>}
-              {sleepFile && <button className="sleep-file-clear" type="button" aria-label="移除已选择的睡眠截图" onClick={() => setSleepFile(null)}><X /></button>}
-            </div>
-            <button className="primary-button" type="button" disabled={busy || !sleepFile || sleepImageAnalysisAvailable === false} onClick={() => void analyzeSleepScreenshot()}>{busy ? <LoaderCircle className="spin" /> : <Sparkles />}提交截图并识别</button>
-          </div>
-        </header>
-        {sleepAnalyses.length === 0 ? <p className="health-sleep-empty">{sleepDate} 还没有已保存的截图分析。</p> : <div className="health-sleep-results">{sleepAnalyses.map((record) => <article key={record.id}><div className="health-sleep-result-head"><strong>{record.localDate}</strong><small>{record.originalFileName} · {new Date(record.createdAt).toLocaleString("zh-CN")}</small></div><div className="sleep-metrics">{sleepMetric("总睡眠", record.analysis.totalSleepMinutes, " 分钟")}{sleepMetric("深睡", record.analysis.deepSleepMinutes, " 分钟")}{sleepMetric("浅睡", record.analysis.lightSleepMinutes, " 分钟")}{sleepMetric("快速眼动", record.analysis.remSleepMinutes, " 分钟")}{sleepMetric("清醒次数", record.analysis.awakeCount)}{sleepMetric("设备评分", record.analysis.deviceScore, " / 100")}{sleepMetric("入睡", record.analysis.sleepStart)}{sleepMetric("起床", record.analysis.wakeTime)}</div>{record.analysis.deviceNotes && <p>{record.analysis.deviceNotes}</p>}<ul>{record.analysis.interpretation.map((item) => <li key={item}>{item}</li>)}</ul>{active && !candidate && <button className="quiet-button sleep-revision-button" type="button" disabled={busy} onClick={() => void createSleepRevisionCandidate(record)}><Sparkles />根据这次睡眠生成修订候选</button>}<small className="health-sleep-limitations">{record.analysis.limitations.join(" ")}</small></article>)}</div>}
-      </section>
+      </section> : <div className="health-empty"><HeartPulse /><strong>还没有本周参考。按上面三步，用网页版 AI 生成一份，确认后就会显示在这里。</strong></div>}
     </>}
   </section>;
 }

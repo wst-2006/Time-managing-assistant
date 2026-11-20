@@ -28,15 +28,13 @@ const installer = join(
   "release",
   "bundle",
   "nsis",
-  `Personal AI Assistant_${version}_x64-setup.exe`
+  `Time Managing Assistant_${version}_x64-setup.exe`
 );
 const generatedInstaller = join(tauriRoot, "target", "release", "nsis", "x64", "installer.nsi");
 const runtimeRoot = join(tauriRoot, "runtime");
 const requiredRuntimeFiles = [
   "node.exe",
   join("api", "dist", "server.js"),
-  join("worker", "dist", "worker.js"),
-  join("api", "node_modules", "@personal-ai", "db", "dist", "migrate.js"),
   join("api", "node_modules", "@personal-ai", "db", "drizzle", "meta", "_journal.json"),
   ".env.example"
 ];
@@ -55,7 +53,7 @@ assert(
   "desktop runtime is missing its latest database migration"
 );
 assert(!existsSync(join(runtimeRoot, ".env")), "private .env must not be bundled into the installer");
-for (const service of ["api", "worker"]) {
+for (const service of ["api"]) {
   const releaseFiles = readdirSync(join(runtimeRoot, service, "dist"), { recursive: true });
   assert(
     !releaseFiles.some((file) => /(?:\.test|\.verify)\.js$/i.test(String(file)) || /(?:^|[\\/])testing(?:[\\/]|$)/i.test(String(file))),
@@ -95,10 +93,9 @@ const generatedSource = readFileSync(generatedInstaller, "utf8");
 for (const marker of [
   "NSIS_HOOK_PREINSTALL",
   "installer-hooks.nsh",
-  "PERSONAL_AI_SAFE_IN_PLACE_UPGRADE",
+  "TMA_SAFE_IN_PLACE_UPGRADE",
   "runtime\\node.exe",
-  "api\\dist\\server.js",
-  "worker\\dist\\worker.js"
+  "api\\dist\\server.js"
 ]) {
   assert(generatedSource.includes(marker), `generated NSIS installer is missing marker: ${marker}`);
 }

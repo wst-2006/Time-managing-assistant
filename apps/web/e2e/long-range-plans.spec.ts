@@ -1,14 +1,13 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { inArray } from "drizzle-orm";
-import { connectVerifiedDatabase } from "@personal-ai/db/client";
-import { loadDatabaseConfig } from "@personal-ai/db/config";
+import { connectE2EDatabase } from "./support/database";
 import { longRangePlanMilestones, longRangePlans } from "@personal-ai/db/schema";
 
 const apiBase = process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:3100";
 
 async function cleanupPlans(ids: string[]) {
   if (!ids.length) return;
-  const { client, db } = await connectVerifiedDatabase(loadDatabaseConfig());
+  const { client, db } = await connectE2EDatabase();
   try {
     await db.transaction(async (transaction) => {
       await transaction.delete(longRangePlanMilestones).where(inArray(longRangePlanMilestones.longRangePlanId, ids));
@@ -35,6 +34,10 @@ async function updateThroughApi(request: APIRequestContext, id: string, version:
   return (await response.json()).plan as { version: number };
 }
 
+async function goStep(page: import("@playwright/test").Page, step: "基本信息" | "想法与目标" | "里程碑") {
+  await page.getByRole("navigation", { name: "规划创建步骤" }).getByRole("button", { name: new RegExp(step) }).click();
+}
+
 test("月度规划通过真实 API 持久化、编辑、提示过期版本、归档并恢复", async ({ page, request }) => {
   test.setTimeout(60_000);
   const suffix = Date.now().toString(36);
@@ -50,7 +53,9 @@ test("月度规划通过真实 API 持久化、编辑、提示过期版本、归
     await page.getByRole("combobox", { name: "规划范围", exact: true }).selectOption("month");
     await page.getByLabel("开始日期").fill("2099-04-01");
     await page.getByLabel("结束日期").fill("2099-04-30");
+    await goStep(page, "想法与目标");
     await page.getByLabel("规划说明").fill("浏览器验收的月度主线不会自动创建任务。");
+    await goStep(page, "里程碑");
     await page.getByRole("button", { name: "添加节点", exact: true }).click();
     await page.getByLabel("里程碑 1", { exact: true }).fill("资料收集");
     await page.getByLabel("里程碑 1 目标日期", { exact: true }).fill("2099-04-08");
@@ -64,24 +69,32 @@ test("月度规划通过真实 API 持久化、编辑、提示过期版本、归
     const createdPlan = (await (await created).json()).plan as { id: string; version: number };
     ids.push(createdPlan.id);
     expect(taskWrites).toBe(0);
+    await goStep(page, "里程碑");
     await expect(page.getByLabel("里程碑 1", { exact: true })).toHaveValue("资料收集");
 
     await page.reload();
     await page.getByRole("button", { name: "规划", exact: true }).click();
     await page.locator(".long-range-item").filter({ hasText: title }).click();
+    await goStep(page, "想法与目标");
     await expect(page.getByLabel("规划说明")).toHaveValue("浏览器验收的月度主线不会自动创建任务。");
+    await goStep(page, "里程碑");
     await expect(page.getByLabel("里程碑 1", { exact: true })).toHaveValue("资料收集");
 
     const saved = page.waitForResponse((response) => response.url().endsWith(`/api/v1/long-range-plans/${createdPlan.id}`) && response.request().method() === "PUT" && response.status() === 200);
+    await goStep(page, "基本信息");
     await page.getByLabel("规划标题").fill(editedTitle);
+    await goStep(page, "里程碑");
     await page.getByRole("button", { name: "保存修改", exact: true }).click();
     const savedPlan = (await (await saved).json()).plan as { version: number };
     await expect(page.locator(".long-range-item").filter({ hasText: editedTitle })).toBeVisible();
 
     await updateThroughApi(request, createdPlan.id, savedPlan.version, `${editedTitle} 已在另一处保存`);
+    await goStep(page, "想法与目标");
     await page.getByLabel("规划说明").fill("这个本地草稿不能静默覆盖服务器上的新版本。");
+    await goStep(page, "里程碑");
     await page.getByRole("button", { name: "保存修改", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("这份规划已经在另一处更新");
+    await goStep(page, "想法与目标");
     await expect(page.getByLabel("规划说明")).toHaveValue("这个本地草稿不能静默覆盖服务器上的新版本。");
 
     await page.reload();
@@ -110,50 +123,6 @@ test("月度规划通过真实 API 持久化、编辑、提示过期版本、归
   }
 });
 
-test("AI 整理只展示候选，应用前不覆盖原稿，应用后仍可人工微调", async ({ page }) => {
-  const originalDescription = "我想在一个月内整理研究方向，但要保留课程时间，不自动创建任何任务。";
-  let receivedPayload: Record<string, unknown> | null = null;
-  await page.route("**/api/v1/long-range-plans/organize-ai", async (route) => {
-    receivedPayload = route.request().postDataJSON() as Record<string, unknown>;
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ candidate: {
-        title: "研究方向整理月度主线",
-        description: "在不挤占课程时间的前提下，形成可继续讨论的研究方向候选。",
-        milestones: [{ title: "确认资料边界", targetDate: "2099-04-10", notes: "先整理可靠来源" }]
-      } })
-    });
-  });
-
-  await page.goto("/");
-  await page.getByRole("button", { name: "规划", exact: true }).click();
-  await page.getByRole("button", { name: "新建规划", exact: true }).click();
-  await page.getByLabel("规划标题").fill("我的原始标题");
-  await page.getByLabel("开始日期").fill("2099-04-01");
-  await page.getByLabel("结束日期").fill("2099-04-30");
-  await page.getByLabel("规划说明").fill(originalDescription);
-  await page.getByRole("button", { name: "让 AI 整理成候选", exact: true }).click();
-
-  const candidate = page.getByLabel("AI 整理的规划候选");
-  await expect(candidate).toBeVisible();
-  await expect(candidate).toContainText("研究方向整理月度主线");
-  await expect(page.getByLabel("规划说明")).toHaveValue(originalDescription);
-  expect(receivedPayload).toMatchObject({
-    title: "我的原始标题",
-    periodStart: "2099-04-01",
-    periodEnd: "2099-04-30",
-    description: originalDescription
-  });
-
-  await candidate.getByRole("button", { name: "应用后继续微调", exact: true }).click();
-  await expect(candidate).toHaveCount(0);
-  await expect(page.getByLabel("规划标题")).toHaveValue("研究方向整理月度主线");
-  await expect(page.getByLabel("规划说明")).toHaveValue("在不挤占课程时间的前提下，形成可继续讨论的研究方向候选。");
-  await expect(page.getByLabel("里程碑 1", { exact: true })).toHaveValue("确认资料边界");
-  await page.getByLabel("里程碑 1", { exact: true }).fill("用户微调后的资料边界");
-  await expect(page.getByLabel("里程碑 1", { exact: true })).toHaveValue("用户微调后的资料边界");
-});
 
 test("390px 下可查看并创建长期规划，不产生横向溢出", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -162,6 +131,7 @@ test("390px 下可查看并创建长期规划，不产生横向溢出", async ({
   await expect(page.getByRole("heading", { name: "把目光放远，也把决定留在自己手里。" })).toBeVisible();
   await page.getByRole("button", { name: "新建规划", exact: true }).click();
   await expect(page.getByLabel("规划标题")).toBeVisible();
+  await goStep(page, "里程碑");
   await page.getByRole("button", { name: "添加节点", exact: true }).click();
   await expect(page.getByLabel("里程碑 1", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
-import { connectVerifiedDatabase } from "@personal-ai/db/client";
-import { loadDatabaseConfig } from "@personal-ai/db/config";
+import { connectE2EDatabase } from "./support/database";
 import { tasks } from "@personal-ai/db/schema";
 import { inArray } from "drizzle-orm";
 
@@ -24,7 +23,7 @@ async function seedPendingEvaluations() {
     version: 1,
     scheduleRevision: 1,
   }));
-  const connection = await connectVerifiedDatabase(loadDatabaseConfig());
+  const connection = await connectE2EDatabase();
   try {
     await connection.db.insert(tasks).values(rows);
   } finally {
@@ -34,7 +33,7 @@ async function seedPendingEvaluations() {
 }
 
 async function deleteTasks(ids: string[]) {
-  const connection = await connectVerifiedDatabase(loadDatabaseConfig());
+  const connection = await connectE2EDatabase();
   try {
     await connection.db.delete(tasks).where(inArray(tasks.id, ids));
   } finally {
@@ -65,7 +64,7 @@ test("固定结束时间已过的任务既不显示为可开始，也被服务�
   const startAt = new Date(`${date}T08:00:00+08:00`);
   const endAt = new Date(`${date}T09:00:00+08:00`);
   const title = "回归已过期任务";
-  const connection = await connectVerifiedDatabase(loadDatabaseConfig());
+  const connection = await connectE2EDatabase();
   try {
     await connection.db.insert(tasks).values({
       id: taskId,

@@ -1,7 +1,7 @@
 [package]
 name = "personal-ai-desktop"
-version = "0.1.44"
-description = "Personal AI Assistant desktop shell"
+version = "0.2.0"
+description = "Time Managing Assistant desktop shell"
 edition = "2021"
 
 [build-dependencies]

@@ -15,7 +15,7 @@ const finalInstaller = join(
   "release",
   "bundle",
   "nsis",
-  `Personal AI Assistant_${tauriConfig.version}_x64-setup.exe`
+  `Time Managing Assistant_${tauriConfig.version}_x64-setup.exe`
 );
 const makensis = join(process.env.LOCALAPPDATA ?? "", "tauri", "NSIS", "Bin", "makensis.exe");
 
@@ -31,7 +31,7 @@ const contextMarker = "  !insertmacro SetContext\n\n  ${If} $INSTDIR == \"${PLAC
 if (
   occurrences(source, pageMarker) !== 1
   || occurrences(source, contextMarker) !== 1
-  || source.includes("PERSONAL_AI_SAFE_IN_PLACE_UPGRADE")
+  || source.includes("TMA_SAFE_IN_PLACE_UPGRADE")
 ) {
   throw new Error("generated NSIS template changed; safe in-place upgrade patch was not applied");
 }
@@ -40,7 +40,7 @@ source = source.replace(
   pageMarker,
   [
     "Function PageReinstall",
-    "  ; PERSONAL_AI_SAFE_IN_PLACE_UPGRADE: /UPDATE skips the old uninstaller.",
+    "  ; TMA_SAFE_IN_PLACE_UPGRADE: /UPDATE skips the old uninstaller.",
     "  ${If} $UpdateMode = 1",
     "    Abort",
     "  ${EndIf}",
@@ -52,7 +52,7 @@ source = source.replace(
   [
     "  !insertmacro SetContext",
     "",
-    "  ; PERSONAL_AI_SAFE_IN_PLACE_UPGRADE: an existing NSIS install is overwritten",
+    "  ; TMA_SAFE_IN_PLACE_UPGRADE: an existing NSIS install is overwritten",
     "  ; only after the new installer has stopped and replaced its bundled runtime.",
     "  ReadRegStr $R7 SHCTX \"${UNINSTKEY}\" \"UninstallString\"",
     "  ${If} $R7 != \"\"",

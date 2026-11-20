@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { BackupExporter } from "./backup-service.js";
 
 function backupFilename(exportedAt: string): string {
-  return `personal-ai-assistant-backup-${exportedAt.replace(/[-:.]/g, "")}.json`;
+  return `time-managing-assistant-backup-${exportedAt.replace(/[-:.]/g, "")}.json`;
 }
 
 export async function backupRoutes(app: FastifyInstance, options: { backupService: BackupExporter }) {

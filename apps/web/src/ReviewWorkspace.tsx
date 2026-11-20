@@ -1,24 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, LocateFixed, MapPin, MessageCircle, RefreshCw, Sun } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { RadarChart, type RadarValues } from "./ReviewRadar";
 import { useShanghaiDate } from "./useShanghaiDate";
 import { PosterMark } from "./ui/poster";
 
 type Review = { id: string; localDate: string; state: string };
-type Message = { id: string; content: string; source: string; createdAt: string };
 type RadarSnapshot = { id: string; reviewSessionId: string; radar: RadarValues; createdAt: string };
 type Context = {
   tasks: Array<{ id: string; title: string; recordKind?: string; scheduleKind: "none" | "daypart" | "exact"; lifecycleStatus: string; currentOutcome: string | null; startAt: string | null; endAt: string | null }>;
   outcomes: Array<{ taskId: string; outcome: string; progressPercent: number }>;
   focusSessions: Array<{ id: string; taskId: string; rawActiveSeconds: number; effectiveFocusSeconds: number; state: string; startedAt?: string | null }>;
   feedback: Array<{ taskId: string; satisfaction: string }>;
-  conversationMessages: Array<{ id: string; conversationId: string; role: "user" | "assistant"; content: string; createdAt: string }>;
 };
-type WeatherBrief = { id: string; content: { title: string; sections: Array<{ title: string; body: string }>; location?: { name: string; latitude: number; longitude: number; timeZone: string } | null; weather?: { temperatureCelsius: number; apparentTemperatureCelsius: number; weatherCode: number; observedAt: string | null } | null } };
-type ConversationTurn = { id: string; askedAt: string; question: string; replies: Context["conversationMessages"] };
-type TauriInternals = { invoke: <T>(command: string, args?: Record<string, unknown>) => Promise<T> };
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3000";
-const localDate = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 async function request<T>(path: string, method = "GET", body?: Record<string, unknown>): Promise<T> { const response = await fetch(`${API}${path}`, { method, headers: body ? { "content-type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined }); if (!response.ok) throw new Error((await response.json().catch(() => ({})) as { error?: string }).error ?? "review_request_failed"); return await response.json() as T; }
 const chineseDigits = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
 function chineseNumber(value: number) { if (value < 10) return chineseDigits[value] ?? String(value); if (value < 20) return `十${value === 10 ? "" : chineseDigits[value % 10]}`; if (value < 100) return `${chineseDigits[Math.floor(value / 10)]}十${value % 10 === 0 ? "" : chineseDigits[value % 10]}`; return String(value); }
@@ -29,43 +23,18 @@ function shiftDate(value: string, days: number) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.UTC(year, month - 1, day + days, 12)));
 }
 function timeLabel(value: string | null) { return value ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value)) : "未排期"; }
-function weatherDateLabel(value: string | null | undefined) { return value ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "long", day: "numeric" }).format(new Date(value)) : new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "long", day: "numeric" }).format(new Date()); }
-function weatherPresentation(code: number | undefined) {
-  if (code === 0) return { label: "晴", Icon: Sun };
-  if (code !== undefined && [1, 2].includes(code)) return { label: "少云", Icon: CloudSun };
-  if (code === 3) return { label: "阴 / 多云", Icon: Cloud };
-  if (code !== undefined && [45, 48].includes(code)) return { label: "雾", Icon: CloudFog };
-  if (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { label: "有雨", Icon: CloudRain };
-  if (code !== undefined && [71, 73, 75, 77, 85, 86].includes(code)) return { label: "有雪", Icon: CloudSnow };
-  if (code !== undefined && [95, 96, 99].includes(code)) return { label: "雷雨", Icon: CloudLightning };
-  return { label: "天气暂不可用", Icon: Cloud };
-}
-function locationCoordinates(value: string | null | undefined) {
-  const match = value?.trim().match(/^(-?\d+(?:\.\d+)?)\s*[，,]\s*(-?\d+(?:\.\d+)?)$/u);
-  if (!match) return null;
-  const latitude = Number(match[1]);
-  const longitude = Number(match[2]);
-  return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
-}
 function outcomeLabel(outcome: string | null | undefined, progress?: number) { if (outcome === "complete") return "完成"; if (outcome === "partial") return `部分完成${progress === undefined ? "" : ` · ${progress}%`}`; if (outcome === "not_completed") return "未完成"; return "未记录结果"; }
 function satisfactionLabel(value: string | null | undefined) { if (value === "satisfied") return "满意"; if (value === "neutral") return "一般"; if (value === "dissatisfied") return "不满意"; return "未评价"; }
-function conversationTurns(messages: Context["conversationMessages"]): ConversationTurn[] {
-  const turns: ConversationTurn[] = [];
-  for (const message of messages) {
-    if (message.role === "user") {
-      turns.push({ id: message.id, askedAt: message.createdAt, question: message.content, replies: [] });
-      continue;
-    }
-    const current = turns.at(-1);
-    if (current) current.replies.push(message);
-  }
-  return turns;
-}
 
-export function ReviewWorkspace({ isWorkspaceCurrent = true }: { isWorkspaceCurrent?: boolean }) {
+/** 复盘: the day's numbers, what happened to each task, and the saved six-axis snapshot. */
+export function ReviewWorkspace({ onOpenGrowth }: { isWorkspaceCurrent?: boolean; onOpenGrowth?: () => void }) {
   const todayDate = useShanghaiDate();
   const [selectedDate, setSelectedDate] = useState(todayDate);
-  const [review, setReview] = useState<Review | null>(null); const [messages, setMessages] = useState<Message[]>([]); const [radarSnapshot, setRadarSnapshot] = useState<RadarSnapshot | null>(null); const [context, setContext] = useState<Context | null>(null); const [weatherBrief, setWeatherBrief] = useState<WeatherBrief | null>(null); const [locationName, setLocationName] = useState(""); const [draft, setDraft] = useState(""); const [saving, setSaving] = useState(false); const [locating, setLocating] = useState(false); const [error, setError] = useState<string | null>(null); const [conversationOpen, setConversationOpen] = useState(false); const reviewInputRef = useRef<HTMLTextAreaElement>(null); const loadRequestRef = useRef(0);
+  const [review, setReview] = useState<Review | null>(null);
+  const [radarSnapshot, setRadarSnapshot] = useState<RadarSnapshot | null>(null);
+  const [context, setContext] = useState<Context | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const loadRequestRef = useRef(0);
   const previousTodayDateRef = useRef(todayDate);
   useEffect(() => {
     const previous = previousTodayDateRef.current;
@@ -75,36 +44,24 @@ export function ReviewWorkspace({ isWorkspaceCurrent = true }: { isWorkspaceCurr
   }, [todayDate]);
   const load = useCallback(async (date: string) => {
     const requestId = ++loadRequestRef.current;
-    const isCurrent = () => requestId === loadRequestRef.current;
-    const data = await request<{ session: Review; messages: Message[]; radarSnapshot: RadarSnapshot | null; context: Context; briefs: WeatherBrief[] }>(`/api/v1/reviews/${date}`);
-    if (!isCurrent()) return;
-    setReview(data.session); setMessages(data.messages); setRadarSnapshot(data.radarSnapshot); setContext(data.context);
-    let latest = [...data.briefs].reverse().find((brief) => brief.content.title === "今日地点及天气情况") ?? null;
-    const savedLocation = latest?.content.location; const legacyCoordinates = locationCoordinates(savedLocation?.name);
-    if (date === localDate() && latest && savedLocation && legacyCoordinates) {
-      try { latest = (await request<{ brief: WeatherBrief }>(`/api/v1/reviews/${data.session.id}/location-weather`, "POST", { latitude: savedLocation.latitude, longitude: savedLocation.longitude })).brief; }
-      catch { latest = null; }
-      if (!isCurrent()) return;
-    }
-    setWeatherBrief(latest); const name = latest?.content.location?.name; setLocationName(name && !locationCoordinates(name) ? name : "");
+    const data = await request<{ session: Review; radarSnapshot: RadarSnapshot | null; context: Context }>(`/api/v1/reviews/${date}`);
+    if (requestId !== loadRequestRef.current) return;
+    setReview(data.session); setRadarSnapshot(data.radarSnapshot); setContext(data.context);
   }, []);
   useEffect(() => {
     if (!isIsoDate(selectedDate)) return;
-    setDraft(""); setError(null); setConversationOpen(false);
-    setReview(null); setMessages([]); setRadarSnapshot(null); setContext(null); setWeatherBrief(null); setLocationName("");
-    const pending = load(selectedDate);
-    const requestId = loadRequestRef.current;
-    void pending.catch(() => { if (requestId === loadRequestRef.current) setError("无法加载这一天的复盘，请确认本机服务正在运行。"); });
+    setError(null); setReview(null); setRadarSnapshot(null); setContext(null);
+    const requestId = loadRequestRef.current + 1;
+    void load(selectedDate).catch(() => { if (requestId === loadRequestRef.current) setError("无法加载这一天的复盘，请确认软件后台正在运行。"); });
   }, [load, selectedDate]);
   const viewingToday = selectedDate === todayDate;
-  const canEdit = isWorkspaceCurrent && viewingToday;
   const plannedTaskCount = useMemo(() => context?.tasks.filter((task) => task.recordKind !== "backfill" && task.lifecycleStatus !== "cancelled").length ?? 0, [context]); const effective = useMemo(() => Math.round((context?.focusSessions.reduce((sum, session) => sum + session.effectiveFocusSeconds, 0) ?? 0) / 60), [context]); const completed = useMemo(() => context?.tasks.filter((task) => {
     if (task.currentOutcome === "complete" || task.currentOutcome === "partial") return true;
     if (task.currentOutcome === "not_completed" || task.scheduleKind !== "exact" || !task.startAt || !task.endAt) return false;
     const startAt = task.startAt;
     const endAt = task.endAt;
     return Boolean(startAt && endAt && context.focusSessions.some((session) => session.taskId === task.id && session.startedAt && new Date(session.startedAt).getTime() >= new Date(startAt).getTime() && new Date(session.startedAt).getTime() < new Date(endAt).getTime()));
-  }).length ?? 0, [context]); const userMessages = useMemo(() => messages.filter((message) => message.source === "app"), [messages]); const conversationMessages = useMemo(() => messages.filter((message) => message.source === "app" || message.source === "ai"), [messages]); const lastConversationMessage = conversationMessages.at(-1);
+  }).length ?? 0, [context]);
   const taskSummaries = useMemo(() => {
     if (!context) return [];
     const now = Date.now();
@@ -120,58 +77,19 @@ export function ReviewWorkspace({ isWorkspaceCurrent = true }: { isWorkspaceCurr
       return [{ ...task, outcome, feedback, focusSeconds, startedWithinWindow }];
     });
   }, [context]);
-  const softwareConversationTurns = useMemo(() => conversationTurns(context?.conversationMessages ?? []), [context?.conversationMessages]);
-  async function save() { if (!review || !draft.trim() || !canEdit) return; setSaving(true); setError(null); try { const result = await request<{ session: Review; message: Message }>(`/api/v1/reviews/${review.id}/messages`, "POST", { content: draft.trim(), source: "app" }); setReview(result.session); setMessages((current) => [...current, result.message]); setDraft(""); } catch { setError("这段复盘没有保存，请重试。"); } finally { setSaving(false); } }
-  async function replyToLast() { if (!review || lastConversationMessage?.source !== "app" || !canEdit) return; setSaving(true); setError(null); try { const result = await request<{ session: Review; messages: Message[] }>(`/api/v1/reviews/${review.id}/reply-last`, "POST"); setReview(result.session); setMessages(result.messages); } catch { setError("最近一条复盘仍然保留，AI 暂时没有回复；请稍后重试。"); await load(selectedDate).catch(() => undefined); } finally { setSaving(false); } }
-  async function recordWeather(body: Record<string, unknown>) { if (!review || !canEdit) return; setSaving(true); setError(null); try { const result = await request<{ brief: WeatherBrief }>(`/api/v1/reviews/${review.id}/location-weather`, "POST", body); const name = result.brief.content.location?.name; if (locationCoordinates(name)) { setWeatherBrief(null); setLocationName(""); setError("本机位置已读取，但城市识别没有返回结果。请重启 API 后再读取一次位置。"); } else { setWeatherBrief(result.brief); if (name) setLocationName(name); } } catch { setError("地点或天气没有记录，请检查地点后重试。"); } finally { setSaving(false); } }
-  async function useDeviceLocation() {
-    if (!canEdit) return;
-    const tauri = (window as typeof window & { __TAURI_INTERNALS__?: TauriInternals }).__TAURI_INTERNALS__;
-    if (tauri) {
-      setLocating(true); setError(null);
-      try {
-        const coordinates = await tauri.invoke<{ latitude: number; longitude: number }>("device_location");
-        setLocating(false);
-        await recordWeather(coordinates);
-        return;
-      } catch (reason) {
-        setLocating(false);
-        const message = String(reason);
-        setError(message.includes("permission_denied") ? "Windows 已拒绝位置权限。请在“设置 > 隐私和安全性 > 位置”中开启位置服务和桌面应用访问权限。" : "Windows 没有返回可用位置。请确认位置服务已开启，或继续使用手动地点。");
-        return;
-      }
-    }
-    if (!navigator.geolocation) { setError("当前桌面环境没有提供系统定位接口，请手动填写地点。"); return; }
-    setLocating(true); setError(null);
-    try {
-      const permissions = navigator.permissions?.query ? await navigator.permissions.query({ name: "geolocation" as PermissionName }) : null;
-      if (permissions?.state === "denied") { setLocating(false); setError("系统已拒绝本机定位权限。请在 Windows 的位置权限中允许此应用，或直接填写地点。"); return; }
-    } catch { /* 某些桌面 WebView 不实现 Permissions API，继续尝试定位。 */ }
-    navigator.geolocation.getCurrentPosition(
-      (position) => { setLocating(false); void recordWeather({ latitude: position.coords.latitude, longitude: position.coords.longitude }); },
-      (reason) => { setLocating(false); const detail = reason.code === 1 ? "系统拒绝了定位权限" : reason.code === 2 ? "系统没有返回可用位置" : "读取位置超时"; setError(`${detail}。请在 Windows 位置权限中允许此应用，或继续使用手动地点。`); },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
-    );
-  }
-  function returnToReviewInput() { reviewInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); window.setTimeout(() => reviewInputRef.current?.focus({ preventScroll: true }), 420); }
-  const resolvedWeather = weatherBrief?.content.location && !locationCoordinates(weatherBrief.content.location.name)
-    ? weatherBrief
-    : null;
+
   return <section className="page review-page" aria-labelledby="review-title">
     <header className="review-heading page-head poster-header"><PosterMark word="复盘" /><div><p className="eyebrow">{viewingToday ? "今晚复盘" : "历史复盘"}</p><h1 id="review-title">{viewingToday ? "把今天还给自己。" : "把这一天留给自己。"}</h1></div><div className="review-date-controls"><button className="quiet-button review-date-step" type="button" aria-label="前一天" title="前一天" onClick={() => setSelectedDate(shiftDate(selectedDate, -1))}><ChevronLeft /></button><label><span>查看日期</span><input aria-label="复盘日期" type="date" max={todayDate} value={selectedDate} onChange={(event) => { const nextDate = event.target.value; if (isIsoDate(nextDate)) setSelectedDate(nextDate); }} /></label><button className="quiet-button review-date-step" type="button" aria-label="后一天" title="后一天" disabled={selectedDate >= todayDate} onClick={() => setSelectedDate(shiftDate(selectedDate, 1))}><ChevronRight /></button>{!viewingToday && <button className="quiet-button" type="button" onClick={() => setSelectedDate(todayDate)}>回到今天</button>}</div></header>
-    <section className="review-colophon" aria-label="这一天的数字"><time dateTime={review?.localDate ?? selectedDate}>{reviewDateLabel(review?.localDate ?? selectedDate)}</time><dl className="review-colophon-metrics"><div className="review-completion-mark"><dt>完成</dt><dd>{completed}<small>/{plannedTaskCount}</small></dd></div><div><dt>计划</dt><dd>{plannedTaskCount}<small>项</small></dd></div><div><dt>有效专注</dt><dd>{effective}m</dd></div><div><dt>我的复盘</dt><dd>{userMessages.length}<small>条</small></dd></div></dl></section>
+    <section className="review-colophon" aria-label="这一天的数字"><time dateTime={review?.localDate ?? selectedDate}>{reviewDateLabel(review?.localDate ?? selectedDate)}</time><dl className="review-colophon-metrics"><div className="review-completion-mark"><dt>完成</dt><dd>{completed}<small>/{plannedTaskCount}</small></dd></div><div><dt>计划</dt><dd>{plannedTaskCount}<small>项</small></dd></div><div><dt>有效专注</dt><dd>{effective}m</dd></div><div><dt>六维</dt><dd>{radarSnapshot ? "已打分" : "未打分"}</dd></div></dl></section>
     <div className="review-board">
       <div className="review-main-column">
-        <section className="review-sheet" aria-labelledby="review-fragment-title"><header><div><h2 id="review-fragment-title">留下这一天的感受</h2><p>写给自己，不需要完整。保存后可以请 AI 回应最近一条。</p></div><span>{userMessages.length ? `已写 ${userMessages.length} 段` : "还没有写"}</span></header><div className="review-writing-field" aria-live="polite">{conversationMessages.length === 0 ? <div className="stream-empty"><MessageCircle /><p>从一句话开始：今天哪件事让你最有感觉？</p></div> : <div className="review-fragment-list">{conversationMessages.map((message, index) => <article className={message.source === "ai" ? "ai" : "app"} key={message.id}><span>{message.source === "ai" ? "AI 回应" : `第 ${index + 1} 段`}</span><p>{message.content}</p></article>)}</div>}<textarea ref={reviewInputRef} aria-label="每日复盘" disabled={!canEdit || !review} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="今天下午忽然觉得……" rows={userMessages.length ? 1 : 6} maxLength={2000} /></div><footer className="review-sheet-footer"><span>{draft.length}/2000</span><div className="review-composer-actions"><button className="primary-button review-save-button" disabled={!canEdit || !draft.trim() || saving} onClick={() => void save()}><Check />保存</button></div></footer>{lastConversationMessage?.source === "app" && <button className="text-button review-reply-last" type="button" disabled={!canEdit || saving} onClick={() => void replyToLast()}><RefreshCw />{saving ? "正在等待 AI" : "请 AI 回应最近一条"}</button>}
-          <div className="review-inline-ai"><button className="review-collapsible-heading" type="button" onClick={() => setConversationOpen((value) => !value)} aria-expanded={conversationOpen}><span><h3 id="review-software-conversations-title">今天与 AI 的对话</h3></span><ChevronDown className={conversationOpen ? "open" : ""} /></button>{conversationOpen ? (softwareConversationTurns.length ? <div className="review-software-conversation-list">{softwareConversationTurns.map((turn, index) => <details key={turn.id}><summary><time>{new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(turn.askedAt))}</time><strong>问题 {index + 1} · {turn.question}</strong></summary><div className="review-software-conversation-turn"><p className="user"><b>我：</b>{turn.question}</p>{turn.replies.length ? turn.replies.map((reply) => <p className="assistant" key={reply.id}><b>AI：</b>{reply.content}</p>) : <p className="assistant pending"><b>AI：</b>这条问题还没有回复。</p>}</div></details>)}</div> : <div className="review-software-conversation-empty"><strong>今天尚未起笔</strong><small>AI 对话会按当天记录保存在这里</small><button className="review-empty-seal text-button" type="button" onClick={returnToReviewInput} aria-label="回到复盘输入区">去写复盘</button></div>) : <p className="review-collapsed-hint">默认收起，展开后可按具体问题回溯。</p>}</div>
-        </section>
+    <section className="review-task-summary review-sheet" aria-labelledby="review-task-summary-title"><div className="review-section-heading"><div><h2 id="review-task-summary-title">{viewingToday ? "今天发生了什么" : "这一天发生了什么"}</h2></div><span>{taskSummaries.length} 项任务</span></div>{taskSummaries.length ? <div className="review-task-summary-list">{taskSummaries.map((task) => <article key={task.id}><div><strong>{task.title}</strong><small>{timeLabel(task.startAt)} – {timeLabel(task.endAt)}</small></div><p><b>做了什么：</b>{task.title}<br /><b>完成情况：</b>{outcomeLabel(task.outcome?.outcome ?? task.currentOutcome ?? (task.startedWithinWindow ? "complete" : null), task.outcome?.progressPercent)} · 有效专注 {Math.round(task.focusSeconds / 60)} 分钟<br /><b>最后反馈：</b>{satisfactionLabel(task.feedback?.satisfaction)}</p></article>)}</div> : <p className="review-radar-empty">{viewingToday ? "今天还没有可复盘的正式任务。" : "这一天还没有可复盘的正式任务。"}</p>}</section>
       </div>
-      <aside className="review-side-column" aria-label={viewingToday ? "今日侧边信息" : "历史侧边信息"}>
+      <aside className="review-side-column" aria-label={viewingToday ? "今日六维" : "这一天的六维"}>
         <section className="review-radar-archive" aria-labelledby="review-radar-title"><div className="review-radar-archive-heading"><div><h2 id="review-radar-title">{viewingToday ? "今日六维" : "这一天的六维"}</h2></div><span>{radarSnapshot ? "已保存" : "尚未保存"}</span></div>{radarSnapshot ? <div className="review-radar-snapshot"><RadarChart compact values={radarSnapshot.radar} ariaLabel={viewingToday ? "今日六维回看快照" : "历史六维回看快照"} /><div className="review-radar-snapshot-copy"><strong>{viewingToday ? "今日体验快照" : "这一天的体验快照"}</strong><p>这张图来自你最后一次确认的六维评分，会固定保留在这一天的复盘里。</p></div></div> : <p className="review-radar-empty">{viewingToday ? "今天还没有保存六维体验。" : "这一天还没有保存六维体验。"}</p>}</section>
-        <section className="review-location-panel" aria-labelledby="review-location-title"><div className="review-section-heading"><div><h2 id="review-location-title">地点与天气</h2><p>{viewingToday ? "需要时记录一次，会出现在今天的简报里。" : "这一天记录的地点和天气。"}</p></div></div><div className="review-location-controls"><label><span>所在城市或行政区</span><input aria-label="所在城市或行政区" disabled={!canEdit || !review || saving} value={locationName} onChange={(event) => setLocationName(event.target.value)} placeholder="例如：输入城市或行政区名称" maxLength={120} /></label><div className="review-location-buttons"><button className="quiet-button" type="button" disabled={!canEdit || !review || saving || !locationName.trim()} onClick={() => void recordWeather({ locationName: locationName.trim() })}><MapPin />记录手动地点</button><button className="quiet-button" type="button" disabled={!canEdit || !review || saving || locating} onClick={() => void useDeviceLocation()}><LocateFixed />{locating ? "正在读取" : "读取本机位置"}</button></div></div><div className={`review-weather-result ${resolvedWeather ? "has-data" : "empty"}`}>{resolvedWeather ? (() => { const weather = resolvedWeather.content.weather; const presentation = weatherPresentation(weather?.weatherCode); const WeatherIcon = presentation.Icon; return <><div className="review-weather-main"><WeatherIcon aria-hidden="true" /><div><strong>{weather ? `${weather.temperatureCelsius}°` : "--"}</strong><span>{presentation.label}</span></div></div><div className="review-weather-meta"><time>{weatherDateLabel(weather?.observedAt)}</time><p>{resolvedWeather.content.location!.name}</p><small>{weather ? `体感 ${weather.apparentTemperatureCelsius}°C` : "天气暂不可用"}</small></div></>; })() : null}</div></section>
+        {viewingToday && onOpenGrowth && <button className="primary-button review-radar-cta" type="button" onClick={onOpenGrowth}>{radarSnapshot ? "去成长页调整六维" : "去成长页给今天打分"}</button>}
       </aside>
     </div>
-    <section className="review-task-summary" aria-labelledby="review-task-summary-title"><div className="review-section-heading"><div><h2 id="review-task-summary-title">{viewingToday ? "今天发生了什么" : "这一天发生了什么"}</h2></div><span>{taskSummaries.length} 项任务</span></div>{taskSummaries.length ? <div className="review-task-summary-list">{taskSummaries.map((task) => <article key={task.id}><div><strong>{task.title}</strong><small>{timeLabel(task.startAt)} – {timeLabel(task.endAt)}</small></div><p><b>做了什么：</b>{task.title}<br /><b>完成情况：</b>{outcomeLabel(task.outcome?.outcome ?? task.currentOutcome ?? (task.startedWithinWindow ? "complete" : null), task.outcome?.progressPercent)} · 有效专注 {Math.round(task.focusSeconds / 60)} 分钟<br /><b>最后反馈：</b>{satisfactionLabel(task.feedback?.satisfaction)}</p></article>)}</div> : <p className="review-radar-empty">{viewingToday ? "今天还没有可复盘的正式任务。" : "这一天还没有可复盘的正式任务。"}</p>}</section>
     {error && <div className="focus-error" role="alert">{error}</div>}
   </section>;
 }
