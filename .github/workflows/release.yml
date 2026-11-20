@@ -37,6 +37,10 @@ jobs:
       - name: Build installer
         run: corepack pnpm build:desktop
 
+      # Start the bundled Node + API + embedded database once, exactly as the installed app will.
+      - name: Smoke-test bundled runtime
+        run: corepack pnpm verify:desktop-runtime
+
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
