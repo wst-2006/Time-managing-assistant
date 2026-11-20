@@ -1,0 +1,151 @@
+/*
+ * 序 · design tokens — "poster" edition
+ *
+ * VOICE   loud, graphic, a little rebellious: a timetable printed on a poster.
+ * COLOUR  signal-red ground, blood-black ink. Anything live or chosen is
+ *         ink-filled with red type; everything else is an ink outline.
+ *         Cream is reserved for warnings that must interrupt the red.
+ * TYPE    ZCOOL QingKe HuangYou for giant Chinese display words, Anton for
+ *         numerals, IBM Plex Mono for wayfinding labels, Instrument Serif /
+ *         Noto Serif SC for prose, the system sans for dense controls.
+ * SHAPE   square corners, 1.5px ink rules, hard offset shadows (no blur).
+ *
+ * Fonts are bundled (not fetched) so the Tauri desktop build works offline.
+ */
+@import "@fontsource/anton/400.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/instrument-serif/400.css";
+@import "@fontsource/instrument-serif/400-italic.css";
+@import "@fontsource/zcool-qingke-huangyou/400.css";
+@import "@fontsource/noto-serif-sc/400.css";
+
+:root {
+  color-scheme: light;
+
+  /* Poster */
+  --red: #ff1446;
+  --red-2: #ff3a63;
+  --red-deep: #e00a37;
+  --cream: #ffe8dc;
+  --ink-solid: #160000;
+
+  /* Ground & surfaces: panels are ruled, not filled */
+  --paper: var(--red);
+  --surface: var(--red);
+  --surface-2: #f5103f;
+  --surface-3: #e90d3b;
+  --line: rgba(22, 0, 0, .9);
+  --line-soft: rgba(22, 0, 0, .28);
+  --line-strong: #160000;
+  --grid-line: rgba(22, 0, 0, .16);
+  --rule: 1.5px;
+
+  /* Ink */
+  --ink: #160000;
+  --ink-2: rgba(22, 0, 0, .78);
+  --ink-3: rgba(22, 0, 0, .62);
+  --ink-4: rgba(22, 0, 0, .42);
+  --on-accent: var(--red);
+
+  /* Action = ink */
+  --accent: #160000;
+  --accent-hover: #2a0006;
+  --accent-press: #000;
+  --accent-soft: rgba(22, 0, 0, .1);
+  --accent-soft-2: rgba(22, 0, 0, .16);
+  --accent-line: rgba(22, 0, 0, .55);
+
+  /* "Now" = ink slab with red type */
+  --mark: #160000;
+  --mark-soft: rgba(22, 0, 0, .12);
+  --mark-ink: var(--red);
+
+  /* Day periods: same ink, different weight so the timeline still reads */
+  --morning: #160000;
+  --morning-soft: rgba(22, 0, 0, .1);
+  --afternoon: #5c0016;
+  --afternoon-soft: rgba(92, 0, 22, .14);
+  --evening: #2e0020;
+  --evening-soft: rgba(46, 0, 32, .14);
+
+  /* Status */
+  --ok: #160000;
+  --ok-soft: rgba(22, 0, 0, .12);
+  --warn: #160000;
+  --warn-soft: var(--cream);
+  --danger: #160000;
+  --danger-soft: var(--cream);
+  --neutral: rgba(22, 0, 0, .55);
+  --neutral-soft: rgba(22, 0, 0, .08);
+
+  /* Type */
+  --font-ui: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Consolas", "Microsoft YaHei UI", monospace;
+  --font-display: "Anton", "ZCOOL QingKe HuangYou", "Impact", sans-serif;
+  --font-display-zh: "ZCOOL QingKe HuangYou", "Anton", "Microsoft YaHei UI", sans-serif;
+  --font-serif: "Instrument Serif", "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-22: 22px;
+  --fs-28: 28px;
+  --fs-36: 36px;
+  --fs-56: 56px;
+
+  /* Shape: posters have no rounded corners */
+  --r-xs: 0;
+  --r-sm: 0;
+  --r-md: 0;
+  --r-lg: 0;
+  --r-xl: 0;
+  --r-pill: 0;
+
+  /* Depth: hard offset shadows only */
+  --shadow-1: 0 0 0 1.5px #160000;
+  --shadow-2: 6px 6px 0 rgba(22, 0, 0, .9);
+  --shadow-pop: 12px 12px 0 #160000;
+  --focus-ring: 0 0 0 2px var(--red), 0 0 0 4px #160000;
+
+  /* Space */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(.05, .7, .1, 1);
+  --ease-exit: cubic-bezier(.3, 0, .8, .15);
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+  --ease-wipe: cubic-bezier(.76, 0, .24, 1);
+  --dur-1: 110ms;
+  --dur-2: 170ms;
+  --dur-3: 240ms;
+  --dur-4: 340ms;
+
+  /* Layout */
+  --rail-width: 0px;
+  --masthead-h: 64px;
+  --strip-h: 40px;
+  --content-max: 1480px;
+  --page-pad-x: clamp(18px, 2.6vw, 40px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 1ms;
+    --dur-2: 1ms;
+    --dur-3: 1ms;
+    --dur-4: 1ms;
+  }
+}

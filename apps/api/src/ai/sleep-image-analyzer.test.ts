@@ -1,0 +1,88 @@
+import { describe, expect, it, vi } from "vitest";
+import { OpenAiCompatibleSleepImageAnalyzer } from "./sleep-image-analyzer.js";
+import type { DeepSeekConfig } from "./config.js";
+
+const config: DeepSeekConfig = {
+  DEEPSEEK_API_KEY: "deepseek-test-key",
+  DEEPSEEK_BASE_URL: "https://api.deepseek.com",
+  DEEPSEEK_MODEL: "deepseek-v4-flash",
+  DEEPSEEK_TIMEOUT_MS: 30_000,
+  DEEPSEEK_MAX_RETRIES: 2,
+  DEEPSEEK_MAX_OUTPUT_TOKENS: 4_096,
+  DEEPSEEK_USER_CONTEXT_MAX_CHARS: 6_000
+};
+
+describe("OpenAiCompatibleSleepImageAnalyzer", () => {
+  it("sends the screenshot to the DeepSeek vision model at original detail", async () => {
+    const analysis = {
+      totalSleepMinutes: 438,
+      deepSleepMinutes: 96,
+      lightSleepMinutes: 247,
+      remSleepMinutes: 95,
+      awakeCount: 2,
+      sleepStart: "23:18",
+      wakeTime: "06:36",
+      deviceScore: 82,
+      deviceNotes: "设备显示睡眠评分良好",
+      visibleMetrics: ["总睡眠 7 小时 18 分钟", "深睡 1 小时 36 分钟"],
+      interpretation: "截图显示的总睡眠时长为 438 分钟。",
+      limitations: "仅基于这张截图中可见的信息，不能替代专业医疗建议",
+      localDate: "2026-08-03",
+      fileName: "sleep.png"
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: `\`\`\`json\n${JSON.stringify(analysis)}\n\`\`\`` } }]
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await expect(new OpenAiCompatibleSleepImageAnalyzer(config).analyze({
+        localDate: "2026-08-03",
+        fileName: "sleep.png",
+        mimeType: "image/png",
+        dataUrl: "data:image/png;base64,iVBORw0KGgo="
+      })).resolves.toEqual({
+        totalSleepMinutes: 438,
+        deepSleepMinutes: 96,
+        lightSleepMinutes: 247,
+        remSleepMinutes: 95,
+        awakeCount: 2,
+        sleepStart: "23:18",
+        wakeTime: "06:36",
+        deviceScore: 82,
+        deviceNotes: "设备显示睡眠评分良好",
+        visibleMetrics: ["总睡眠 7 小时 18 分钟", "深睡 1 小时 36 分钟"],
+        interpretation: ["截图显示的总睡眠时长为 438 分钟。"],
+        limitations: ["仅基于这张截图中可见的信息，不能替代专业医疗建议"]
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("https://api.deepseek.com/chat/completions");
+      expect(options.headers).toMatchObject({ authorization: "Bearer deepseek-test-key" });
+      const body = JSON.parse(String(options.body));
+      expect(body.model).toBe("deepseek-v4-flash-vision-exp");
+      expect(body.stream).toBe(false);
+      expect(body).not.toHaveProperty("enable_thinking");
+      expect(body).not.toHaveProperty("response_format");
+      expect(body.messages[1].content[1]).toEqual({ type: "image_url", image_url: { url: "data:image/png;base64,iVBORw0KGgo=", detail: "original" } });
+      expect(body.messages[0].content).not.toContain("个人背景");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not retry a non-recoverable provider request error", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("bad request", { status: 400 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await expect(new OpenAiCompatibleSleepImageAnalyzer(config).analyze({
+        localDate: "2026-08-03",
+        fileName: "sleep.png",
+        mimeType: "image/png",
+        dataUrl: "data:image/png;base64,iVBORw0KGgo="
+      })).rejects.toThrow("Vision provider returned HTTP 400");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

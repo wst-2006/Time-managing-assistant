@@ -1,0 +1,248 @@
+/* Approved motion themes. Window geometry and action/state logic stay unchanged. */
+.focus-center-executing, .focus-mini, .focus-evaluation-sheet { position: relative; isolation: isolate; }
+.focus-mini:is(.focus-theme-ink,.focus-theme-flip,.focus-theme-nixie)::before,
+.focus-mini:is(.focus-theme-ink,.focus-theme-flip,.focus-theme-nixie)::after,
+.focus-mini:is(.focus-theme-ink,.focus-theme-flip,.focus-theme-nixie) .focus-mini-grain { display:none; }
+.focus-mini:is(.focus-theme-ink,.focus-theme-flip,.focus-theme-nixie) .focus-mini-body { background:transparent; }
+.focus-theme-flip .focus-center-executing { background:#f0f2f2; }
+.focus-theme-nixie .focus-center-executing { background:#101719; }
+.focus-mini.focus-theme-flip .focus-mini-titlebar { background:#e7ebeb; color:#394b4e; border-color:#aebfc0; }
+.focus-mini.focus-theme-flip .focus-mini-heading { border:0; }
+.focus-mini.focus-theme-flip .focus-mini-heading span { color:#287c83; }
+.focus-mini.focus-theme-flip .focus-mini-clock { border:0; box-shadow:none; background:transparent; }
+.focus-mini.focus-theme-flip .focus-mini-clock::before,.focus-mini.focus-theme-flip .focus-mini-clock::after { display:none; }
+.focus-theme-flip .focus-timepiece-execution .focus-themed-timer { background:transparent; box-shadow:none; border:0; }
+.focus-theme-flip .focus-timepiece-execution .focus-themed-timer::before,.focus-theme-flip .focus-timepiece-execution .focus-themed-timer::after { display:none; }
+.focus-theme-flip .flip-digit { color:#f3f6f2; background:#20282b; border-color:#354245; box-shadow:0 5px 0 #849392,0 8px 12px #13252920; }
+.focus-theme-flip .flip-digit-half-top { background:#293236; }
+.focus-theme-flip .flip-digit-half-bottom { background:#1d2528; }
+.focus-theme-flip .flip-digit-flap-face { background:#252e32; }
+.focus-theme-flip .flip-digit.is-flipping .flip-digit-flap-face::before { animation:focus-flap-shade 520ms ease-out; }
+.focus-theme-flip :is(.flip-colon,.focus-execution-context > span) { color:#287c83; }
+.focus-theme-flip .focus-execution-context h1 { color:#28363b; }
+.focus-theme-flip .focus-mini-progress i::before,.focus-theme-flip .focus-mini-progress b { background:#287c83; }
+.focus-theme-flip .focus-mini-quote,.focus-theme-flip .focus-workspace-quote { color:#52686c; }
+/* Rest must recolor every split-flap face, not only the outer digit. */
+.focus-mini.focus-theme-flip.focus-phase-break,
+.focus-mini.focus-theme-flip.focus-phase-break .focus-mini-titlebar,
+.focus-mini.focus-theme-flip.focus-phase-break .focus-mini-body,
+.focus-mini.focus-theme-flip.focus-phase-break .focus-mini-clock,
+.focus-theme-flip .focus-themed-timer-flip.resting {
+  color:#111;
+  background:#fff;
+}
+.focus-mini.focus-theme-flip.focus-phase-break :is(.flip-digit,.flip-digit-half,.flip-digit-flap,.flip-digit-flap-face),
+.focus-theme-flip .focus-themed-timer-flip.resting :is(.flip-digit,.flip-digit-half,.flip-digit-flap,.flip-digit-flap-face) {
+  color:#111;
+  background:#fff;
+  border-color:#ccc;
+}
+.focus-mini.focus-theme-flip.focus-phase-break :is(.focus-mini-heading span,.focus-mini-heading strong,.focus-mini-clock small,.focus-mini-quote,.focus-mini-quote cite,.flip-colon,.focus-mini-titlebar button),
+.focus-theme-flip .focus-themed-timer-flip.resting .flip-colon {
+  color:#111;
+}
+.focus-mini.focus-theme-flip.focus-phase-break .focus-mini-controls button {
+  color:#111;
+  background:#fff;
+  border-color:#aaa;
+}
+@keyframes focus-flap-shade { 0%{opacity:.15} 50%{opacity:.8} 100%{opacity:.15} }
+
+.nixie-afterglow { position:absolute; inset:0; display:grid; place-items:center; padding-bottom:7px; z-index:2; color:#ff914c; font:300 59px/1 "Arial Narrow","Segoe UI",sans-serif; text-shadow:0 0 8px #ff813c; pointer-events:none; animation:focus-tube-decay 580ms ease-out forwards; }
+.nixie-glass-light { position:absolute; z-index:3; top:11%; bottom:25%; left:12%; width:8%; border-radius:50%; background:#f5f9ff; opacity:.1; pointer-events:none; animation:focus-glass-breathe 13s ease-in-out infinite; }
+.focus-theme-nixie .nixie-tube { border-color:#9aaca65e; box-shadow:inset 0 0 14px #d6e4df0d,0 3px 8px #0005; }
+.focus-theme-nixie .nixie-tube b { text-shadow:0 0 3px #ffb05c,0 0 9px #ff7a00,0 0 17px #ff4f0066; }
+.focus-mini.focus-theme-nixie .focus-mini-titlebar { background:#111c20; color:#aabebb; border-color:#556b6744; }
+.focus-mini.focus-theme-nixie .focus-mini-titlebar button { color:#b6c8c4; }
+.focus-mini.focus-theme-nixie .focus-mini-heading strong,.focus-theme-nixie .focus-execution-context h1 { color:#e8eee9; text-shadow:none; }
+.focus-mini.focus-theme-nixie :is(.focus-mini-clock small,.focus-mini-quote),.focus-theme-nixie .focus-center-executing :is(.focus-phase-line,.focus-next-phase,.focus-workspace-quote,.focus-workspace-quote cite,.focus-execution-locked,.focus-execution-disclosure button) { color:#b9cfcb; }
+.focus-theme-nixie .focus-center-executing .focus-execution-quiet { color:#8fe0ce; background:#152624; }
+.focus-mini.focus-theme-nixie .focus-mini-clock,.focus-theme-nixie .focus-timepiece-execution .focus-themed-timer { background:transparent; border:0; box-shadow:none; }
+.focus-mini.focus-theme-nixie .focus-mini-clock::before,.focus-mini.focus-theme-nixie .focus-mini-clock::after,.focus-theme-nixie .focus-timepiece-execution .focus-themed-timer::before,.focus-theme-nixie .focus-timepiece-execution .focus-themed-timer::after { display:none; }
+@keyframes focus-tube-decay { from{opacity:.25;filter:blur(.5px)} to{opacity:0;filter:blur(2px)} }
+@keyframes focus-glass-breathe { 0%,100%{opacity:.07} 50%{opacity:.15} }
+
+.focus-mini.focus-theme-ink .focus-mini-titlebar { background:#ffffff; color:#4a5465; }
+.focus-mini.focus-theme-ink .focus-mini-heading strong { font-family:"Segoe UI","Microsoft YaHei UI","PingFang SC","Noto Sans CJK SC",sans-serif; font-weight:700; font-size:20px; color:#18202e; }
+.focus-theme-ink .focus-mini-progress i::before { height:3px; background:#2a4d80; }
+.focus-theme-ink .focus-mini-progress b { background:#ffe04f; }
+@keyframes focus-ink-spread { from{opacity:0;transform:scale(.3)} to{opacity:1;transform:scale(1)} }
+
+.focus-theme-flip:is(.themed-outcome-dialog,.focus-mini-evaluation),.focus-theme-flip:is(.themed-outcome-dialog,.focus-mini-evaluation) :is(.themed-outcome-body,.focus-mini-evaluation-body) { background:#f0f2f2; }
+.focus-theme-flip .focus-evaluation-sheet { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; padding:14px 14px 28px; color:#2f4247; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-heading { grid-column:1/-1; background:transparent; border:0; border-bottom:3px solid #2e4448; padding:0 0 14px; margin:0; box-shadow:none; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-heading::before,.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-heading::after { display:none; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-heading p { writing-mode:horizontal-tb; position:static; color:#287c83; font:11px Consolas,"Microsoft YaHei",monospace; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-heading h1 { font:500 23px/1.5 "Segoe UI","Microsoft YaHei",sans-serif; color:#293c42; margin:8px 0; letter-spacing:0; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-heading strong { color:#5b6e71; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-section { padding:0; border:0; background:transparent; min-width:0; }
+.focus-theme-flip .focus-evaluation-sheet legend { font:13px/1.5 Consolas,"Microsoft YaHei",monospace; color:#2f555d; }
+.focus-theme-flip .focus-evaluation-sheet legend span { color:#287c83; }
+.focus-theme-flip .focus-evaluation-sheet :is(.focus-evaluation-outcomes,.focus-evaluation-feelings) { display:grid; grid-template-columns:1fr; gap:9px; }
+.focus-theme-flip .focus-evaluation-sheet :is(.focus-evaluation-outcomes,.focus-evaluation-feelings) button { min-height:51px; border-radius:2px; border:1px solid #adbcbd; box-shadow:0 3px #a3b1b2; background:#f8faf7; color:#3c5155; padding:12px; display:flex; align-items:center; gap:9px; justify-content:flex-start; font-size:13px; transition:transform .16s,box-shadow .16s; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-feelings button small { display:none; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-feelings button strong { color:inherit; font:inherit; }
+.focus-theme-flip .focus-evaluation-sheet :is(.focus-evaluation-outcomes,.focus-evaluation-feelings) button.selected { background:#2b3b40; color:#f0f6ef; border-color:#2b3b40; box-shadow:0 1px #1b2c30; transform:translateY(2px); }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-note,.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-footer { grid-column:1/-1; }
+.focus-theme-flip .focus-evaluation-sheet textarea { background:#f9fbf8c9; border:1px solid #a9babc; border-radius:2px; color:#30464b; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-footer { border-top:1px dashed #788e92; padding-top:16px; }
+.focus-theme-flip .focus-evaluation-sheet .focus-evaluation-footer button { background:#287c83; color:#f7fcf9; border:0; border-radius:2px; box-shadow:0 3px #1b565c; }
+
+.focus-theme-nixie:is(.themed-outcome-dialog,.focus-mini-evaluation),.focus-theme-nixie:is(.themed-outcome-dialog,.focus-mini-evaluation) :is(.themed-outcome-body,.focus-mini-evaluation-body) { background:#101719; }
+.focus-theme-nixie .focus-evaluation-sheet { gap:18px; padding:18px 18px 35px; color:#d0dfda; border:1px solid #607a7480; border-radius:4px; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-heading { border:0; border-bottom:1px solid #536963; border-radius:0; background:transparent; box-shadow:none; padding:0 0 16px; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-heading p { color:#79cab7; font:11px Consolas,monospace; letter-spacing:0; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-heading h1 { color:#e5e9df; text-shadow:none; font:500 24px/1.5 "Segoe UI","Microsoft YaHei",sans-serif; letter-spacing:0; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-heading strong { color:#eeb07e; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-section { border:0; border-radius:0; padding:0; background:transparent; box-shadow:none; }
+.focus-theme-nixie .focus-evaluation-sheet legend { color:#a4c8bf; font:13px/1.5 Consolas,"Microsoft YaHei",monospace; }
+.focus-theme-nixie .focus-evaluation-sheet :is(.focus-evaluation-outcomes,.focus-evaluation-feelings) button { position:relative; min-height:68px; padding:20px 10px 12px; border:1px solid #5b716b; border-radius:4px; background:#182326e8; color:#c5d8d0; box-shadow:inset 0 1px #adcac116; }
+.focus-theme-nixie .focus-evaluation-sheet :is(.focus-evaluation-outcomes,.focus-evaluation-feelings) button::before { content:""; position:absolute; top:8px; left:calc(50% - 3px); width:6px; height:6px; border-radius:50%; background:#455751; box-shadow:inset 0 1px 2px #0008; }
+.focus-theme-nixie .focus-evaluation-sheet :is(.focus-evaluation-outcomes,.focus-evaluation-feelings) button.selected { border-color:#dd9b5f; color:#ffc18a; background:#24302ddf; box-shadow:inset 0 -2px #b87745; }
+.focus-theme-nixie .focus-evaluation-sheet :is(.focus-evaluation-outcomes,.focus-evaluation-feelings) button.selected::before { background:#ffbb76; box-shadow:0 0 8px #ff9248; animation:focus-lamp-on .5s ease-out; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-feelings button strong { color:inherit; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-feelings button small { color:#a7bdb5; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-note > span { color:#a4c8bf; }
+.focus-theme-nixie .focus-evaluation-sheet textarea { background:#0e171ae8; color:#dceae3; border:1px solid #627b72; border-radius:3px; }
+.focus-theme-nixie .focus-evaluation-sheet textarea::placeholder { color:#8fa59e; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-footer p { color:#b3c8bf; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-footer button { border:1px solid #b9916d; border-radius:3px; background:#dca574; color:#172522; box-shadow:0 3px #876342; }
+.focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-footer [role="alert"] { color:#ffb6ae; }
+@keyframes focus-lamp-on { from{opacity:.3;box-shadow:none} to{opacity:1;box-shadow:0 0 8px #ff9248} }
+@media(prefers-reduced-motion:reduce) { .nixie-afterglow{display:none} .nixie-glass-light,.focus-theme-flip .flip-digit-flap-face::before,.focus-theme-ink .focus-evaluation-sheet button.selected::before,.focus-theme-nixie .focus-evaluation-sheet button.selected::before { animation:none!important; } }
+@media(max-width:520px) { .focus-theme-flip .focus-evaluation-sheet { gap:16px 12px; padding:10px 10px 25px; } .focus-theme-nixie .focus-evaluation-sheet { padding:12px 12px 30px; } .focus-theme-nixie .focus-evaluation-sheet .focus-evaluation-feelings button small { font-size:10px; } }
+.focus-motion-backdrop {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  z-index: -1; pointer-events: none; border-radius: inherit;
+}
+:is(.focus-theme-cyber, .focus-theme-vapor) .focus-center-executing,
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor),
+.cyber-evaluation,
+.focus-theme-vapor .focus-evaluation-sheet {
+  position: relative; isolation: isolate;
+}
+:is(.focus-theme-cyber, .focus-theme-vapor) .focus-center-executing { border-radius: 4px; }
+.focus-theme-cyber .focus-center-executing { background: #060e10; }
+.focus-theme-vapor .focus-center-executing { background: #101126; }
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor)::before,
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor)::after,
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor) .focus-mini-grain { display: none; }
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor) .focus-mini-body { background: transparent; }
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor) .focus-mini-titlebar { background: #0a101dcc; }
+.focus-mini.focus-theme-vapor .focus-mini-titlebar { color: #cec4e4; border-color: #a995d044; }
+.focus-mini.focus-theme-vapor .focus-mini-titlebar button { color: #d8cfea; }
+.focus-mini.focus-theme-cyber .focus-mini-heading strong { color: #e4ff68; }
+.focus-mini.focus-theme-vapor .focus-mini-heading strong { color: #fff4e8; text-shadow: none; }
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor) .focus-mini-heading strong { overflow-wrap: anywhere; }
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor) .focus-mini-clock {
+  background: transparent; border: 0; box-shadow: none; border-radius: 0;
+}
+.focus-mini.focus-theme-vapor .focus-mini-clock::before,
+.focus-mini.focus-theme-vapor .focus-mini-clock::after { display: none; }
+.focus-mini.focus-theme-vapor .vapor-clock { color: #fff7ed; text-shadow: 2px 2px #ef5ba980, -1px -1px #5ce4e180; }
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor) .focus-mini-controls button {
+  color: #dce8e5; background: #14252ce8; border: 1px solid #779b9a80; border-radius: 4px;
+}
+.focus-mini.focus-theme-cyber .focus-mini-controls button.primary { color: #142015; background: #dcff68; border-color: #dcff68; }
+.focus-mini.focus-theme-vapor .focus-mini-controls button.primary { color: #292136; background: #fff0be; border-color: #fff0be; }
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor) .focus-mini-controls button.danger { color: #ffb7b1; }
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor) .focus-mini-controls button:disabled { opacity: .55; }
+.focus-mini:is(.focus-theme-cyber, .focus-theme-vapor) :is(.focus-mini-clock small, .focus-mini-quote, .focus-mini-confirm-hint, .focus-mini-auto) { color: #b8cdca; }
+.focus-mini.focus-theme-vapor :is(.focus-mini-clock small, .focus-mini-quote) { color: #e2d2e9; }
+.focus-mini.focus-theme-cyber .focus-cyber-telemetry { color: #82b7a8; font-size: 9px; }
+
+:is(.focus-theme-cyber, .focus-theme-vapor) .focus-center-executing :is(.focus-execution-context h1, .focus-execution-locked) { color: #f0f3ed; letter-spacing: 0; }
+:is(.focus-theme-cyber, .focus-theme-vapor) .focus-center-executing :is(.focus-phase-line, .focus-next-phase, .focus-workspace-quote, .focus-workspace-quote cite, .focus-execution-context > span, .focus-execution-disclosure button) { color: #c3cecf; letter-spacing: 0; }
+:is(.focus-theme-cyber, .focus-theme-vapor) .focus-center-executing .focus-execution-quiet { color: #a1e3d5; background: #10192399; }
+:is(.focus-theme-cyber, .focus-theme-vapor) .focus-center-executing .focus-execution-danger { color: #ffbbb4; background: #251721cc; }
+:is(.focus-theme-cyber, .focus-theme-vapor) .focus-timepiece-execution .focus-themed-timer {
+  background: transparent; border: 0; border-radius: 0; box-shadow: none;
+}
+:is(.focus-theme-cyber, .focus-theme-vapor) .focus-timepiece-execution .focus-themed-timer::before,
+:is(.focus-theme-cyber, .focus-theme-vapor) .focus-timepiece-execution .focus-themed-timer::after { display: none; }
+.focus-theme-cyber .focus-timepiece-execution .focus-themed-timer { border-inline: 1px solid #42796766; }
+.focus-theme-cyber .focus-timepiece-execution .text-theme-clock { color: #dcff68; text-shadow: 0 0 16px #cfff6825; letter-spacing: 0; }
+.focus-theme-vapor .focus-timepiece-execution .text-theme-clock { color: #fff7ed; text-shadow: 3px 3px #ef5ba980, -2px -1px #5ce4e180; letter-spacing: 0; }
+
+.focus-theme-cyber .cyber-evaluation { background: #060e10; }
+.focus-theme-cyber .cyber-evaluation .cyber-copyright { color: #95b7ac; }
+.focus-theme-cyber .cyber-evaluation .cyber-command-group { border-left: 2px solid #3aa49c; padding-left: 10px; }
+.focus-theme-cyber .cyber-evaluation .cyber-command-group button { color: #acc4ba; }
+.focus-theme-cyber .cyber-evaluation .cyber-command-group button.selected { color: #101909; background: #dfff63; }
+.focus-theme-cyber .cyber-evaluation .cyber-command-group .satisfaction-satisfied.selected { background: #5ce8bd; }
+.focus-theme-cyber .cyber-evaluation .cyber-command-group .satisfaction-neutral.selected { background: #f3c36b; }
+.focus-theme-cyber .cyber-evaluation .cyber-command-group .satisfaction-dissatisfied.selected { background: #f28b83; }
+.focus-theme-cyber .cyber-evaluation :is(textarea, input) { background: #071114e8; color: #dcf2e7; }
+.focus-terminal-cursor { display: inline-block; width: 8px; height: 15px; margin-left: 8px; background: #dfff63; vertical-align: middle; animation: focus-terminal-blink 1.3s steps(1) infinite; }
+@keyframes focus-terminal-blink { 0%,65% { opacity: 1; } 66%,100% { opacity: 0; } }
+
+/* Same controlled inputs and callbacks, with theme-specific visual composition. */
+.focus-theme-vapor:is(.themed-outcome-dialog, .focus-mini-evaluation) { background: #11142a; }
+.focus-theme-vapor:is(.themed-outcome-dialog, .focus-mini-evaluation) :is(.themed-outcome-body, .focus-mini-evaluation-body) { background: #11142a; }
+.focus-theme-vapor .focus-evaluation-sheet {
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  gap: 18px 22px; color: #e3dcee; padding: 18px;
+  border: 1px solid #a69aca88; border-radius: 0;
+  background: #15152b; box-shadow: 5px 5px #e98abe30;
+}
+.focus-theme-vapor .focus-evaluation-sheet::before {
+  content: ""; position: absolute; top: -1px; left: 0; width: 48px; height: 2px;
+  background: #9cfff2; box-shadow: 0 0 8px #8ffff0; pointer-events: none;
+  animation: focus-retro-trace 9s ease-in-out infinite;
+}
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-heading {
+  grid-column: 1/-1; margin: 0; padding: 0 0 14px;
+  border: 0; border-bottom: 3px double #a3a4d56b;
+  border-radius: 0; background: transparent; box-shadow: none;
+}
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-heading::before,
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-heading::after { display: none; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-heading p { color: #85ede4; font: 11px Consolas,"Microsoft YaHei",monospace; letter-spacing: 0; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-heading h1 { color: #fff4df; font: 500 22px/1.4 Georgia,"Microsoft YaHei",serif; text-shadow: 2px 2px #df75a16b; letter-spacing: 0; margin: 8px 0; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-heading strong { color: #ded1e9; font-size: 15px; overflow-wrap: anywhere; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-section { min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.focus-theme-vapor .focus-evaluation-sheet legend { color: #8eefe6; font: 13px/1.5 Consolas,"Microsoft YaHei",monospace; }
+.focus-theme-vapor .focus-evaluation-sheet legend span { color: #baabd3; }
+.focus-theme-vapor .focus-evaluation-sheet :is(.focus-evaluation-outcomes, .focus-evaluation-feelings) { display: grid; grid-template-columns: minmax(0,1fr); gap: 8px; }
+.focus-theme-vapor .focus-evaluation-sheet :is(.focus-evaluation-outcomes, .focus-evaluation-feelings) button {
+  display: flex; align-items: center; justify-content: flex-start; gap: 10px;
+  width: 100%; min-height: 46px; padding: 12px; border: 1px solid #958eb466;
+  border-radius: 0; color: #dfd9ed; background: #29233de8; box-shadow: none;
+  font: 13px/1.4 Consolas,"Microsoft YaHei",monospace; text-align: left;
+  transition: transform .15s, background .15s, box-shadow .15s;
+}
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-feelings button strong { color: inherit; font: inherit; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-feelings button small { display: none; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-feelings button::before { content: "◇"; color: #a796b9; }
+.focus-theme-vapor .focus-evaluation-sheet :is(.focus-evaluation-outcomes, .focus-evaluation-feelings) button.selected {
+  color: #292136; background: #ffeabf; border-color: #ffeabf;
+  box-shadow: 3px 3px #e482b1; transform: translate(-1px,-1px);
+}
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-feelings button.selected::before { content: "◆"; color: #ac356d; }
+.focus-theme-vapor .focus-evaluation-sheet :is(.focus-evaluation-note, .focus-evaluation-footer) { grid-column: 1/-1; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-note > span { color: #8eefe6; font-size: 13px; }
+.focus-theme-vapor .focus-evaluation-sheet textarea {
+  border: 1px solid #787da3; border-radius: 0; color: #f0e8fa;
+  background: repeating-linear-gradient(transparent 0 27px,#ab92cf18 27px 28px),#13162beb;
+  min-height: 100px; padding: 10px 14px; line-height: 28px;
+}
+.focus-theme-vapor .focus-evaluation-sheet textarea::placeholder { color: #b0a5bd; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-progress { color: #d6c9e4; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-progress input { color: #f3eafa; background: #17203c; border-color: #9083a9; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-footer { padding-top: 14px; border-top: 1px solid #9186ac5c; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-footer p { color: #c9bfd9; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-footer [role="alert"] { color: #ffc5be; }
+.focus-theme-vapor .focus-evaluation-sheet .focus-evaluation-footer button {
+  color: #202536; background: #a0eee7; border: 1px solid #a0eee7;
+  border-radius: 0; box-shadow: 3px 3px #d77ead;
+}
+@keyframes focus-retro-trace { 0%,100% { left: 0; opacity: .3; } 50% { left: calc(100% - 48px); opacity: 1; } }
+@media(max-width:520px) {
+  .focus-theme-vapor .focus-evaluation-sheet { padding: 12px; gap: 16px 12px; }
+  .focus-theme-vapor .focus-evaluation-sheet legend { font-size: 12px; }
+  .focus-theme-vapor .focus-evaluation-sheet :is(.focus-evaluation-outcomes, .focus-evaluation-feelings) button { padding: 10px 8px; gap: 6px; font-size: 12px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .focus-terminal-cursor, .focus-theme-vapor .focus-evaluation-sheet::before { animation: none; }
+  .focus-theme-vapor .focus-evaluation-sheet button { transition: none; }
+}

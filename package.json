@@ -1,0 +1,34 @@
+{
+  "name": "personal-ai-assistant",
+  "version": "0.1.44",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev:web": "corepack pnpm --filter @personal-ai/web dev",
+    "dev:api": "corepack pnpm --filter @personal-ai/api dev",
+    "dev:worker": "corepack pnpm --filter @personal-ai/worker dev",
+    "dev:local": "corepack pnpm --parallel --filter @personal-ai/api --filter @personal-ai/web --filter @personal-ai/worker dev",
+    "dev:desktop": "corepack pnpm --filter @personal-ai/desktop dev",
+    "prepare:desktop-runtime": "node scripts/prepare-desktop-runtime.mjs",
+    "verify:desktop-runtime": "node scripts/verify-desktop-runtime.mjs",
+    "verify:desktop-installer": "node scripts/verify-desktop-installer.mjs",
+    "release:audit": "node scripts/audit-public-release.mjs",
+    "sync:desktop-config": "node scripts/sync-desktop-config.mjs",
+    "build:desktop": "corepack pnpm prepare:desktop-runtime && corepack pnpm --filter @personal-ai/desktop build && node scripts/rebuild-desktop-installer.mjs && corepack pnpm verify:desktop-installer",
+    "local:verify": "corepack pnpm db:verify && corepack pnpm check && corepack pnpm test && corepack pnpm build",
+    "test:e2e": "node scripts/run-isolated-e2e.mjs",
+    "test:api:isolated": "node scripts/run-isolated-api-tests.mjs",
+    "test:unit": "corepack pnpm --filter @personal-ai/domain --filter @personal-ai/db test",
+    "build": "corepack pnpm --filter @personal-ai/domain --filter @personal-ai/db --filter @personal-ai/api --filter @personal-ai/web -r --if-present run build",
+    "check": "corepack pnpm --filter @personal-ai/domain --filter @personal-ai/db -r --if-present run build && corepack pnpm -r --if-present run check",
+    "test": "corepack pnpm -r --if-present run test",
+    "db:generate": "corepack pnpm --filter @personal-ai/db generate",
+    "db:migrate": "corepack pnpm --filter @personal-ai/db migrate",
+    "db:preflight": "corepack pnpm --filter @personal-ai/db preflight",
+    "db:verify": "corepack pnpm --filter @personal-ai/db verify"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3"
+  }
+}

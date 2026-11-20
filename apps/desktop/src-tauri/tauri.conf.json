@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Personal AI Assistant",
+  "version": "0.1.44",
+  "identifier": "com.personalai.assistant",
+  "build": {
+    "beforeDevCommand": "corepack pnpm --dir ../.. dev:local",
+    "beforeBuildCommand": "corepack pnpm --dir ../web build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../../web/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "个人 AI 助理",
+        "visible": false,
+        "width": 1200,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "resources": ["runtime/**/*"],
+    "windows": {
+      "nsis": {
+        "installerHooks": "installer/installer-hooks.nsh"
+      }
+    }
+  }
+}

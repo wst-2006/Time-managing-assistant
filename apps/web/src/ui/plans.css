@@ -1,0 +1,167 @@
+/* 规划 — scope tabs, a list of lines, and a four-step editor. */
+.long-range-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.long-range-heading h1 { font-size: var(--fs-28); }
+.long-range-heading p { margin-top: 6px; color: var(--ink-3); }
+
+.long-range-scope {
+  display: inline-flex;
+  justify-self: start;
+  gap: 2px;
+  padding: 3px;
+  margin-top: -8px;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+}
+.long-range-scope button {
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-2);
+}
+.long-range-scope button small { color: var(--ink-4); font-weight: 400; }
+.long-range-scope button:hover:not(:disabled) { border: 0; background: rgba(22, 0, 0, .07); }
+.long-range-scope button[aria-selected="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(22, 0, 0, .12); }
+.long-range-scope button[aria-selected="true"] small { color: var(--ink-3); }
+
+.long-range-layout { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.long-range-list, .long-range-editor { border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-1); }
+.long-range-list { display: grid; overflow: hidden; }
+.long-range-list > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
+.long-range-list > header > div { display: grid; }
+.long-range-list > header small { color: var(--ink-3); }
+.archive-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--ink-3); white-space: nowrap; }
+.archive-toggle > span:first-child, .archive-toggle span { font-weight: 500; color: var(--ink-3); }
+.long-range-loading, .long-range-empty { display: grid; gap: 6px; justify-items: start; padding: 20px 16px; color: var(--ink-3); }
+.long-range-loading { display: flex; align-items: center; gap: 8px; }
+.long-range-empty strong { color: var(--ink); }
+.long-range-items { display: grid; gap: 2px; padding: 6px; }
+.long-range-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  justify-content: stretch;
+  justify-items: start;
+  gap: 2px 8px;
+  min-height: 0;
+  padding: 10px 10px 10px 14px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  text-align: left;
+  white-space: normal;
+  font-weight: 400;
+  position: relative;
+}
+.long-range-item > svg { grid-column: 2; grid-row: 1 / span 3; align-self: center; color: var(--ink-4); }
+.long-range-item-period { font-family: var(--font-num); font-size: var(--fs-12); color: var(--ink-3); }
+.long-range-item strong { font-size: var(--fs-14); line-height: 1.4; }
+.long-range-item small { color: var(--ink-3); }
+.long-range-item:hover:not(:disabled) { background: var(--surface-2); border: 0; }
+.long-range-item.active { background: var(--accent-soft); }
+.long-range-item.active::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+.long-range-item.active > svg { color: var(--accent); }
+.long-range-item.archived strong { color: var(--ink-3); }
+
+.long-range-editor { display: grid; gap: 18px; padding: 20px 24px 22px; }
+.long-range-editor > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.long-range-editor > header h2 { font-size: var(--fs-22); margin-top: 2px; }
+.plan-version { padding: 1px 8px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-3); font-size: var(--fs-12); font-family: var(--font-num); }
+.long-range-error { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--r-md); background: var(--danger-soft); color: var(--ink); font-size: var(--fs-13); }
+
+/* Stepper — a true sequence, so it is numbered. */
+.plan-stepper { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; counter-reset: step; position: relative; }
+.plan-stepper button {
+  position: relative;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 10px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-weight: 500;
+  border-top: 3px solid var(--surface-3);
+}
+.plan-stepper button span {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-family: var(--font-num);
+  font-size: var(--fs-11);
+  font-weight: 700;
+}
+.plan-stepper button:hover:not(:disabled) { background: transparent; border: 0; border-top: 3px solid var(--line-strong); color: var(--ink); }
+.plan-stepper button.active { color: var(--ink); font-weight: 600; border-top-color: var(--accent); }
+.plan-stepper button.active span { background: var(--accent); color: var(--red); }
+
+.long-range-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.long-range-fields .wide { grid-column: 1 / -1; }
+.long-range-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plan-step-panel { display: grid; gap: 12px; animation: timeline-enter var(--dur-3) var(--ease-enter); }
+.plan-step-panel > header, .plan-step-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.plan-step-panel h3 { font-size: var(--fs-16); }
+.plan-description-field textarea { min-height: 200px; font-size: var(--fs-14); line-height: 1.75; }
+.plan-organize-button { justify-self: start; margin-top: 8px; color: var(--accent); }
+.inline-button { color: var(--accent); border-color: var(--accent-line); }
+.milestone-empty { padding: 14px; border: 1px dashed var(--line-strong); border-radius: var(--r-md); color: var(--ink-3); font-size: var(--fs-13); }
+.milestone-list { display: grid; gap: 8px; }
+.milestone-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: start; padding: 12px; border-radius: var(--r-md); background: var(--surface-2); }
+.milestone-row > span { font-family: var(--font-num); font-weight: 700; color: var(--accent); padding-top: 8px; }
+.milestone-row > div { display: grid; gap: 8px; }
+.milestone-detail { display: grid; grid-template-columns: 180px 1fr; gap: 8px; }
+.milestone-row > button { width: 32px; min-height: 32px; padding: 0; border-color: transparent; background: transparent; color: var(--ink-3); }
+
+.organized-plan-candidate, .task-tree-candidate, .task-tree-result {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+}
+.organized-plan-candidate > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.organized-plan-candidate > header > span { font-size: var(--fs-12); color: var(--ink-3); }
+.organized-plan-candidate ol { display: grid; gap: 6px; }
+.organized-plan-candidate li, .task-tree-items article { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: start; padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface); }
+.organized-plan-candidate li > span, .task-tree-items article > span { font-family: var(--font-num); font-weight: 700; color: var(--accent); padding-top: 2px; }
+.organized-plan-candidate li div { display: grid; }
+.organized-plan-candidate li small { color: var(--ink-3); }
+.organized-plan-candidate footer { display: flex; justify-content: flex-end; gap: 8px; }
+.task-tree-confirmed { display: inline-flex; align-items: center; gap: 4px; color: var(--ok); font-size: var(--fs-13); font-weight: 600; }
+.task-tree-summary { color: var(--ink-2); }
+.task-tree-items { display: grid; gap: 6px; }
+.task-tree-items article > div { display: grid; grid-template-columns: 1fr 160px; gap: 6px; }
+.task-tree-candidate footer, .task-tree-candidate > div:last-child { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+.long-range-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+.step-back-icon { transform: rotate(180deg); }
+.danger-button { color: var(--danger); margin-right: auto; }
+.danger-button:hover:not(:disabled) { background: var(--danger-soft); border-color: var(--ink); }
+
+@media (max-width: 960px) {
+  .long-range-layout { grid-template-columns: minmax(0, 1fr); }
+  .long-range-fields { grid-template-columns: 1fr; }
+  .milestone-detail { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .plan-stepper button { font-size: 0; justify-content: center; padding: 0; }
+  .plan-stepper button span { font-size: var(--fs-11); }
+  .long-range-heading { flex-direction: column; align-items: flex-start; }
+}
+.long-range-scope { max-width: 100%; overflow-x: auto; scrollbar-width: none; border-radius: 0; background: transparent; padding: 0; gap: 6px; }
+.long-range-scope button { flex: none; border: var(--rule) solid var(--ink) !important; border-radius: 0; }
+@media (max-width: 820px) { .long-range-scope button { padding: 0 10px; } .long-range-scope button small { display: none; } }

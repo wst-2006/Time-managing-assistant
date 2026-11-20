@@ -1,0 +1,303 @@
+/* Base: reset, typography and the shared control vocabulary. */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  line-height: 1.6;
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+#root { min-height: 100vh; }
+
+h1, h2, h3, h4, p, ol, ul, dl, dd, figure, blockquote { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+img, svg, canvas { display: block; }
+a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+small { font-size: var(--fs-12); }
+strong, b { font-weight: 600; }
+time { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+q { quotes: "“" "”"; }
+hr { border: 0; border-top: 1px solid var(--line); margin: var(--s-6) 0; }
+
+h1 { font-size: var(--fs-28); line-height: 1.15; font-weight: 700; }
+h2 { font-size: var(--fs-18); line-height: 1.35; font-weight: 650; }
+h3 { font-size: var(--fs-16); line-height: 1.4; font-weight: 600; }
+
+::selection { background: var(--ink); color: var(--red); }
+
+/* Icons from lucide default to a calm 16px stroke. */
+:where(svg.lucide) { width: 16px; height: 16px; flex: none; stroke-width: 1.85; }
+
+/* ---------- Generic controls (zero specificity, easy to override) ---------- */
+:where(button) {
+  font: inherit;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: var(--rule) solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--fs-13);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--dur-1) var(--ease-standard), border-color var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard), box-shadow var(--dur-1) var(--ease-standard), transform var(--dur-1) var(--ease-standard);
+}
+:where(button):hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--red); }
+:where(button):active:not(:disabled) { transform: translate(1px, 1px); }
+:where(button):disabled { cursor: not-allowed; opacity: .48; }
+:where(button[aria-pressed="true"]) { background: var(--ink); border-color: var(--ink); color: var(--red); }
+
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) {
+  font: inherit;
+  font-size: var(--fs-14);
+  color: var(--ink);
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: var(--rule) solid var(--line-strong);
+  border-radius: 0;
+  background: rgba(255, 232, 220, .16);
+  transition: border-color var(--dur-1) var(--ease-standard), box-shadow var(--dur-1) var(--ease-standard);
+}
+:where(textarea) { resize: vertical; line-height: 1.65; min-height: 72px; }
+:where(select) {
+  appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23160000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+}
+:where(input, select, textarea)::placeholder { color: var(--ink-4); }
+:where(input, select, textarea):hover:not(:disabled):not(:focus) { background: rgba(255, 232, 220, .26); }
+:where(input, select, textarea):focus { outline: none; border-color: var(--ink); background: var(--cream); box-shadow: 4px 4px 0 var(--ink); }
+:where(input, select, textarea):disabled { background: var(--surface-2); color: var(--ink-3); cursor: not-allowed; }
+:where(input[type="date"], input[type="time"]) { font-family: var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+:where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+:where(input[type="range"]) { accent-color: var(--accent); width: 100%; }
+
+/* label > span is the app-wide field label idiom */
+:where(label) { display: grid; gap: 6px; min-width: 0; }
+:where(label) > :where(span:first-child) { font: 500 11px/1.3 var(--font-mono); letter-spacing: .12em; color: var(--ink); }
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+:where(details) > summary { cursor: pointer; list-style: none; }
+:where(details) > summary::-webkit-details-marker { display: none; }
+
+/* ---------- Named buttons ---------- */
+.primary-button {
+  background: var(--ink);
+  border: var(--rule) solid var(--ink);
+  color: var(--red);
+  min-height: 38px;
+  padding: 0 18px;
+  border-radius: 0;
+  font-weight: 700;
+  letter-spacing: .08em;
+  box-shadow: 4px 4px 0 rgba(22, 0, 0, .35);
+}
+.primary-button:hover:not(:disabled) { background: var(--ink); color: var(--cream); box-shadow: 6px 6px 0 rgba(22, 0, 0, .45); transform: translate(-2px, -2px); }
+.primary-button:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
+.primary-button:disabled { opacity: .42; box-shadow: none; }
+
+.quiet-button { background: transparent; }
+.text-button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+  padding: 0 8px;
+}
+.text-button:hover:not(:disabled) { background: transparent; border-color: transparent; color: var(--ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.text-button.centered { justify-self: center; }
+.full-width { width: 100%; }
+
+.quiet-icon {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+}
+.quiet-icon svg { width: 18px; height: 18px; }
+
+.danger { color: var(--danger); }
+
+/* ---------- Text roles ---------- */
+.section-kicker, .eyebrow {
+  font: 500 11px/1.4 var(--font-mono);
+  color: var(--ink);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.num, .tabular { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+.spin { animation: ui-spin .9s linear infinite; }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Alerts ---------- */
+.error-banner, .focus-error, .timeline-alert, .user-profile-error, .plan-change-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 14px;
+  border: var(--rule) solid var(--ink);
+  border-radius: 0;
+  background: var(--cream);
+  box-shadow: 5px 5px 0 var(--ink);
+  color: var(--ink);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+.error-banner > svg:first-child, .timeline-alert > svg:first-child { color: var(--danger); }
+.error-banner button, .timeline-alert button {
+  margin-left: auto;
+  min-height: 28px;
+  width: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+}
+.error-banner button:hover, .timeline-alert button:hover { background: rgba(22, 0, 0, .08); }
+.focus-error { position: fixed; z-index: 70; right: 24px; bottom: 24px; max-width: 420px; box-shadow: var(--shadow-pop); animation: ui-toast-in var(--dur-3) var(--ease-enter); }
+@keyframes ui-toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* ---------- Dialogs ---------- */
+.task-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(22, 0, 0, .55);
+  animation: ui-fade-in var(--dur-2) var(--ease-standard);
+}
+@keyframes ui-fade-in { from { opacity: 0; } }
+.task-dialog-backdrop > [role="dialog"],
+.task-dialog-backdrop > [role="alertdialog"] {
+  width: min(560px, 100%);
+  max-height: min(86vh, 860px);
+  overflow: auto;
+  background: var(--red);
+  border: var(--rule) solid var(--ink);
+  border-radius: 0;
+  box-shadow: var(--shadow-pop);
+  animation: ui-dialog-in 420ms var(--ease-wipe);
+}
+@keyframes ui-dialog-in { from { clip-path: inset(0 0 100% 0); transform: translateY(-24px); } to { clip-path: inset(0 -40px -40px 0); } }
+.task-dialog-backdrop > [role] > header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 20px 14px 24px;
+  background: var(--red);
+  border-bottom: var(--rule) solid var(--line-strong);
+}
+.task-dialog-backdrop > [role] > header h2 { font-family: var(--font-display-zh); font-weight: 400; font-size: 34px; line-height: 1.05; margin-top: 4px; }
+.task-dialog-backdrop > [role] > header small { display: block; margin-top: 6px; color: var(--ink-3); line-height: 1.55; }
+.task-dialog-backdrop > [role] > header > button,
+.task-dialog-backdrop > [role] > header > div > button[aria-label] {
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-3);
+}
+.task-dialog-backdrop > [role] > header > button:hover { background: var(--surface-2); color: var(--ink); }
+.task-dialog-backdrop > [role] > form,
+.task-dialog-backdrop > [role] > p,
+.task-dialog-backdrop > [role] > ul,
+.task-dialog-backdrop > [role] > ol,
+.task-dialog-backdrop > [role] > label,
+.task-dialog-backdrop > [role] > div:not(.themed-outcome-body) { padding-left: 24px; padding-right: 24px; }
+.task-dialog-backdrop > [role] > footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 24px 18px;
+  background: var(--red);
+  border-top: var(--rule) solid var(--line-strong);
+}
+
+/* Shared task form inside dialogs */
+.task-dialog form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 14px;
+  padding-top: 18px;
+}
+.task-dialog .field-wide { grid-column: 1 / -1; }
+.task-dialog form > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 6px -24px 0;
+  padding: 14px 24px 18px;
+  border-top: var(--rule) solid var(--line-strong);
+  position: sticky;
+  bottom: 0;
+  background: var(--red);
+}
+.backfill-note, .plan-change-form-note {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--warn-soft);
+  color: var(--ink);
+  font-size: var(--fs-13);
+  line-height: 1.6;
+}
+.backfill-note strong { display: block; margin-bottom: 2px; color: var(--ink); }
+.plan-change-form-note { background: var(--accent-soft); color: var(--ink-2); display: grid; gap: 4px; }
+.plan-change-form-note strong { color: var(--accent); }
+.plan-change-form-note small { color: var(--ink-3); }
+
+/* Conflict dialog (shared by App and Today) */
+.conflict-dialog { width: min(480px, 100%) !important; }
+.conflict-dialog > p { padding-top: 16px; color: var(--ink-2); }
+.conflict-dialog ul { display: grid; gap: 8px; padding-top: 14px; padding-bottom: 18px; }
+.conflict-dialog li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  padding: 10px 12px;
+  background: var(--cream);
+  border: var(--rule) solid var(--ink);
+  border-left-width: 6px;
+}
+.conflict-dialog li span { grid-row: span 2; font-family: var(--font-num); font-weight: 600; color: var(--danger); }
+.conflict-dialog li small { color: var(--ink-3); }
+
+/* Scrollbars that stay out of the way */
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--ink); border-radius: 0; border: 3px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background-color: var(--ink-4); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
+}
+
+/* Any selected segment or tab is an ink slab. */
+:where(button[aria-selected="true"], [role="tab"][aria-selected="true"]) { background: var(--ink) !important; color: var(--red) !important; box-shadow: none !important; }
+:where(button[aria-selected="true"], [role="tab"][aria-selected="true"]) :where(small, span) { color: var(--red) !important; }
