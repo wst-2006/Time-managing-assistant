@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -142,7 +143,13 @@ copyFileSync(envTemplateSource, join(runtimeRoot, ".env.example"));
 
 rmSync(finalRuntimeRoot, { recursive: true, force: true });
 mkdirSync(dirname(finalRuntimeRoot), { recursive: true });
-renameSync(runtimeRoot, finalRuntimeRoot);
+try {
+  renameSync(runtimeRoot, finalRuntimeRoot);
+} catch (error) {
+  // The temp folder can sit on another drive (CI runners: C: vs D:); copy instead.
+  if (error?.code !== "EXDEV") throw error;
+  cpSync(runtimeRoot, finalRuntimeRoot, { recursive: true });
+}
 rmSync(stagingRoot, { recursive: true, force: true });
 
 console.log("Prepared standalone desktop runtime:");
