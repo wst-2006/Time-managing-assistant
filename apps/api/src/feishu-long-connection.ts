@@ -1,6 +1,5 @@
 import { createLarkChannel, type CardActionEvent, type LarkChannel, type NormalizedMessage } from "@larksuiteoapi/node-sdk";
 import type { FeishuCardActionResult, FeishuCardActionService } from "./feishu-card-actions.js";
-import type { FeishuIntakeService } from "./feishu-intake-service.js";
 
 export type FeishuLongConnectionConfig = {
   appId: string;
@@ -46,8 +45,7 @@ export class FeishuLongConnectionService {
     private readonly config: FeishuLongConnectionConfig,
     private readonly actions: FeishuCardActionService,
     private readonly channelFactory: FeishuChannelFactory = createSdkChannel,
-    private readonly logger: FeishuConnectionLogger = console,
-    private readonly intake: FeishuIntakeService | undefined = undefined
+    private readonly logger: FeishuConnectionLogger = console
   ) {}
 
   async start(): Promise<void> {
@@ -127,25 +125,6 @@ export class FeishuLongConnectionService {
           } catch (fallbackError) {
             this.logger.warn(`Feishu card action fallback failed: ${errorMessage(fallbackError)}`);
           }
-        }
-      }
-    });
-    channel.onMessage(async (event) => {
-      if (!this.intake) return;
-      try {
-        const response = await this.intake.receive(event);
-        if (response.kind === "text") await channel.sendText(event.chatId, response.text);
-        if (response.kind === "card") await channel.sendCard(event.chatId, response.card);
-        if (response.kind === "card_update") {
-          await channel.updateCard(response.messageId, response.card);
-          await channel.sendText(event.chatId, response.text);
-        }
-      } catch (error) {
-        this.logger.warn(`Feishu intake handling failed: ${errorMessage(error)}`);
-        try {
-          await channel.sendText(event.chatId, "快捷录入暂时不可用，原始消息没有被自动写入任务。请在软件中手动录入。");
-        } catch (fallbackError) {
-          this.logger.warn(`Feishu intake fallback failed: ${errorMessage(fallbackError)}`);
         }
       }
     });

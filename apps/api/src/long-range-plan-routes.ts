@@ -4,7 +4,6 @@ import {
   createLongRangePlanSchema,
   deleteLongRangePlanSchema,
   longRangePlanScopeSchema,
-  organizeLongRangePlanInputSchema,
   setLongRangePlanStatusSchema,
   updateLongRangePlanSchema
 } from "@personal-ai/domain/long-range-plan";
@@ -15,12 +14,11 @@ import {
   LongRangePlanScopeLimitError,
   LongRangePlanVersionConflictError
 } from "./long-range-plan-service.js";
-import type { LongRangePlanOrganizer } from "./ai/long-range-plan-organizer.js";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const listQuerySchema = z.object({ scope: longRangePlanScopeSchema.optional(), includeArchived: z.coerce.boolean().optional().default(false) });
 
-export async function longRangePlanRoutes(app: FastifyInstance, options: { longRangePlanService: LongRangePlanService; organizer?: LongRangePlanOrganizer }) {
+export async function longRangePlanRoutes(app: FastifyInstance, options: { longRangePlanService: LongRangePlanService }) {
   const { longRangePlanService } = options;
 
   app.get("/long-range-plans", async (request, reply) => {
@@ -41,14 +39,6 @@ export async function longRangePlanRoutes(app: FastifyInstance, options: { longR
     if (!input.success) return reply.status(400).send({ error: "invalid_long_range_plan", details: input.error.flatten() });
     try { return reply.status(201).send({ plan: await longRangePlanService.create(input.data) }); }
     catch (error) { return planError(reply, error); }
-  });
-
-  app.post("/long-range-plans/organize-ai", async (request, reply) => {
-    if (!options.organizer) return reply.status(503).send({ error: "long_range_plan_organizer_unavailable" });
-    const input = organizeLongRangePlanInputSchema.safeParse(request.body);
-    if (!input.success) return reply.status(400).send({ error: "invalid_long_range_plan_organization", details: input.error.flatten() });
-    try { return { candidate: await options.organizer.organize(input.data) }; }
-    catch { return reply.status(502).send({ error: "long_range_plan_organization_failed" }); }
   });
 
   app.put("/long-range-plans/:id", async (request, reply) => {

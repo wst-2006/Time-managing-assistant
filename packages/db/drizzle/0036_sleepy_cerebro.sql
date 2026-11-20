@@ -1,2 +1,0 @@
-ALTER TABLE "health_week_conversation_messages" ADD COLUMN "external_message_id" varchar(128);--> statement-breakpoint
-CREATE UNIQUE INDEX "health_week_conversation_messages_external_unique" ON "health_week_conversation_messages" USING btree ("external_message_id");

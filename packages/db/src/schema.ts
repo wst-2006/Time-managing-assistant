@@ -16,70 +16,11 @@ import {
   varchar
 } from "drizzle-orm/pg-core";
 
-export const inboxEntries = pgTable(
-  "inbox_entries",
-  {
-    id: uuid("id").primaryKey(),
-    entryKind: varchar("entry_kind", { length: 16 }).notNull(),
-    content: varchar("content", { length: 200 }).notNull(),
-    notes: text("notes"),
-    version: integer("version").notNull().default(1),
-    convertedAt: timestamp("converted_at", { withTimezone: true }),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
-  },
-  (table) => [
-    index("inbox_entries_active_idx").on(table.deletedAt, table.createdAt),
-    check("inbox_entries_kind_check", sql`${table.entryKind} in ('idea', 'question')`),
-    check("inbox_entries_version_check", sql`${table.version} > 0`)
-  ]
-);
-
-export const feishuIntakeCandidates = pgTable(
-  "feishu_intake_candidates",
-  {
-    id: uuid("id").primaryKey(),
-    chatId: varchar("chat_id", { length: 128 }).notNull(),
-    operatorOpenId: varchar("operator_open_id", { length: 128 }).notNull(),
-    sourceMessageId: varchar("source_message_id", { length: 128 }).notNull(),
-    lastSourceMessageId: varchar("last_source_message_id", { length: 128 }),
-    rawText: text("raw_text").notNull(),
-    candidate: jsonb("candidate"),
-    state: varchar("state", { length: 32 }).notNull().default("parsing"),
-    version: integer("version").notNull().default(1),
-    targetTaskId: uuid("target_task_id"),
-    targetInboxEntryId: uuid("target_inbox_entry_id"),
-    lastError: text("last_error"),
-    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
-  },
-  (table) => [
-    uniqueIndex("feishu_intake_candidates_source_message_unique").on(table.sourceMessageId),
-    index("feishu_intake_candidates_active_idx").on(table.state, table.createdAt),
-    check(
-      "feishu_intake_candidates_state_check",
-      sql`${table.state} in ('parsing', 'awaiting_duration', 'pending', 'confirming', 'confirmed', 'cancelled', 'needs_desktop', 'failed')`
-    ),
-    check("feishu_intake_candidates_version_check", sql`${table.version} > 0`),
-    check(
-      "feishu_intake_candidates_target_check",
-      sql`${table.targetTaskId} is null or ${table.targetInboxEntryId} is null`
-    ),
-    check(
-      "feishu_intake_candidates_confirmed_target_check",
-      sql`${table.state} <> 'confirmed' or (${table.targetTaskId} is not null or ${table.targetInboxEntryId} is not null)`
-    )
-  ]
-);
-
 export const tasks = pgTable(
   "tasks",
   {
     id: uuid("id").primaryKey(),
     title: varchar("title", { length: 200 }).notNull(),
-    sourceInboxEntryId: uuid("source_inbox_entry_id").references(() => inboxEntries.id),
     sourceLongRangePlanId: uuid("source_long_range_plan_id").references(() => longRangePlans.id),
     recordKind: varchar("record_kind", { length: 16 }).notNull().default("formal"),
     lifecycleStatus: varchar("lifecycle_status", { length: 32 }).notNull().default("open"),
@@ -101,7 +42,6 @@ export const tasks = pgTable(
     index("tasks_local_date_idx").on(table.localDate),
     index("tasks_exact_interval_idx").on(table.startAt, table.endAt),
     index("tasks_record_kind_local_date_idx").on(table.recordKind, table.localDate),
-    uniqueIndex("tasks_source_inbox_entry_id_unique").on(table.sourceInboxEntryId),
     index("tasks_source_long_range_plan_idx").on(table.sourceLongRangePlanId),
     check(
       "tasks_lifecycle_status_check",
@@ -468,30 +408,6 @@ export const longRangePlanMilestones = pgTable(
   ]
 );
 
-export const longRangePlanTaskTreeCandidates = pgTable(
-  "long_range_plan_task_tree_candidates",
-  {
-    id: uuid("id").primaryKey(),
-    longRangePlanId: uuid("long_range_plan_id").notNull().references(() => longRangePlans.id),
-    longRangePlanVersion: integer("long_range_plan_version").notNull(),
-    state: varchar("state", { length: 16 }).notNull().default("candidate"),
-    instructions: text("instructions"),
-    proposal: jsonb("proposal").notNull(),
-    createdTaskIds: jsonb("created_task_ids"),
-    version: integer("version").notNull().default(1),
-    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
-    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
-  },
-  (table) => [
-    index("long_range_plan_task_tree_candidates_plan_idx").on(table.longRangePlanId, table.createdAt),
-    check("long_range_plan_task_tree_candidates_state_check", sql`${table.state} in ('candidate', 'confirmed', 'cancelled')`),
-    check("long_range_plan_task_tree_candidates_version_check", sql`${table.version} > 0`),
-    check("long_range_plan_task_tree_candidates_plan_version_check", sql`${table.longRangePlanVersion} > 0`)
-  ]
-);
-
 export const userProfiles = pgTable(
   "user_profiles",
   {
@@ -565,56 +481,6 @@ export const reviewMessages = pgTable(
   (table) => [index("review_messages_session_idx").on(table.reviewSessionId)]
 );
 
-export const appConversations = pgTable(
-  "app_conversations",
-  {
-    id: uuid("id").primaryKey(),
-    localDate: date("local_date", { mode: "string" }).notNull().unique(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
-  },
-  (table) => [index("app_conversations_date_idx").on(table.localDate)]
-);
-
-export const appConversationMessages = pgTable(
-  "app_conversation_messages",
-  {
-    id: uuid("id").primaryKey(),
-    conversationId: uuid("conversation_id").notNull().references(() => appConversations.id),
-    role: varchar("role", { length: 16 }).notNull(),
-    content: text("content").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-  },
-  (table) => [
-    index("app_conversation_messages_conversation_idx").on(table.conversationId, table.createdAt),
-    check("app_conversation_messages_role_check", sql`${table.role} in ('user', 'assistant')`)
-  ]
-);
-
-export const dailyBriefs = pgTable("daily_briefs", {
-  id: uuid("id").primaryKey(),
-  localDate: varchar("local_date", { length: 10 }).notNull(),
-  reviewSessionId: uuid("review_session_id").references(() => reviewSessions.id),
-  state: varchar("state", { length: 32 }).notNull(),
-  content: jsonb("content").notNull(),
-  sources: jsonb("sources").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
-}, (table) => [
-  index("daily_briefs_review_session_idx").on(table.reviewSessionId),
-  check("daily_briefs_state_check", sql`${table.state} in ('draft', 'confirmed')`)
-]);
-
-export const cyberDiaries = pgTable("cyber_diaries", {
-  id: uuid("id").primaryKey(),
-  localDate: varchar("local_date", { length: 10 }).notNull().unique(),
-  reviewSessionId: uuid("review_session_id").notNull().references(() => reviewSessions.id),
-  briefId: uuid("brief_id").notNull().references(() => dailyBriefs.id),
-  content: jsonb("content").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
-});
-
 export const reminderJobs = pgTable("reminder_jobs", {
   id: uuid("id").primaryKey(),
   taskId: uuid("task_id").references(() => tasks.id),
@@ -681,41 +547,6 @@ export const healthProfiles = pgTable("health_profiles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 }, (table) => [check("health_profiles_version_check", sql`${table.version} > 0`)]);
 
-export const healthWeekConversations = pgTable(
-  "health_week_conversations",
-  {
-    id: uuid("id").primaryKey(),
-    weekStart: date("week_start", { mode: "string" }).notNull().unique(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
-  },
-  (table) => [index("health_week_conversations_week_idx").on(table.weekStart)]
-);
-
-export const healthWeekConversationMessages = pgTable(
-  "health_week_conversation_messages",
-  {
-    id: uuid("id").primaryKey(),
-    conversationId: uuid("conversation_id").notNull().references(() => healthWeekConversations.id, { onDelete: "cascade" }),
-    role: varchar("role", { length: 16 }).notNull(),
-    source: varchar("source", { length: 16 }).notNull(),
-    content: text("content").notNull(),
-    needsClarification: boolean("needs_clarification"),
-    externalMessageId: varchar("external_message_id", { length: 128 }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-  },
-  (table) => [
-    index("health_week_conversation_messages_conversation_idx").on(table.conversationId, table.createdAt),
-    uniqueIndex("health_week_conversation_messages_external_unique").on(table.externalMessageId),
-    check("health_week_conversation_messages_role_check", sql`${table.role} in ('user', 'assistant')`),
-    check("health_week_conversation_messages_source_check", sql`${table.source} in ('app', 'feishu', 'ai')`),
-    check(
-      "health_week_conversation_messages_clarification_check",
-      sql`(${table.role} = 'user' and ${table.needsClarification} is null) or (${table.role} = 'assistant' and ${table.needsClarification} is not null)`
-    )
-  ]
-);
-
 export const healthWeekPlans = pgTable(
   "health_week_plans",
   {
@@ -729,7 +560,6 @@ export const healthWeekPlans = pgTable(
     specialContext: text("special_context"),
     basedOnPlanId: uuid("based_on_plan_id"),
     basedOnPlanVersion: integer("based_on_plan_version"),
-    sourceSleepAnalysisId: uuid("source_sleep_analysis_id").references(() => healthSleepAnalyses.id),
     revisionReason: text("revision_reason"),
     overview: text("overview").notNull(),
     supplements: jsonb("supplements").notNull(),
@@ -788,40 +618,3 @@ export const healthDailyActuals = pgTable(
   ]
 );
 
-export const healthWeekAutoGenerations = pgTable(
-  "health_week_auto_generations",
-  {
-    weekStart: date("week_start", { mode: "string" }).primaryKey(),
-    status: varchar("status", { length: 16 }).notNull().default("reserved"),
-    planId: uuid("plan_id").references(() => healthWeekPlans.id),
-    failureCode: varchar("failure_code", { length: 64 }),
-    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
-  },
-  (table) => [
-    index("health_week_auto_generations_status_idx").on(table.status, table.updatedAt),
-    check("health_week_auto_generations_status_check", sql`${table.status} in ('reserved', 'completed', 'failed', 'skipped')`),
-    check("health_week_auto_generations_result_check", sql`(${table.status} = 'completed' and ${table.planId} is not null and ${table.failureCode} is null) or (${table.status} = 'failed' and ${table.planId} is null and ${table.failureCode} is not null) or (${table.status} in ('reserved', 'skipped') and ${table.planId} is null)`)
-  ]
-);
-
-export const healthSleepAnalyses = pgTable(
-  "health_sleep_analyses",
-  {
-    id: uuid("id").primaryKey(),
-    localDate: date("local_date", { mode: "string" }).notNull(),
-    source: varchar("source", { length: 16 }).notNull().default("user_upload"),
-    originalFileName: varchar("original_file_name", { length: 160 }).notNull(),
-    mimeType: varchar("mime_type", { length: 32 }).notNull(),
-    sha256: varchar("sha256", { length: 64 }).notNull(),
-    analysis: jsonb("analysis").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-  },
-  (table) => [
-    index("health_sleep_analyses_date_idx").on(table.localDate, table.createdAt),
-    check("health_sleep_analyses_source_check", sql`${table.source} = 'user_upload'`),
-    check("health_sleep_analyses_mime_check", sql`${table.mimeType} in ('image/png', 'image/jpeg', 'image/webp')`),
-    check("health_sleep_analyses_sha256_check", sql`length(${table.sha256}) = 64`)
-  ]
-);

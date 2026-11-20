@@ -1,7 +1,6 @@
 import { localDateAtTimeZone, taskInputSchema, taskPatchSchema } from "@personal-ai/domain/task";
 import { describe, expect, it } from "vitest";
 import {
-  InboxEntryConflictError,
   InvalidTaskTransitionError,
   TaskNotFoundError,
   TaskScheduleBoundsError,
@@ -368,7 +367,6 @@ describe("TaskService conflict semantics", () => {
     await store.insertTask({
       id: "00000000-0000-4000-8000-000000000101",
       title: "Already happened",
-      sourceInboxEntryId: null,
       sourceLongRangePlanId: null,
       recordKind: "backfill",
       lifecycleStatus: "closed",
@@ -456,32 +454,3 @@ describe("TaskService serializable retries", () => {
   });
 });
 
-describe("TaskService inbox conversion", () => {
-  it("retains the inbox entry and creates one linked task atomically", async () => {
-    const store = new MemoryTaskStore();
-    const service = new TaskService(store);
-    const entry = await service.createInbox("idea", "Write a paper");
-    const converted = await service.convertInbox(entry.id, entry.version, unscheduled("Write a paper"));
-    expect(converted.entry.convertedAt).toBeInstanceOf(Date);
-    expect(converted.task.sourceInboxEntryId).toBe(entry.id);
-    expect(store.inboxEntries).toHaveLength(1);
-    await expect(service.convertInbox(entry.id, entry.version, unscheduled())).rejects.toBeInstanceOf(InboxEntryConflictError);
-    expect(store.tasks).toHaveLength(1);
-  });
-
-  it("rolls back the linked task when the inbox update cannot be committed", async () => {
-    class FailingConversionStore extends MemoryTaskStore {
-      override async markInboxConverted(): Promise<null> {
-        return null;
-      }
-    }
-    const store = new FailingConversionStore();
-    const service = new TaskService(store);
-    const entry = await service.createInbox("question", "Should this become a task?");
-    await expect(service.convertInbox(entry.id, entry.version, unscheduled("Investigate")))
-      .rejects.toBeInstanceOf(InboxEntryConflictError);
-    expect(store.tasks).toHaveLength(0);
-    expect(store.lifecycleEvents).toHaveLength(0);
-    expect(store.inboxEntries[0]).toMatchObject({ id: entry.id, convertedAt: null, version: 1 });
-  });
-});

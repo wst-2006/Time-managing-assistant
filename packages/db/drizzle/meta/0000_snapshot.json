@@ -1,11 +1,11 @@
 {
-  "id": "9b507bcc-8411-44af-8581-ac15fcc44f7b",
-  "prevId": "8f0512da-1577-414c-bed9-e74324dfd17f",
+  "id": "d5137d96-f68e-4998-9283-49d7331b3577",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.cyber_diaries": {
-      "name": "cyber_diaries",
+    "public.desktop_command_requests": {
+      "name": "desktop_command_requests",
       "schema": "",
       "columns": {
         "id": {
@@ -14,127 +14,54 @@
           "primaryKey": true,
           "notNull": true
         },
-        "local_date": {
-          "name": "local_date",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "review_session_id": {
-          "name": "review_session_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "brief_id": {
-          "name": "brief_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "cyber_diaries_review_session_id_review_sessions_id_fk": {
-          "name": "cyber_diaries_review_session_id_review_sessions_id_fk",
-          "tableFrom": "cyber_diaries",
-          "tableTo": "review_sessions",
-          "columnsFrom": [
-            "review_session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "cyber_diaries_brief_id_daily_briefs_id_fk": {
-          "name": "cyber_diaries_brief_id_daily_briefs_id_fk",
-          "tableFrom": "cyber_diaries",
-          "tableTo": "daily_briefs",
-          "columnsFrom": [
-            "brief_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "cyber_diaries_local_date_unique": {
-          "name": "cyber_diaries_local_date_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "local_date"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.daily_briefs": {
-      "name": "daily_briefs",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "local_date": {
-          "name": "local_date",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "review_session_id": {
-          "name": "review_session_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "state": {
-          "name": "state",
+        "kind": {
+          "name": "kind",
           "type": "varchar(32)",
           "primaryKey": false,
           "notNull": true
         },
-        "content": {
-          "name": "content",
-          "type": "jsonb",
+        "task_id": {
+          "name": "task_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "sources": {
-          "name": "sources",
-          "type": "jsonb",
+        "schedule_revision": {
+          "name": "schedule_revision",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "claimed_by": {
+          "name": "claimed_by",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -152,11 +79,44 @@
         }
       },
       "indexes": {
-        "daily_briefs_review_session_idx": {
-          "name": "daily_briefs_review_session_idx",
+        "desktop_command_requests_pending_idx": {
+          "name": "desktop_command_requests_pending_idx",
           "columns": [
             {
-              "expression": "review_session_id",
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "desktop_command_requests_task_idx": {
+          "name": "desktop_command_requests_task_idx",
+          "columns": [
+            {
+              "expression": "task_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -169,12 +129,131 @@
         }
       },
       "foreignKeys": {
-        "daily_briefs_review_session_id_review_sessions_id_fk": {
-          "name": "daily_briefs_review_session_id_review_sessions_id_fk",
-          "tableFrom": "daily_briefs",
-          "tableTo": "review_sessions",
+        "desktop_command_requests_task_id_tasks_id_fk": {
+          "name": "desktop_command_requests_task_id_tasks_id_fk",
+          "tableFrom": "desktop_command_requests",
+          "tableTo": "tasks",
           "columnsFrom": [
-            "review_session_id"
+            "task_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "desktop_command_requests_kind_check": {
+          "name": "desktop_command_requests_kind_check",
+          "value": "\"desktop_command_requests\".\"kind\" in ('open_task')"
+        },
+        "desktop_command_requests_status_check": {
+          "name": "desktop_command_requests_status_check",
+          "value": "\"desktop_command_requests\".\"status\" in ('pending', 'claimed', 'completed', 'expired')"
+        },
+        "desktop_command_requests_schedule_revision_check": {
+          "name": "desktop_command_requests_schedule_revision_check",
+          "value": "\"desktop_command_requests\".\"schedule_revision\" > 0"
+        },
+        "desktop_command_requests_claimed_at_check": {
+          "name": "desktop_command_requests_claimed_at_check",
+          "value": "(\"desktop_command_requests\".\"status\" = 'pending' and \"desktop_command_requests\".\"claimed_at\" is null and \"desktop_command_requests\".\"claimed_by\" is null) or (\"desktop_command_requests\".\"status\" in ('claimed', 'completed') and \"desktop_command_requests\".\"claimed_at\" is not null and \"desktop_command_requests\".\"claimed_by\" is not null) or (\"desktop_command_requests\".\"status\" = 'expired')"
+        },
+        "desktop_command_requests_completed_at_check": {
+          "name": "desktop_command_requests_completed_at_check",
+          "value": "(\"desktop_command_requests\".\"status\" = 'completed') = (\"desktop_command_requests\".\"completed_at\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.focus_session_operations": {
+      "name": "focus_session_operations",
+      "schema": "",
+      "columns": {
+        "command_id": {
+          "name": "command_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "focus_session_id": {
+          "name": "focus_session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation": {
+          "name": "operation",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expected_version": {
+          "name": "expected_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resulting_version": {
+          "name": "resulting_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resulting_state": {
+          "name": "resulting_state",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "result_payload": {
+          "name": "result_payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "focus_session_operations_session_idx": {
+          "name": "focus_session_operations_session_idx",
+          "columns": [
+            {
+              "expression": "focus_session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "focus_session_operations_focus_session_id_focus_sessions_id_fk": {
+          "name": "focus_session_operations_focus_session_id_focus_sessions_id_fk",
+          "tableFrom": "focus_session_operations",
+          "tableTo": "focus_sessions",
+          "columnsFrom": [
+            "focus_session_id"
           ],
           "columnsTo": [
             "id"
@@ -187,9 +266,17 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "daily_briefs_state_check": {
-          "name": "daily_briefs_state_check",
-          "value": "\"daily_briefs\".\"state\" in ('draft', 'confirmed')"
+        "focus_session_operations_operation_check": {
+          "name": "focus_session_operations_operation_check",
+          "value": "\"focus_session_operations\".\"operation\" in ('create', 'begin', 'skip_preparation', 'respond_start', 'other_arrangement', 'end', 'skip_final_break', 'evaluate')"
+        },
+        "focus_session_operations_expected_version_check": {
+          "name": "focus_session_operations_expected_version_check",
+          "value": "\"focus_session_operations\".\"expected_version\" > 0"
+        },
+        "focus_session_operations_resulting_version_check": {
+          "name": "focus_session_operations_resulting_version_check",
+          "value": "\"focus_session_operations\".\"resulting_version\" > 0"
         }
       },
       "isRLSEnabled": false
@@ -230,6 +317,13 @@
         },
         "elapsed_seconds": {
           "name": "elapsed_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "paused_seconds": {
+          "name": "paused_seconds",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -346,6 +440,10 @@
         "focus_session_segment_runs_elapsed_check": {
           "name": "focus_session_segment_runs_elapsed_check",
           "value": "\"focus_session_segment_runs\".\"elapsed_seconds\" >= 0"
+        },
+        "focus_session_segment_runs_paused_seconds_check": {
+          "name": "focus_session_segment_runs_paused_seconds_check",
+          "value": "\"focus_session_segment_runs\".\"paused_seconds\" >= 0"
         }
       },
       "isRLSEnabled": false
@@ -457,6 +555,13 @@
           "notNull": true,
           "default": 0
         },
+        "paused_total_seconds": {
+          "name": "paused_total_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "confirmation_deadline_at": {
           "name": "confirmation_deadline_at",
           "type": "timestamp with time zone",
@@ -521,6 +626,21 @@
           "method": "btree",
           "with": {}
         },
+        "focus_sessions_focus_structure_id_idx": {
+          "name": "focus_sessions_focus_structure_id_idx",
+          "columns": [
+            {
+              "expression": "focus_structure_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "focus_sessions_current_idx": {
           "name": "focus_sessions_current_idx",
           "columns": [
@@ -553,7 +673,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"focus_sessions\".\"state\" in ('scheduled', 'reminded', 'preparing', 'awaiting_start', 'running', 'paused')",
+          "where": "\"focus_sessions\".\"state\" in ('scheduled', 'reminded', 'preparing', 'armed', 'awaiting_late_start', 'awaiting_start', 'running', 'paused')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -593,7 +713,7 @@
       "checkConstraints": {
         "focus_sessions_state_check": {
           "name": "focus_sessions_state_check",
-          "value": "\"focus_sessions\".\"state\" in ('scheduled', 'reminded', 'preparing', 'awaiting_start', 'running', 'paused', 'ended', 'evaluated', 'stopped_no_response', 'stopped_for_change')"
+          "value": "\"focus_sessions\".\"state\" in ('scheduled', 'reminded', 'preparing', 'armed', 'awaiting_late_start', 'awaiting_start', 'running', 'paused', 'ended', 'evaluated', 'stopped_no_response', 'stopped_for_change')"
         },
         "focus_sessions_raw_seconds_check": {
           "name": "focus_sessions_raw_seconds_check",
@@ -610,6 +730,10 @@
         "focus_sessions_segment_elapsed_check": {
           "name": "focus_sessions_segment_elapsed_check",
           "value": "\"focus_sessions\".\"current_segment_elapsed_seconds\" >= 0"
+        },
+        "focus_sessions_paused_total_seconds_check": {
+          "name": "focus_sessions_paused_total_seconds_check",
+          "value": "\"focus_sessions\".\"paused_total_seconds\" >= 0"
         },
         "focus_sessions_structure_version_check": {
           "name": "focus_sessions_structure_version_check",
@@ -745,7 +869,7 @@
         },
         "focus_structure_segments_duration_check": {
           "name": "focus_structure_segments_duration_check",
-          "value": "(\"focus_structure_segments\".\"segment_type\" = 'focus' and \"focus_structure_segments\".\"duration_minutes\" >= 30) or (\"focus_structure_segments\".\"segment_type\" = 'break' and \"focus_structure_segments\".\"duration_minutes\" between 5 and 15)"
+          "value": "(\"focus_structure_segments\".\"segment_type\" = 'focus' and \"focus_structure_segments\".\"duration_minutes\" >= 25) or (\"focus_structure_segments\".\"segment_type\" = 'break' and \"focus_structure_segments\".\"duration_minutes\" between 5 and 15)"
         }
       },
       "isRLSEnabled": false
@@ -781,6 +905,12 @@
         },
         "source": {
           "name": "source",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mode": {
+          "name": "mode",
           "type": "varchar(16)",
           "primaryKey": false,
           "notNull": true
@@ -908,6 +1038,10 @@
         "focus_structures_source_check": {
           "name": "focus_structures_source_check",
           "value": "\"focus_structures\".\"source\" in ('ai', 'template', 'manual')"
+        },
+        "focus_structures_mode_check": {
+          "name": "focus_structures_mode_check",
+          "value": "\"focus_structures\".\"mode\" in ('continuous', 'segmented')"
         },
         "focus_structures_revision_check": {
           "name": "focus_structures_revision_check",
@@ -1059,7 +1193,7 @@
       "checkConstraints": {
         "focus_timer_jobs_kind_check": {
           "name": "focus_timer_jobs_kind_check",
-          "value": "\"focus_timer_jobs\".\"kind\" in ('preparation_complete', 'confirmation_timeout', 'segment_transition')"
+          "value": "\"focus_timer_jobs\".\"kind\" in ('preparation_start', 'preparation_complete', 'confirmation_timeout', 'segment_transition')"
         },
         "focus_timer_jobs_status_check": {
           "name": "focus_timer_jobs_status_check",
@@ -1072,6 +1206,74 @@
         "focus_timer_jobs_attempts_check": {
           "name": "focus_timer_jobs_attempts_check",
           "value": "\"focus_timer_jobs\".\"attempts\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.health_daily_actuals": {
+      "name": "health_daily_actuals",
+      "schema": "",
+      "columns": {
+        "local_date": {
+          "name": "local_date",
+          "type": "date",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "protein_grams": {
+          "name": "protein_grams",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fiber_grams": {
+          "name": "fiber_grams",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "water_milliliters": {
+          "name": "water_milliliters",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "health_daily_actuals_protein_check": {
+          "name": "health_daily_actuals_protein_check",
+          "value": "\"health_daily_actuals\".\"protein_grams\" is null or \"health_daily_actuals\".\"protein_grams\" between 0 and 1000"
+        },
+        "health_daily_actuals_fiber_check": {
+          "name": "health_daily_actuals_fiber_check",
+          "value": "\"health_daily_actuals\".\"fiber_grams\" is null or \"health_daily_actuals\".\"fiber_grams\" between 0 and 200"
+        },
+        "health_daily_actuals_water_check": {
+          "name": "health_daily_actuals_water_check",
+          "value": "\"health_daily_actuals\".\"water_milliliters\" is null or \"health_daily_actuals\".\"water_milliliters\" between 0 and 10000"
+        },
+        "health_daily_actuals_has_value_check": {
+          "name": "health_daily_actuals_has_value_check",
+          "value": "\"health_daily_actuals\".\"protein_grams\" is not null or \"health_daily_actuals\".\"fiber_grams\" is not null or \"health_daily_actuals\".\"water_milliliters\" is not null"
         }
       },
       "isRLSEnabled": false
@@ -1233,104 +1435,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.health_sleep_analyses": {
-      "name": "health_sleep_analyses",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "local_date": {
-          "name": "local_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source": {
-          "name": "source",
-          "type": "varchar(16)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'user_upload'"
-        },
-        "original_file_name": {
-          "name": "original_file_name",
-          "type": "varchar(160)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "varchar(32)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "analysis": {
-          "name": "analysis",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "health_sleep_analyses_date_idx": {
-          "name": "health_sleep_analyses_date_idx",
-          "columns": [
-            {
-              "expression": "local_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "health_sleep_analyses_source_check": {
-          "name": "health_sleep_analyses_source_check",
-          "value": "\"health_sleep_analyses\".\"source\" = 'user_upload'"
-        },
-        "health_sleep_analyses_mime_check": {
-          "name": "health_sleep_analyses_mime_check",
-          "value": "\"health_sleep_analyses\".\"mime_type\" in ('image/png', 'image/jpeg', 'image/webp')"
-        },
-        "health_sleep_analyses_sha256_check": {
-          "name": "health_sleep_analyses_sha256_check",
-          "value": "length(\"health_sleep_analyses\".\"sha256\") = 64"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.health_week_plans": {
       "name": "health_week_plans",
       "schema": "",
@@ -1393,12 +1497,6 @@
         "based_on_plan_version": {
           "name": "based_on_plan_version",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_sleep_analysis_id": {
-          "name": "source_sleep_analysis_id",
-          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -1515,19 +1613,6 @@
         }
       },
       "foreignKeys": {
-        "health_week_plans_source_sleep_analysis_id_health_sleep_analyses_id_fk": {
-          "name": "health_week_plans_source_sleep_analysis_id_health_sleep_analyses_id_fk",
-          "tableFrom": "health_week_plans",
-          "tableTo": "health_sleep_analyses",
-          "columnsFrom": [
-            "source_sleep_analysis_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "health_week_plans_based_on_plan_id_health_week_plans_id_fk": {
           "name": "health_week_plans_based_on_plan_id_health_week_plans_id_fk",
           "tableFrom": "health_week_plans",
@@ -1565,107 +1650,6 @@
         "health_week_plans_revision_base_check": {
           "name": "health_week_plans_revision_base_check",
           "value": "(\"health_week_plans\".\"based_on_plan_id\" is null and \"health_week_plans\".\"based_on_plan_version\" is null) or (\"health_week_plans\".\"based_on_plan_id\" is not null and \"health_week_plans\".\"based_on_plan_version\" > 0)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.inbox_entries": {
-      "name": "inbox_entries",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entry_kind": {
-          "name": "entry_kind",
-          "type": "varchar(16)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "varchar(200)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "converted_at": {
-          "name": "converted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "inbox_entries_active_idx": {
-          "name": "inbox_entries_active_idx",
-          "columns": [
-            {
-              "expression": "deleted_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "inbox_entries_kind_check": {
-          "name": "inbox_entries_kind_check",
-          "value": "\"inbox_entries\".\"entry_kind\" in ('idea', 'question')"
-        },
-        "inbox_entries_version_check": {
-          "name": "inbox_entries_version_check",
-          "value": "\"inbox_entries\".\"version\" > 0"
         }
       },
       "isRLSEnabled": false
@@ -1791,144 +1775,6 @@
         "long_range_plan_milestones_position_check": {
           "name": "long_range_plan_milestones_position_check",
           "value": "\"long_range_plan_milestones\".\"position\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.long_range_plan_task_tree_candidates": {
-      "name": "long_range_plan_task_tree_candidates",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "long_range_plan_id": {
-          "name": "long_range_plan_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "long_range_plan_version": {
-          "name": "long_range_plan_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "varchar(16)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'candidate'"
-        },
-        "instructions": {
-          "name": "instructions",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "proposal": {
-          "name": "proposal",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_task_ids": {
-          "name": "created_task_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "confirmed_at": {
-          "name": "confirmed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "long_range_plan_task_tree_candidates_plan_idx": {
-          "name": "long_range_plan_task_tree_candidates_plan_idx",
-          "columns": [
-            {
-              "expression": "long_range_plan_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "long_range_plan_task_tree_candidates_long_range_plan_id_long_range_plans_id_fk": {
-          "name": "long_range_plan_task_tree_candidates_long_range_plan_id_long_range_plans_id_fk",
-          "tableFrom": "long_range_plan_task_tree_candidates",
-          "tableTo": "long_range_plans",
-          "columnsFrom": [
-            "long_range_plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "long_range_plan_task_tree_candidates_state_check": {
-          "name": "long_range_plan_task_tree_candidates_state_check",
-          "value": "\"long_range_plan_task_tree_candidates\".\"state\" in ('candidate', 'confirmed', 'cancelled')"
-        },
-        "long_range_plan_task_tree_candidates_version_check": {
-          "name": "long_range_plan_task_tree_candidates_version_check",
-          "value": "\"long_range_plan_task_tree_candidates\".\"version\" > 0"
-        },
-        "long_range_plan_task_tree_candidates_plan_version_check": {
-          "name": "long_range_plan_task_tree_candidates_plan_version_check",
-          "value": "\"long_range_plan_task_tree_candidates\".\"long_range_plan_version\" > 0"
         }
       },
       "isRLSEnabled": false
@@ -2127,6 +1973,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "remote_message_id": {
+          "name": "remote_message_id",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "last_error": {
           "name": "last_error",
           "type": "text",
@@ -2229,7 +2081,7 @@
         },
         "reminder_jobs_kind_check": {
           "name": "reminder_jobs_kind_check",
-          "value": "\"reminder_jobs\".\"kind\" in ('task_start', 'task_follow_up')"
+          "value": "\"reminder_jobs\".\"kind\" in ('task_start', 'task_start_ready', 'task_start_lapsed', 'task_start_expire')"
         },
         "reminder_jobs_status_check": {
           "name": "reminder_jobs_status_check",
@@ -2539,6 +2391,21 @@
             }
           ],
           "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "task_feedback_task_id_idx": {
+          "name": "task_feedback_task_id_idx",
+          "columns": [
+            {
+              "expression": "task_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2854,6 +2721,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "task_outcomes_focus_session_id_idx": {
+          "name": "task_outcomes_focus_session_id_idx",
+          "columns": [
+            {
+              "expression": "focus_session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2915,17 +2797,18 @@
           "primaryKey": false,
           "notNull": true
         },
-        "source_inbox_entry_id": {
-          "name": "source_inbox_entry_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "source_long_range_plan_id": {
           "name": "source_long_range_plan_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "record_kind": {
+          "name": "record_kind",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'formal'"
         },
         "lifecycle_status": {
           "name": "lifecycle_status",
@@ -3056,17 +2939,23 @@
           "method": "btree",
           "with": {}
         },
-        "tasks_source_inbox_entry_id_unique": {
-          "name": "tasks_source_inbox_entry_id_unique",
+        "tasks_record_kind_local_date_idx": {
+          "name": "tasks_record_kind_local_date_idx",
           "columns": [
             {
-              "expression": "source_inbox_entry_id",
+              "expression": "record_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "local_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3088,19 +2977,6 @@
         }
       },
       "foreignKeys": {
-        "tasks_source_inbox_entry_id_inbox_entries_id_fk": {
-          "name": "tasks_source_inbox_entry_id_inbox_entries_id_fk",
-          "tableFrom": "tasks",
-          "tableTo": "inbox_entries",
-          "columnsFrom": [
-            "source_inbox_entry_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "tasks_source_long_range_plan_id_long_range_plans_id_fk": {
           "name": "tasks_source_long_range_plan_id_long_range_plans_id_fk",
           "tableFrom": "tasks",
@@ -3122,6 +2998,10 @@
         "tasks_lifecycle_status_check": {
           "name": "tasks_lifecycle_status_check",
           "value": "\"tasks\".\"lifecycle_status\" in ('open', 'active', 'awaiting_outcome', 'closed', 'cancelled')"
+        },
+        "tasks_record_kind_check": {
+          "name": "tasks_record_kind_check",
+          "value": "\"tasks\".\"record_kind\" in ('formal', 'backfill')"
         },
         "tasks_schedule_kind_check": {
           "name": "tasks_schedule_kind_check",
@@ -3154,6 +3034,265 @@
         "tasks_schedule_revision_check": {
           "name": "tasks_schedule_revision_check",
           "value": "\"tasks\".\"schedule_revision\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.unscheduled_task_day_end_runs": {
+      "name": "unscheduled_task_day_end_runs",
+      "schema": "",
+      "columns": {
+        "local_date": {
+          "name": "local_date",
+          "type": "date",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "policy": {
+          "name": "policy",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "carried_count": {
+          "name": "carried_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "deleted_count": {
+          "name": "deleted_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "unscheduled_task_day_end_runs_policy_check": {
+          "name": "unscheduled_task_day_end_runs_policy_check",
+          "value": "\"unscheduled_task_day_end_runs\".\"policy\" in ('carry_forward', 'delete_at_day_end')"
+        },
+        "unscheduled_task_day_end_runs_counts_check": {
+          "name": "unscheduled_task_day_end_runs_counts_check",
+          "value": "\"unscheduled_task_day_end_runs\".\"carried_count\" >= 0 and \"unscheduled_task_day_end_runs\".\"deleted_count\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.user_profiles": {
+      "name": "user_profiles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "personal_context": {
+          "name": "personal_context",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "ai_guidance": {
+          "name": "ai_guidance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "share_with_ai": {
+          "name": "share_with_ai",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "response_style": {
+          "name": "response_style",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'balanced'"
+        },
+        "unscheduled_task_policy": {
+          "name": "unscheduled_task_policy",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'carry_forward'"
+        },
+        "recycle_retention_days": {
+          "name": "recycle_retention_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 3
+        },
+        "focus_flip_sound_enabled": {
+          "name": "focus_flip_sound_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "focus_start_sound_enabled": {
+          "name": "focus_start_sound_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "break_start_sound_enabled": {
+          "name": "break_start_sound_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "break_end_sound_enabled": {
+          "name": "break_end_sound_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "focus_end_sound_enabled": {
+          "name": "focus_end_sound_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "focus_theme": {
+          "name": "focus_theme",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ink'"
+        },
+        "desktop_focus_enabled": {
+          "name": "desktop_focus_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "focus_preparation_window_enabled": {
+          "name": "focus_preparation_window_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "focus_timer_window_enabled": {
+          "name": "focus_timer_window_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "focus_evaluation_enabled": {
+          "name": "focus_evaluation_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "feishu_task_cards_enabled": {
+          "name": "feishu_task_cards_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "feishu_t15_enabled": {
+          "name": "feishu_t15_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "health_page_enabled": {
+          "name": "health_page_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "user_profiles_singleton_check": {
+          "name": "user_profiles_singleton_check",
+          "value": "\"user_profiles\".\"id\" = 1"
+        },
+        "user_profiles_response_style_check": {
+          "name": "user_profiles_response_style_check",
+          "value": "\"user_profiles\".\"response_style\" in ('concise', 'balanced', 'detailed')"
+        },
+        "user_profiles_unscheduled_task_policy_check": {
+          "name": "user_profiles_unscheduled_task_policy_check",
+          "value": "\"user_profiles\".\"unscheduled_task_policy\" in ('carry_forward', 'delete_at_day_end')"
+        },
+        "user_profiles_recycle_retention_days_check": {
+          "name": "user_profiles_recycle_retention_days_check",
+          "value": "\"user_profiles\".\"recycle_retention_days\" between 1 and 30"
+        },
+        "user_profiles_focus_theme_check": {
+          "name": "user_profiles_focus_theme_check",
+          "value": "\"user_profiles\".\"focus_theme\" in ('ink', 'flip', 'nixie', 'vapor', 'cyber')"
+        },
+        "user_profiles_version_check": {
+          "name": "user_profiles_version_check",
+          "value": "\"user_profiles\".\"version\" > 0"
         }
       },
       "isRLSEnabled": false

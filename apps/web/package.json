@@ -24,6 +24,7 @@
     "vite": "^6.0.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.17",
     "@personal-ai/db": "workspace:*",
     "@playwright/test": "^1.62.0",
     "@types/react": "^18.3.18",

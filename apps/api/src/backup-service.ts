@@ -1,28 +1,17 @@
 import { asc, sql } from "drizzle-orm";
 import type { AppDatabase } from "@personal-ai/db/client";
 import {
-  appConversationMessages,
-  appConversations,
-  cyberDiaries,
-  dailyBriefs,
   desktopCommandRequests,
   focusSessionSegmentRuns,
   focusSessions,
   focusStructureSegments,
   focusStructures,
   focusTimerJobs,
-  feishuIntakeCandidates,
   healthDailyActuals,
   healthDailyReferences,
   healthProfiles,
-  healthSleepAnalyses,
-  healthWeekAutoGenerations,
-  healthWeekConversationMessages,
-  healthWeekConversations,
   healthWeekPlans,
-  inboxEntries,
   longRangePlanMilestones,
-  longRangePlanTaskTreeCandidates,
   longRangePlans,
   reminderJobs,
   reviewMessages,
@@ -37,24 +26,18 @@ import {
   userProfiles
 } from "@personal-ai/db/schema";
 
-export const logicalBackupFormat = "personal-ai-assistant.backup" as const;
-export const logicalBackupFormatVersion = 8 as const;
+export const logicalBackupFormat = "time-managing-assistant.backup" as const;
+export const logicalBackupFormatVersion = 1 as const;
 
 export type LogicalBackup = {
   format: typeof logicalBackupFormat;
   formatVersion: typeof logicalBackupFormatVersion;
   exportedAt: string;
   data: {
-    inboxEntries: Array<typeof inboxEntries.$inferSelect>;
-    feishuIntakeCandidates: Array<typeof feishuIntakeCandidates.$inferSelect>;
     healthProfiles: Array<typeof healthProfiles.$inferSelect>;
-    healthWeekConversations: Array<typeof healthWeekConversations.$inferSelect>;
-    healthWeekConversationMessages: Array<typeof healthWeekConversationMessages.$inferSelect>;
     healthWeekPlans: Array<typeof healthWeekPlans.$inferSelect>;
     healthDailyActuals: Array<typeof healthDailyActuals.$inferSelect>;
     healthDailyReferences: Array<typeof healthDailyReferences.$inferSelect>;
-    healthSleepAnalyses: Array<typeof healthSleepAnalyses.$inferSelect>;
-    healthWeekAutoGenerations: Array<typeof healthWeekAutoGenerations.$inferSelect>;
     tasks: Array<typeof tasks.$inferSelect>;
     taskLegacyMetadata: Array<typeof taskLegacyMetadata.$inferSelect>;
     taskOutcomes: Array<typeof taskOutcomes.$inferSelect>;
@@ -70,15 +53,10 @@ export type LogicalBackup = {
     focusTimerJobs: Array<typeof focusTimerJobs.$inferSelect>;
     longRangePlans: Array<typeof longRangePlans.$inferSelect>;
     longRangePlanMilestones: Array<typeof longRangePlanMilestones.$inferSelect>;
-    longRangePlanTaskTreeCandidates: Array<typeof longRangePlanTaskTreeCandidates.$inferSelect>;
     userProfiles: Array<typeof userProfiles.$inferSelect>;
     unscheduledTaskDayEndRuns: Array<typeof unscheduledTaskDayEndRuns.$inferSelect>;
     reviewSessions: Array<typeof reviewSessions.$inferSelect>;
     reviewMessages: Array<typeof reviewMessages.$inferSelect>;
-    appConversations: Array<typeof appConversations.$inferSelect>;
-    appConversationMessages: Array<typeof appConversationMessages.$inferSelect>;
-    dailyBriefs: Array<typeof dailyBriefs.$inferSelect>;
-    cyberDiaries: Array<typeof cyberDiaries.$inferSelect>;
   };
 };
 
@@ -94,20 +72,14 @@ export class BackupService implements BackupExporter {
     const exportedAt = new Date().toISOString();
 
     return this.db.transaction(async (transaction) => {
-      // All reads share one PostgreSQL snapshot and cannot accidentally mutate product data.
+      // All reads share one database snapshot and cannot accidentally mutate product data.
       await transaction.execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY`);
 
-      // A transaction uses one PostgreSQL connection, so its snapshot reads must stay sequential.
-      const inboxEntryRows = await transaction.select().from(inboxEntries).orderBy(asc(inboxEntries.createdAt), asc(inboxEntries.id));
-      const feishuIntakeCandidateRows = await transaction.select().from(feishuIntakeCandidates).orderBy(asc(feishuIntakeCandidates.createdAt), asc(feishuIntakeCandidates.id));
+      // A transaction uses one database connection, so its snapshot reads must stay sequential.
       const healthProfileRows = await transaction.select().from(healthProfiles).orderBy(asc(healthProfiles.createdAt), asc(healthProfiles.id));
-      const healthWeekConversationRows = await transaction.select().from(healthWeekConversations).orderBy(asc(healthWeekConversations.weekStart), asc(healthWeekConversations.id));
-      const healthWeekConversationMessageRows = await transaction.select().from(healthWeekConversationMessages).orderBy(asc(healthWeekConversationMessages.createdAt), asc(healthWeekConversationMessages.id));
       const healthWeekPlanRows = await transaction.select().from(healthWeekPlans).orderBy(asc(healthWeekPlans.weekStart), asc(healthWeekPlans.createdAt), asc(healthWeekPlans.id));
       const healthDailyActualRows = await transaction.select().from(healthDailyActuals).orderBy(asc(healthDailyActuals.localDate));
       const healthDailyReferenceRows = await transaction.select().from(healthDailyReferences).orderBy(asc(healthDailyReferences.localDate), asc(healthDailyReferences.dayIndex), asc(healthDailyReferences.id));
-      const healthSleepAnalysisRows = await transaction.select().from(healthSleepAnalyses).orderBy(asc(healthSleepAnalyses.localDate), asc(healthSleepAnalyses.createdAt), asc(healthSleepAnalyses.id));
-      const healthWeekAutoGenerationRows = await transaction.select().from(healthWeekAutoGenerations).orderBy(asc(healthWeekAutoGenerations.weekStart));
       const taskRows = await transaction.select().from(tasks).orderBy(asc(tasks.createdAt), asc(tasks.id));
       const legacyMetadataRows = await transaction.select().from(taskLegacyMetadata).orderBy(asc(taskLegacyMetadata.archivedAt), asc(taskLegacyMetadata.id));
       const outcomeRows = await transaction.select().from(taskOutcomes).orderBy(asc(taskOutcomes.recordedAt), asc(taskOutcomes.id));
@@ -123,31 +95,20 @@ export class BackupService implements BackupExporter {
       const timerJobRows = await transaction.select().from(focusTimerJobs).orderBy(asc(focusTimerJobs.createdAt), asc(focusTimerJobs.id));
       const longRangePlanRows = await transaction.select().from(longRangePlans).orderBy(asc(longRangePlans.periodStart), asc(longRangePlans.createdAt), asc(longRangePlans.id));
       const longRangeMilestoneRows = await transaction.select().from(longRangePlanMilestones).orderBy(asc(longRangePlanMilestones.longRangePlanId), asc(longRangePlanMilestones.position));
-      const taskTreeCandidateRows = await transaction.select().from(longRangePlanTaskTreeCandidates).orderBy(asc(longRangePlanTaskTreeCandidates.createdAt), asc(longRangePlanTaskTreeCandidates.id));
       const userProfileRows = await transaction.select().from(userProfiles).orderBy(asc(userProfiles.createdAt), asc(userProfiles.id));
       const unscheduledTaskDayEndRunRows = await transaction.select().from(unscheduledTaskDayEndRuns).orderBy(asc(unscheduledTaskDayEndRuns.localDate));
       const reviewSessionRows = await transaction.select().from(reviewSessions).orderBy(asc(reviewSessions.localDate));
       const reviewMessageRows = await transaction.select().from(reviewMessages).orderBy(asc(reviewMessages.createdAt), asc(reviewMessages.id));
-      const conversationRows = await transaction.select().from(appConversations).orderBy(asc(appConversations.localDate));
-      const conversationMessageRows = await transaction.select().from(appConversationMessages).orderBy(asc(appConversationMessages.createdAt), asc(appConversationMessages.id));
-      const briefRows = await transaction.select().from(dailyBriefs).orderBy(asc(dailyBriefs.createdAt), asc(dailyBriefs.id));
-      const diaryRows = await transaction.select().from(cyberDiaries).orderBy(asc(cyberDiaries.localDate), asc(cyberDiaries.id));
 
       return {
         format: logicalBackupFormat,
         formatVersion: logicalBackupFormatVersion,
         exportedAt,
         data: {
-          inboxEntries: inboxEntryRows,
-          feishuIntakeCandidates: feishuIntakeCandidateRows,
           healthProfiles: healthProfileRows,
-          healthWeekConversations: healthWeekConversationRows,
-          healthWeekConversationMessages: healthWeekConversationMessageRows,
           healthWeekPlans: healthWeekPlanRows,
           healthDailyActuals: healthDailyActualRows,
           healthDailyReferences: healthDailyReferenceRows,
-          healthSleepAnalyses: healthSleepAnalysisRows,
-          healthWeekAutoGenerations: healthWeekAutoGenerationRows,
           tasks: taskRows,
           taskLegacyMetadata: legacyMetadataRows,
           taskOutcomes: outcomeRows,
@@ -163,15 +124,10 @@ export class BackupService implements BackupExporter {
           focusTimerJobs: timerJobRows,
           longRangePlans: longRangePlanRows,
           longRangePlanMilestones: longRangeMilestoneRows,
-          longRangePlanTaskTreeCandidates: taskTreeCandidateRows,
           userProfiles: userProfileRows,
           unscheduledTaskDayEndRuns: unscheduledTaskDayEndRunRows,
           reviewSessions: reviewSessionRows,
-          reviewMessages: reviewMessageRows,
-          appConversations: conversationRows,
-          appConversationMessages: conversationMessageRows,
-          dailyBriefs: briefRows,
-          cyberDiaries: diaryRows
+          reviewMessages: reviewMessageRows
         }
       };
     });

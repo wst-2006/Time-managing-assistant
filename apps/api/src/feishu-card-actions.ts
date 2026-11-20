@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { FocusService } from "./focus-service.js";
 import type { TaskService } from "./task-service.js";
-import type { FeishuIntakeService } from "./feishu-intake-service.js";
 
 export type FeishuCardActionConfig = { targetOpenId: string };
 export type FeishuCardActionResult = {
@@ -20,12 +19,6 @@ const reminderActionSchema = z.object({
   commandId: z.string().uuid().optional()
 }).passthrough();
 
-const intakeActionSchema = z.object({
-  action: z.enum(["intake_confirm", "intake_cancel", "plan_shift_confirm", "plan_shift_cancel"]),
-  candidateId: z.string().uuid(),
-  expectedVersion: z.number().int().positive()
-}).strict();
-
 export class FeishuActionAuthError extends Error {}
 export class FeishuActionPayloadError extends Error {}
 
@@ -33,18 +26,12 @@ export class FeishuCardActionService {
   constructor(
     private readonly config: FeishuCardActionConfig,
     private readonly taskService: TaskService,
-    private readonly focusService: FocusService,
-    private readonly intakeService?: FeishuIntakeService
+    private readonly focusService: FocusService
   ) {}
 
   async handle(operatorOpenId: string | undefined, value: unknown): Promise<FeishuCardActionResult> {
     if (operatorOpenId !== this.config.targetOpenId) {
       throw new FeishuActionAuthError("card operator does not match the configured single user");
-    }
-    const intakeAction = intakeActionSchema.safeParse(value);
-    if (intakeAction.success) {
-      if (!this.intakeService) throw new FeishuActionPayloadError("Feishu intake is not configured");
-      return this.intakeService.handleCardAction(operatorOpenId, intakeAction.data);
     }
     const action = reminderActionSchema.safeParse(value);
     if (!action.success) throw new FeishuActionPayloadError("invalid card action payload");

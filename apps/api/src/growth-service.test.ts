@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { connectVerifiedDatabase } from "@personal-ai/db/client";
 import { loadDatabaseConfig } from "@personal-ai/db/config";
-import { cyberDiaries, dailyBriefs, focusSessionSegmentRuns, focusSessions, focusStructures, reviewMessages, reviewSessions, taskFeedback, taskOutcomes, tasks } from "@personal-ai/db/schema";
+import { focusSessionSegmentRuns, focusSessions, focusStructures, reviewMessages, reviewSessions, taskFeedback, taskOutcomes, tasks } from "@personal-ai/db/schema";
 import { eq } from "drizzle-orm";
 import { bambooCountForPlannedTasks, GrowthService } from "./growth-service.js";
 
@@ -94,7 +94,7 @@ describe("GrowthService", () => {
     }
   });
 
-  it("aggregates saved diary ratings and derives state color from subjective feedback", async () => {
+  it("aggregates saved six-axis ratings and derives state color from subjective feedback", async () => {
     const localDate = uniqueFutureDate();
     const ids = {
       review: randomUUID(), message: randomUUID(), brief: randomUUID(), diary: randomUUID(),
@@ -104,17 +104,9 @@ describe("GrowthService", () => {
     try {
       await connection.db.transaction(async (transaction) => {
         await transaction.insert(reviewSessions).values({ id: ids.review, localDate, state: "review_has_message" });
-        await transaction.insert(reviewMessages).values({ id: ids.message, reviewSessionId: ids.review, source: "app", content: "用户主动复盘" });
-        await transaction.insert(dailyBriefs).values({
-          id: ids.brief, localDate, reviewSessionId: ids.review, state: "confirmed",
-          content: { title: "简报", reflection: "复盘", taskSummary: "任务", sections: [] }, sources: []
-        });
-        await transaction.insert(cyberDiaries).values({
-          id: ids.diary, localDate, reviewSessionId: ids.review, briefId: ids.brief,
-          content: {
-            title: "日记", body: "正文",
-            radar: { mainlineProgress: 100, overallExecution: 80, focusQuality: 60, energyState: 80, wellbeing: 60, growthGain: 80 }
-          }
+        await transaction.insert(reviewMessages).values({
+          id: ids.message, reviewSessionId: ids.review, source: "radar",
+          content: JSON.stringify({ version: 1, radar: { mainlineProgress: 100, overallExecution: 80, focusQuality: 60, energyState: 80, wellbeing: 60, growthGain: 80 } })
         });
         await transaction.insert(tasks).values({ id: ids.task, title: "成长测试", lifecycleStatus: "closed", currentOutcome: "partial", scheduleKind: "none", localDate });
         await transaction.insert(focusSessions).values({ id: ids.session, taskId: ids.task, state: "evaluated", rawActiveSeconds: 3600, effectiveFocusSeconds: 3000 });
@@ -160,8 +152,6 @@ describe("GrowthService", () => {
       await connection.db.delete(focusSessions).where(eq(focusSessions.id, ids.session));
       await connection.db.delete(tasks).where(eq(tasks.id, ids.backfillTask));
       await connection.db.delete(tasks).where(eq(tasks.id, ids.task));
-      await connection.db.delete(cyberDiaries).where(eq(cyberDiaries.id, ids.diary));
-      await connection.db.delete(dailyBriefs).where(eq(dailyBriefs.id, ids.brief));
       await connection.db.delete(reviewMessages).where(eq(reviewMessages.id, ids.message));
       await connection.db.delete(reviewSessions).where(eq(reviewSessions.id, ids.review));
     }

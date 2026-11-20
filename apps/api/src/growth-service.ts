@@ -1,9 +1,8 @@
 import { and, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import type { AppDatabase } from "@personal-ai/db/client";
-import { cyberDiaryContentSchema } from "@personal-ai/domain/diary";
 import { reviewRadarSnapshotSchema, type ReviewRadar } from "@personal-ai/domain/review";
-import { cyberDiaries, focusSessionSegmentRuns, focusSessions, reviewMessages, reviewSessions, taskFeedback, taskOutcomes, tasks } from "@personal-ai/db/schema";
-import { buildDiaryDayData, type DailyGrowthBreakdown, type DailyStateTone } from "./diary-service.js";
+import { focusSessionSegmentRuns, focusSessions, reviewMessages, reviewSessions, taskFeedback, taskOutcomes, tasks } from "@personal-ai/db/schema";
+import { buildDayData, type DailyGrowthBreakdown, type DailyStateTone } from "./growth-day.js";
 
 type RadarKey = "mainlineProgress" | "overallExecution" | "focusQuality" | "energyState" | "wellbeing" | "growthGain";
 export type GrowthWindowDays = 1 | 7 | 30 | 90 | 365;
@@ -149,12 +148,11 @@ export class GrowthService {
     const { start, end, dates } = range;
     const taskRows = await this.db.select().from(tasks).where(and(eq(tasks.recordKind, "formal"), isNull(tasks.deletedAt), gte(tasks.localDate, start), lte(tasks.localDate, end)));
     const taskIds = taskRows.map((task) => task.id);
-    const [sessions, feedback, outcomes, reviews, diaryRows] = await Promise.all([
+    const [sessions, feedback, outcomes, reviews] = await Promise.all([
       taskIds.length ? this.db.select().from(focusSessions).where(inArray(focusSessions.taskId, taskIds)) : Promise.resolve([]),
       taskIds.length ? this.db.select().from(taskFeedback).where(inArray(taskFeedback.taskId, taskIds)) : Promise.resolve([]),
       taskIds.length ? this.db.select().from(taskOutcomes).where(inArray(taskOutcomes.taskId, taskIds)) : Promise.resolve([]),
-      this.db.select().from(reviewSessions).where(and(gte(reviewSessions.localDate, start), lte(reviewSessions.localDate, end))),
-      this.db.select().from(cyberDiaries).where(and(gte(cyberDiaries.localDate, start), lte(cyberDiaries.localDate, end)))
+      this.db.select().from(reviewSessions).where(and(gte(reviewSessions.localDate, start), lte(reviewSessions.localDate, end)))
     ]);
     const reviewIds = reviews.map((review) => review.id);
     const sessionIds = sessions.map((session) => session.id);
@@ -170,23 +168,18 @@ export class GrowthService {
       taskRuns.push(run);
       segmentRunsByTaskId.set(taskId, taskRuns);
     }
-    const messages = reviewIds.length
-      ? await this.db.select({ reviewSessionId: reviewMessages.reviewSessionId }).from(reviewMessages).where(and(inArray(reviewMessages.reviewSessionId, reviewIds), eq(reviewMessages.source, "app")))
-      : [];
     const radarMessages = reviewIds.length
       ? await this.db.select({ reviewSessionId: reviewMessages.reviewSessionId, content: reviewMessages.content, createdAt: reviewMessages.createdAt }).from(reviewMessages).where(and(inArray(reviewMessages.reviewSessionId, reviewIds), eq(reviewMessages.source, "radar"))).orderBy(reviewMessages.createdAt)
       : [];
     const reviewDates = new Map(reviews.map((review) => [review.id, review.localDate]));
-    const reviewedDateSet = new Set(messages.map((message) => reviewDates.get(message.reviewSessionId)).filter((localDate): localDate is string => Boolean(localDate)));
-    const savedRadarByDate = new Map(diaryRows.flatMap((diary) => {
-      const parsed = cyberDiaryContentSchema.safeParse(diary.content);
-      return parsed.success && parsed.data.radar ? [[diary.localDate, parsed.data.radar] as const] : [];
-    }));
+    const savedRadarByDate = new Map<string, NonNullable<ReturnType<typeof parseRadarMessage>>>();
     for (const message of radarMessages) {
       const localDate = reviewDates.get(message.reviewSessionId);
       const radar = parseRadarMessage(message.content);
       if (localDate && radar) savedRadarByDate.set(localDate, radar);
     }
+    // A saved six-axis review counts as having reviewed the day.
+    const reviewedDateSet = new Set(savedRadarByDate.keys());
 
     const latestFeedbackByTask = new Map<string, (typeof feedback)[number]>();
     for (const item of feedback) {
@@ -198,7 +191,7 @@ export class GrowthService {
     const days: Day[] = dates.map((localDate) => {
       const dayTasks = taskRows.filter((task) => task.localDate === localDate);
       const dayTaskIds = new Set(dayTasks.map((task) => task.id));
-      const dayData = buildDiaryDayData(
+      const dayData = buildDayData(
         dayTasks,
         sessions.filter((session) => dayTaskIds.has(session.taskId)),
         outcomes.filter((outcome) => dayTaskIds.has(outcome.taskId)),

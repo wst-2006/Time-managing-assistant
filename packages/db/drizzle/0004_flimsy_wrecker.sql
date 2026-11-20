@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "focus_sessions_open_task_unique" ON "focus_sessions" USING btree ("task_id") WHERE "focus_sessions"."state" in ('scheduled', 'reminded', 'preparing', 'awaiting_start', 'running', 'paused');

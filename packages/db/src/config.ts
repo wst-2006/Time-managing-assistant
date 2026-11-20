@@ -1,7 +1,7 @@
 import { config } from "dotenv";
-import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { z } from "zod";
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const configuredEnvFile = process.env.PERSONAL_AI_ENV_FILE;
@@ -9,17 +9,18 @@ config({
   path: configuredEnvFile ? resolve(configuredEnvFile) : resolve(sourceDirectory, "../../../.env")
 });
 
-const databaseConfigSchema = z.object({
-  DATABASE_URL: z.string().url(),
-  EXPECTED_DB_HOST: z.string().min(1),
-  EXPECTED_DB_PORT: z.coerce.number().int().positive().max(65535),
-  EXPECTED_DB_NAME: z.literal("personal_ai_assistant"),
-  EXPECTED_DB_USER: z.literal("personal_ai_app"),
-  EXPECTED_PG_MAJOR: z.coerce.number().int().positive()
-});
+/**
+ * The database is embedded (PGlite) and lives in a plain folder on this
+ * computer. `dataDir: null` means an in-memory database (tests only).
+ */
+export type DatabaseConfig = { dataDir: string | null };
 
-export type DatabaseConfig = z.infer<typeof databaseConfigSchema>;
+export function defaultDataDirectory(): string {
+  return join(homedir(), ".time-managing-assistant", "data");
+}
 
 export function loadDatabaseConfig(): DatabaseConfig {
-  return databaseConfigSchema.parse(process.env);
+  const configured = process.env.TMA_DATA_DIR?.trim();
+  if (configured === ":memory:") return { dataDir: null };
+  return { dataDir: configured ? resolve(configured) : defaultDataDirectory() };
 }

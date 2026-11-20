@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, inArray, ne } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import type { AppDatabase } from "@personal-ai/db/client";
-import { longRangePlanMilestones, longRangePlanTaskTreeCandidates, longRangePlans, tasks } from "@personal-ai/db/schema";
+import { longRangePlanMilestones, longRangePlans, tasks } from "@personal-ai/db/schema";
 import type { CreateLongRangePlan, LongRangePlanScope, LongRangePlanStatus, UpdateLongRangePlan } from "@personal-ai/domain/long-range-plan";
 
 export type StoredLongRangePlan = typeof longRangePlans.$inferSelect;
@@ -100,7 +100,6 @@ export class LongRangePlanService {
     return this.db.transaction(async (transaction) => {
       await this.requireCurrent(transaction as AppDatabase, id, expectedVersion);
       await transaction.update(tasks).set({ sourceLongRangePlanId: null }).where(eq(tasks.sourceLongRangePlanId, id));
-      await transaction.delete(longRangePlanTaskTreeCandidates).where(eq(longRangePlanTaskTreeCandidates.longRangePlanId, id));
       await transaction.delete(longRangePlanMilestones).where(eq(longRangePlanMilestones.longRangePlanId, id));
       const removed = await transaction.delete(longRangePlans)
         .where(and(eq(longRangePlans.id, id), eq(longRangePlans.version, expectedVersion)))
