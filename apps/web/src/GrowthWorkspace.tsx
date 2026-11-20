@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Leaf, Sparkles, TrendingUp } from "lucide-react";
 import { RadarEditor, numericRadarValues, type RadarKey, type RadarValues } from "./ReviewRadar";
 import { PosterMark } from "./ui/poster";
+import { inkRgb, paperRgb } from "./palette";
 
 type Tone = "quiet" | "steady" | "bright" | "strained";
 type TrendGranularity = "day" | "week" | "month";
@@ -156,9 +157,9 @@ function drawBambooShoot(context: CanvasRenderingContext2D, shoot: BambooShoot, 
   const tipY = root.y - shootHeight;
   const waistY = root.y - shootHeight * .53;
   const gradient = context.createLinearGradient(root.x, root.y, tipX, tipY);
-  gradient.addColorStop(0, `rgba(22,0,0,${(shoot.tone * .42).toFixed(3)})`);
-  gradient.addColorStop(.58, `rgba(22,0,0,${(shoot.tone * .72).toFixed(3)})`);
-  gradient.addColorStop(1, `rgba(22,0,0,${Math.min(.42, shoot.tone * 1.35).toFixed(3)})`);
+  gradient.addColorStop(0, `rgba(${inkRgb()},${(shoot.tone * .42).toFixed(3)})`);
+  gradient.addColorStop(.58, `rgba(${inkRgb()},${(shoot.tone * .72).toFixed(3)})`);
+  gradient.addColorStop(1, `rgba(${inkRgb()},${Math.min(.42, shoot.tone * 1.35).toFixed(3)})`);
   context.save();
   context.beginPath();
   context.moveTo(root.x - shoot.width * .54, root.y);
@@ -167,7 +168,7 @@ function drawBambooShoot(context: CanvasRenderingContext2D, shoot: BambooShoot, 
   context.closePath();
   context.fillStyle = gradient;
   context.fill();
-  context.strokeStyle = `rgba(22,0,0,${Math.min(.46, shoot.tone * 1.28).toFixed(3)})`;
+  context.strokeStyle = `rgba(${inkRgb()},${Math.min(.46, shoot.tone * 1.28).toFixed(3)})`;
   context.lineWidth = .9;
   context.stroke();
   for (let layer = 0; layer < 3; layer += 1) {
@@ -178,14 +179,14 @@ function drawBambooShoot(context: CanvasRenderingContext2D, shoot: BambooShoot, 
     context.beginPath();
     context.moveTo(centerX - layerWidth * .54, centerY + 4);
     context.quadraticCurveTo(centerX + Math.sin(shoot.phase + layer) * 2, centerY - 8, centerX + layerWidth * .52, centerY - 3);
-    context.strokeStyle = `rgba(22,0,0,${(.1 + amount * .2).toFixed(3)})`;
+    context.strokeStyle = `rgba(${inkRgb()},${(.1 + amount * .2).toFixed(3)})`;
     context.lineWidth = .75;
     context.stroke();
   }
   context.beginPath();
   context.moveTo(tipX, tipY);
   context.quadraticCurveTo(tipX - 7, tipY + 8, tipX - 2, tipY + 17);
-  context.strokeStyle = `rgba(22,0,0,${Math.min(.44, shoot.tone * 1.22).toFixed(3)})`;
+  context.strokeStyle = `rgba(${inkRgb()},${Math.min(.44, shoot.tone * 1.22).toFixed(3)})`;
   context.lineWidth = 1;
   context.stroke();
   context.restore();
@@ -199,15 +200,15 @@ function drawBambooLeaf(context: CanvasRenderingContext2D, x: number, y: number,
   context.moveTo(0, 0);
   context.bezierCurveTo(leaf.length * .17, -leaf.width * .64, leaf.length * .64, -leaf.width * 1.08, leaf.length, -leaf.width * .08);
   context.bezierCurveTo(leaf.length * .72, leaf.width * .42, leaf.length * .28, leaf.width * .62, 0, 0);
-  context.fillStyle = `rgba(22,0,0,${(tone * leaf.opacity * .66).toFixed(3)})`;
+  context.fillStyle = `rgba(${inkRgb()},${(tone * leaf.opacity * .66).toFixed(3)})`;
   context.fill();
-  context.strokeStyle = `rgba(22,0,0,${(tone * leaf.opacity).toFixed(3)})`;
+  context.strokeStyle = `rgba(${inkRgb()},${(tone * leaf.opacity).toFixed(3)})`;
   context.lineWidth = .62;
   context.stroke();
   context.beginPath();
   context.moveTo(1, 0);
   context.quadraticCurveTo(leaf.length * .52, -leaf.width * .1, leaf.length * .9, 0);
-  context.strokeStyle = `rgba(255,20,70,${(tone * .52).toFixed(3)})`;
+  context.strokeStyle = `rgba(${paperRgb()},${(tone * .52).toFixed(3)})`;
   context.lineWidth = .42;
   context.stroke();
   context.restore();
@@ -239,14 +240,14 @@ function drawBamboo(context: CanvasRenderingContext2D, stalks: BambooStalk[], sh
       context.beginPath();
       context.moveTo(current.x, current.y);
       context.lineTo(next.x, next.y);
-      context.strokeStyle = `rgba(22,0,0,${tone.toFixed(3)})`;
+      context.strokeStyle = `rgba(${inkRgb()},${tone.toFixed(3)})`;
       context.lineWidth = thickness;
       context.lineCap = "butt";
       context.stroke();
       context.beginPath();
       context.moveTo(current.x - thickness * .15, current.y);
       context.lineTo(next.x - thickness * .15, next.y);
-      context.strokeStyle = `rgba(255,20,70,${(tone * .5).toFixed(3)})`;
+      context.strokeStyle = `rgba(${paperRgb()},${(tone * .5).toFixed(3)})`;
       context.lineWidth = Math.max(.45, thickness * .16);
       context.stroke();
       if (index > 0) {
@@ -256,7 +257,7 @@ function drawBamboo(context: CanvasRenderingContext2D, stalks: BambooStalk[], sh
         context.beginPath();
         context.moveTo(current.x - normalX, current.y - normalY);
         context.lineTo(current.x + normalX, current.y + normalY);
-        context.strokeStyle = `rgba(22,0,0,${Math.min(.42, tone * 1.28).toFixed(3)})`;
+        context.strokeStyle = `rgba(${inkRgb()},${Math.min(.42, tone * 1.28).toFixed(3)})`;
         context.lineWidth = 1;
         context.lineCap = "round";
         context.stroke();
@@ -282,7 +283,7 @@ function drawBamboo(context: CanvasRenderingContext2D, stalks: BambooStalk[], sh
         branchX,
         branchY
       );
-      context.strokeStyle = `rgba(22,0,0,${(leafTone * .78).toFixed(3)})`;
+      context.strokeStyle = `rgba(${inkRgb()},${(leafTone * .78).toFixed(3)})`;
       context.lineWidth = .72;
       context.lineCap = "round";
       context.stroke();

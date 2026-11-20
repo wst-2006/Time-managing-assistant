@@ -100,7 +100,7 @@
 .health-manual-days button span, .health-days button span { font-size: var(--fs-12); color: var(--ink-3); font-weight: 500; }
 .health-manual-days button strong, .health-days button strong { font-family: var(--font-num); font-size: var(--fs-18); line-height: 1.1; }
 .health-manual-days button.active, .health-days button.active { background: var(--accent); border-color: var(--accent); color: var(--red); }
-.health-manual-days button.active span, .health-days button.active span { color: rgba(255, 20, 70, .8); }
+.health-manual-days button.active span, .health-days button.active span { color: rgba(var(--red-rgb),  .8); }
 .health-manual-day-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .health-manual-fieldset { display: grid; gap: 12px; margin: 0; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: var(--r-md); min-width: 0; }
 .health-manual-fieldset legend { padding: 0 6px; font-size: var(--fs-13); font-weight: 600; color: var(--ink-2); }
@@ -158,9 +158,9 @@
 }
 .health-target-row[data-tone="protein"] { --tone: var(--evening); }
 .health-target-row[data-tone="carb"], .health-target-row[data-tone="carbohydrate"] { --tone: var(--afternoon); }
-.health-target-row[data-tone="fat"] { --tone: #5c0016; }
+.health-target-row[data-tone="fat"] { --tone: var(--tone-deep); }
 .health-target-row[data-tone="fiber"] { --tone: var(--ok); }
-.health-target-row[data-tone="hydration"], .health-target-row[data-tone="water"] { --tone: #2e0020; }
+.health-target-row[data-tone="hydration"], .health-target-row[data-tone="water"] { --tone: var(--tone-dark); }
 .health-target-row > span { grid-area: label; font-size: var(--fs-13); color: var(--ink-2); }
 .health-target-row > strong { grid-area: value; justify-self: end; font-family: var(--font-num); font-size: var(--fs-16); }
 .health-target-row > i { grid-area: bar; position: relative; height: 8px; border-radius: 0; background: var(--surface-2); }
@@ -174,7 +174,7 @@
 .health-macro-ratio > div { display: flex; height: 12px; border-radius: 0; overflow: hidden; gap: 2px; }
 .health-macro-ratio > div i { flex: 0 0 var(--macro-share); background: var(--evening); }
 .health-macro-ratio [data-tone="carb"] { background: var(--afternoon) !important; }
-.health-macro-ratio [data-tone="fat"] { background: #5c0016 !important; }
+.health-macro-ratio [data-tone="fat"] { background: var(--tone-deep) !important; }
 .health-macro-ratio p { display: flex; gap: 16px; font-size: var(--fs-12); color: var(--ink-2); }
 .health-macro-ratio p span { display: inline-flex; align-items: center; gap: 5px; }
 .health-macro-ratio p b { width: 8px; height: 8px; border-radius: 0; background: var(--evening); }

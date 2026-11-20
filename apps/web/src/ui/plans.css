@@ -29,8 +29,8 @@
   color: var(--ink-2);
 }
 .long-range-scope button small { color: var(--ink-4); font-weight: 400; }
-.long-range-scope button:hover:not(:disabled) { border: 0; background: rgba(22, 0, 0, .07); }
-.long-range-scope button[aria-selected="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(22, 0, 0, .12); }
+.long-range-scope button:hover:not(:disabled) { border: 0; background: rgba(var(--ink-rgb),  .07); }
+.long-range-scope button[aria-selected="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(var(--ink-rgb),  .12); }
 .long-range-scope button[aria-selected="true"] small { color: var(--ink-3); }
 
 .long-range-layout { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }

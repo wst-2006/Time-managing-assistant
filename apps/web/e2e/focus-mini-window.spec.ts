@@ -345,7 +345,12 @@ test.describe("独立专注窗口", () => {
         const style = getComputedStyle(node);
         return { fill: style.fill, opacity: Number(style.opacity) };
       });
-      expect(activeStyle.fill).toBe("rgb(32, 40, 50)");
+      // Segments are drawn in the palette's ink (red on the default black ground).
+      const inkColor = await page.evaluate(() => {
+        const probe = document.createElement("span"); probe.style.color = "var(--ink)"; document.body.append(probe);
+        const value = getComputedStyle(probe).color; probe.remove(); return value;
+      });
+      expect(activeStyle.fill).toBe(inkColor);
       expect(activeStyle.opacity).toBe(1);
       const quote = page.locator(".focus-mini-quote");
       await expect(quote).toBeVisible();

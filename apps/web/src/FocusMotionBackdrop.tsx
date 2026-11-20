@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { FocusTheme } from "@personal-ai/domain/user-profile";
+import { inkRgb, isDarkPalette, paperRgb } from "./palette";
 
 type Props = { theme?: FocusTheme; evaluation?: boolean };
 
@@ -25,10 +26,10 @@ export function FocusMotionBackdrop({ theme, evaluation = false }: Props) {
         // Poster tunnel: signal-red ground, ink rays to a vanishing point,
         // floor lines streaming toward the viewer and receding wall frames.
         // The clock sits on the horizon, so the warp feels like moving through time.
-        ctx.fillStyle = "#ff1446"; ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = `rgb(${paperRgb()})`; ctx.fillRect(0, 0, width, height);
         const vx = width / 2, vy = height * (evaluation ? .64 : .56);
         const travel = (time * (evaluation ? .08 : .24)) % 1;
-        ctx.strokeStyle = "rgba(22,0,0,.72)"; ctx.lineWidth = 1;
+        ctx.strokeStyle = `rgba(${inkRgb()},${isDarkPalette() ? .3 : .72})`; ctx.lineWidth = 1;
         ctx.beginPath();
         for (let i = 0; i <= 26; i++) { const x = (i / 26) * width * 2.6 - width * .8; ctx.moveTo(vx, vy); ctx.lineTo(x, height); }
         ctx.stroke();
