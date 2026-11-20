@@ -38,7 +38,7 @@ const runPnpm = (args) =>
 // Build before deploying. Keeping this explicit avoids recursively invoking the
 // root build script and makes the API artifacts part of the release input.
 // The worker is a library now: its background jobs run inside the API process.
-for (const packageName of ["@personal-ai/domain", "@personal-ai/db", "@personal-ai/api", "@personal-ai/worker"]) {
+for (const packageName of ["@personal-ai/domain", "@personal-ai/db", "@personal-ai/worker", "@personal-ai/api"]) {
   runPnpm(["--filter", packageName, "build"]);
 }
 
