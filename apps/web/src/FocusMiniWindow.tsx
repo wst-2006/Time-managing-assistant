@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GoButton, SliceText } from "./ui/FocusTerminal";
+import { GoButton, LETS_BEGIN_WINDOW_MS, SliceText, playLetsBeginInWindow } from "./ui/FocusTerminal";
 import { CalendarClock, Lock, Minus, Pin, PinOff, Play, SkipForward, Unlock, X, XCircle } from "lucide-react";
 import { formatFocusClock } from "@personal-ai/domain/focus";
 import type { FocusTheme } from "@personal-ai/domain/user-profile";
@@ -193,6 +193,8 @@ export function FocusMiniWindow() {
       // Only the separate preparation surface should close. A late-start click
       // happens inside the live companion and must keep the timer visible.
       if (action === "skip-preparation" && preparationSurface) {
+        // let LET'S BEGIN finish in this window before it hands over to the timer window
+        if (theme === "ink") await new Promise((resolve) => window.setTimeout(resolve, LETS_BEGIN_WINDOW_MS - 120));
         await invokeDesktop(surfaceCommand("hide")).catch(() => undefined);
       }
       if (action === "other-arrangement") {
@@ -326,8 +328,31 @@ export function FocusMiniWindow() {
     && snapshot.currentSegment?.position === (snapshot.segments.at(-1)?.position ?? -1);
   const quote = snapshot && !ended ? focusQuote(snapshot.session.id, resting) : null;
 
-  return <main className={`focus-mini focus-theme-${theme} focus-phase-${snapshot?.phase ?? "idle"} ${ended ? "focus-mini-evaluation" : ""}`}>
-    {!ended ? <FocusMotionBackdrop theme={theme} /> : null}
+  // Default theme: red while getting ready or resting, black while focusing.
+  const inkFocus = theme === "ink" && snapshot?.phase === "focus";
+  const ringPhase = snapshot?.phase === "focus" || snapshot?.phase === "break";
+  const segmentCount = snapshot?.currentSegment && snapshot.segments.length > 1
+    ? `${snapshot.currentSegment.position + 1}/${snapshot.segments.length}`
+    : null;
+  const inkMeta = !snapshot ? "" : snapshot.phase === "focus"
+    ? `${phaseEnd ? `到 ${phaseEnd}` : "专注中"} · ${snapshot.nextSegment ? `然后${snapshot.nextSegment.segmentType === "break" ? "休息" : "专注"} ${snapshot.nextSegment.durationMinutes}′` : "然后记录结果"}`
+    : snapshot.phase === "break"
+      ? `${phaseEnd ? `${phaseEnd} 结束` : "休息中"}${finalBreak ? "，随后进入评价" : ""}`
+      : phaseEnd ? `${snapshot.phase === "awaiting_late_start" ? "可开始至" : `${phaseLabel}至`} ${phaseEnd}` : phaseLabel;
+  const readDigits = useCallback(() => document.querySelector(".focus-mini-digits")?.textContent?.trim() || "GO", []);
+  // An automatic start (confirmed earlier, timer reached the start time) plays the same opening.
+  const previousPhaseRef = useRef<string | null>(null);
+  useEffect(() => {
+    const phase = snapshot?.phase ?? null;
+    const previous = previousPhaseRef.current;
+    previousPhaseRef.current = phase;
+    if (theme !== "ink" || preparationSurface || phase !== "focus" || snapshot?.currentSegment?.position !== 0) return;
+    const justStarted = snapshot.phaseStartedAt ? Date.now() - new Date(snapshot.phaseStartedAt).getTime() < 3_000 : false;
+    if ((previous && previous !== "focus") || (!previous && justStarted)) playLetsBeginInWindow(null, readDigits);
+  }, [snapshot?.phase, snapshot?.currentSegment?.position, snapshot?.phaseStartedAt, theme, readDigits]);
+
+  return <main className={`focus-mini focus-theme-${theme} focus-phase-${snapshot?.phase ?? "idle"} ${ended ? "focus-mini-evaluation" : ""} ${inkFocus ? "ink-dark" : ""}`}>
+    {!ended && theme !== "ink" ? <FocusMotionBackdrop theme={theme} /> : null}
     <div className="focus-mini-grain" aria-hidden="true" />
     <header className="focus-mini-titlebar" onPointerDown={startDrag}>
       <span>{ended ? "专注回看" : preparationSurface ? "任务准备" : "专注伴随"}</span>
@@ -385,7 +410,39 @@ export function FocusMiniWindow() {
           onSubmit={() => void saveEvaluation()}
         />}
       </div>
-    ) : snapshot ? <div className="focus-mini-body">
+    ) : snapshot && theme === "ink" ? <div className={`focus-mini-body focus-mini-ink-body ${ringPhase ? "with-ring" : "getting-ready"}`}>
+      <header className="focus-mini-heading"><strong>{snapshot.task.title}</strong></header>
+      <section className="focus-mini-clock focus-mini-ring-clock" aria-label={`${phaseLabel}剩余 ${formatFocusClock(remaining)}`}>
+        {ringPhase ? <svg className={`focus-mini-ring ${resting ? "resting" : ""}`} viewBox="0 0 200 200" aria-hidden="true">
+          <circle className="track" cx="100" cy="100" r="94" pathLength={100} />
+          <circle className="arc" cx="100" cy="100" r="94" pathLength={100} style={{ strokeDasharray: `${Math.max(0, 100 - phaseProgress)} 100` }} />
+        </svg> : null}
+        <span className="focus-mini-ring-label"><span><SliceText text={phaseLabel} /></span>{segmentCount ? <em> · {segmentCount}</em> : null}</span>
+        <span className="focus-mini-digits">{formatFocusClock(remaining)}</span>
+        <small>{inkMeta}</small>
+      </section>
+      {quote ? <div className="focus-mini-quote" aria-label="专注提示名言">
+        <q>{quote.text}</q>
+        <cite>{quote.source}</cite>
+      </div> : null}
+      <div className="focus-mini-controls" aria-label="专注悬浮窗操作">
+        {snapshot.session.state === "reminded" || snapshot.session.state === "scheduled" || snapshot.session.state === "preparing" || snapshot.session.state === "awaiting_late_start"
+          ? <>
+            <GoButton label={startActionLabel} fillWindow={readDigits} className="compact" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")} />
+            <span className="focus-mini-text-actions">
+              <button type="button" disabled={busy} title="停止本次准备并退回未排期" onClick={() => void decidePreparation("other-arrangement")}>另有安排</button>
+              <button type="button" disabled={busy} title="直接取消这项任务" onClick={() => void decidePreparation("cancel-task")}>取消任务</button>
+            </span>
+          </>
+          : snapshot.session.state === "armed"
+            ? <span className="focus-mini-confirmed-state">已确认准时开始，到点自动计时</span>
+          : null}
+        {finalBreak ? <button type="button" className="focus-mini-text-action" disabled={busy} title="跳过最后休息并进入评价" onClick={() => void act("skip-final-break")}>跳过休息</button> : null}
+      </div>
+      {!preparationSurface && !["preparing", "armed", "awaiting_late_start", "reminded", "scheduled"].includes(snapshot.session.state)
+        ? <button className={`focus-mini-auto ${settings?.autoShow ? "active" : ""}`} type="button" onClick={() => void updateSetting("focus_mini_set_auto_show", !settings?.autoShow)}>开始时自动出现</button>
+        : null}
+    </div> : snapshot ? <div className="focus-mini-body">
       {theme === "cyber" ? <div className="focus-cyber-telemetry" aria-hidden="true">STATE {snapshot.session.state.toUpperCase()}<br />FLOW {Math.round(phaseProgress)}%</div> : null}
       <header className="focus-mini-heading">
         <span>{theme === "ink" ? <SliceText text={phaseLabel} /> : phaseLabel}</span>

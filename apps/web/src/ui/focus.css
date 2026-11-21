@@ -674,3 +674,62 @@
 .focus-workspace.focus-theme-ink :is(.focus-execution-quiet, .focus-execution-danger):hover:not(:disabled) { background: transparent !important; color: var(--ink) !important; border-bottom-color: var(--ink) !important; }
 .focus-workspace.focus-theme-ink .focus-execution-locked { border: 0; background: none; padding: 0; font: 500 14px/1.4 var(--font-mono); color: var(--ink-2); }
 .focus-workspace.focus-theme-ink .focus-execution-disclosure button { font: 500 13px var(--font-mono); }
+
+/* LET'S BEGIN filling the focus window */
+.lets-begin-fill { position: fixed; inset: 0; z-index: 300; pointer-events: none; display: grid; place-items: center; overflow: hidden; animation: lets-begin-fill-out 1750ms linear forwards; }
+.lets-begin-fill-disc { position: fixed; left: var(--from-x); top: var(--from-y); width: var(--cover); height: var(--cover); border-radius: 50%; background: #120306; transform: translate(-50%, -50%) scale(0); animation: lets-begin-fill-disc 420ms cubic-bezier(.76, 0, .24, 1) forwards; }
+.lets-begin-fill-word { position: relative; font: 400 min(30vw, 34vh)/1 var(--font-display) !important; letter-spacing: .01em; color: #ff4866; opacity: 0; animation: lets-begin-fill-word 1750ms linear forwards; }
+@keyframes lets-begin-fill-disc { to { transform: translate(-50%, -50%) scale(1); } }
+@keyframes lets-begin-fill-word { 0%, 20% { opacity: 0; } 26%, 100% { opacity: 1; } }
+@keyframes lets-begin-fill-out { 0%, 84% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ===========================================================================
+   Focus window, default theme: red while getting ready or resting (one faint
+   regular grid at most), black while focusing — a progress ring and type only.
+   =========================================================================== */
+.focus-mini.focus-theme-ink { background: var(--red); color: var(--ink); transition: background 240ms var(--ease-standard), color 240ms var(--ease-standard); }
+.focus-mini.focus-theme-ink.ink-dark { --ink: #ff4866; --red: #120306; background: #120306; color: #ff4866; border-color: #120306; }
+.focus-mini.focus-theme-ink.ink-dark .focus-mini-titlebar { background: #120306; color: #ff4866; border-bottom: 1px solid rgba(255, 72, 102, .28); }
+.focus-mini.focus-theme-ink.ink-dark .focus-mini-titlebar button { color: #ff4866; }
+.focus-mini.focus-theme-ink.ink-dark .focus-mini-titlebar button:hover { background: #ff4866; color: #120306; }
+
+.focus-mini.focus-theme-ink .focus-mini-ink-body { position: relative; z-index: 1; display: grid; justify-items: center; align-content: center; gap: 8px; min-height: calc(100% - 32px); padding: 14px 18px 16px; text-align: center; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body.getting-ready {
+  background-image: linear-gradient(rgba(22, 0, 0, .11) 1px, transparent 1px), linear-gradient(90deg, rgba(22, 0, 0, .11) 1px, transparent 1px);
+  background-size: 48px 48px; background-position: center;
+}
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-heading { padding: 0; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-heading strong { max-width: 300px; background: none; padding: 0; font: 400 21px/1.2 var(--font-display-zh); color: var(--ink); }
+.focus-mini.focus-theme-ink .focus-mini-ring-clock { position: relative; display: grid; justify-items: center; align-content: center; gap: 2px; margin: 0; }
+.focus-mini.focus-theme-ink .with-ring .focus-mini-ring-clock { width: min(232px, 62vmin); aspect-ratio: 1; }
+.focus-mini-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.focus-mini-ring circle { fill: none; }
+.focus-mini-ring .track { stroke: rgba(var(--ring-rgb, 255, 72, 102), .2); stroke-width: 1.5; }
+.focus-mini-ring .arc { stroke: var(--ink); stroke-width: 4; transition: stroke-dasharray 1s linear; }
+.focus-mini.focus-theme-ink:not(.ink-dark) .focus-mini-ring .track { stroke: rgba(22, 0, 0, .3); }
+.focus-mini-ring.resting .track { stroke-dasharray: 1 2.2; stroke-width: 1.5; }
+.focus-mini-ring.resting .arc { stroke-dasharray: 1 2.2; }
+.focus-mini.focus-theme-ink .focus-mini-ring-label { position: relative; font: 500 12px/1.3 var(--font-mono); letter-spacing: .18em; color: var(--ink); }
+.focus-mini.focus-theme-ink .focus-mini-ring-label .slice-text { font: 500 12px/1.3 var(--font-mono); letter-spacing: .18em; }
+.focus-mini.focus-theme-ink .focus-mini-ring-label em { font-style: normal; }
+.focus-mini.focus-theme-ink .focus-mini-digits { position: relative; font: 400 clamp(56px, 22vmin, 92px)/.95 var(--font-display); letter-spacing: .01em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.focus-mini.focus-theme-ink .with-ring .focus-mini-digits { font-size: clamp(52px, 19vmin, 78px); }
+.focus-mini.focus-theme-ink .focus-mini-ring-clock small { position: relative; max-width: 190px; padding: 0; background: none; font: 500 12px/1.4 var(--font-mono); letter-spacing: .03em; color: var(--ink); }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-quote { width: auto; max-width: 300px; padding: 0; margin: 2px auto 0; background: none; color: var(--ink); font: 400 13px/1.5 "Noto Serif SC", var(--font-serif); opacity: .88; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-quote cite { display: block; font: 500 11px/1.4 var(--font-mono); opacity: .8; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-controls { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 4px; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-controls:empty { display: none; }
+.focus-mini-text-actions { display: flex; gap: 18px; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body :is(.focus-mini-text-actions button, .focus-mini-text-action) { min-height: 0; padding: 2px 0; border: 0; border-bottom: 1px solid transparent; border-radius: 0; background: none; box-shadow: none; color: var(--ink); font: 500 12px/1.4 var(--font-mono); letter-spacing: .06em; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body :is(.focus-mini-text-actions button, .focus-mini-text-action):hover:not(:disabled) { transform: none; box-shadow: none; background: none; border-bottom-color: var(--ink); color: var(--ink); }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-confirmed-state { background: none; padding: 0; font: 500 12px var(--font-mono); }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-auto { margin-top: 2px; border: 0; background: none; color: var(--ink); font: 500 11px var(--font-mono); opacity: .6; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-auto.active { opacity: .9; text-decoration: underline; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-auto { position: static; inset: auto; transform: none; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-text-actions { display: flex; justify-content: center; gap: 22px; width: auto; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-text-actions button { flex: none; width: auto; }
+.focus-mini.focus-theme-ink .with-ring .focus-mini-ring-clock { width: min(220px, 52vmin); }
+.focus-mini.focus-theme-ink .focus-mini-ink-body .focus-mini-text-actions button { min-width: 0; }
+.focus-mini.focus-theme-ink .focus-mini-ink-body { align-content: start; padding-top: 18px; overflow: auto; }
+.focus-mini.focus-theme-ink .with-ring .focus-mini-digits { font-size: clamp(44px, 16vmin, 64px); }
+.focus-mini.focus-theme-ink .with-ring .focus-mini-ring-clock small { max-width: 160px; font-size: 11px; }

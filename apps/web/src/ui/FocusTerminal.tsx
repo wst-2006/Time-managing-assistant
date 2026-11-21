@@ -122,8 +122,45 @@ export function playLetsBegin(from: DOMRect, caption?: string) {
   root.render(<LetsBegin origin={{ x: from.left + from.width / 2, y: from.top + from.height / 2, size: from.width }} caption={caption} onDone={finish} />);
 }
 
+/**
+ * Focus-window version of LET'S BEGIN: the ink floods the whole window from the
+ * GO button, LET'S swaps to BEGIN, and BEGIN swaps straight into the countdown,
+ * so the opening runs into the timer instead of cutting to it.
+ */
+let lastLetsBeginAt = 0;
+export const LETS_BEGIN_WINDOW_MS = 1750;
+
+function LetsBeginFill({ origin, finalText, onDone }: { origin: { x: number; y: number }; finalText: () => string; onDone: () => void }) {
+  const [word, setWord] = useState("LET'S");
+  useEffect(() => {
+    const begin = window.setTimeout(() => setWord("BEGIN"), 720);
+    const digits = window.setTimeout(() => setWord(finalText()), 1260);
+    const done = window.setTimeout(onDone, LETS_BEGIN_WINDOW_MS);
+    return () => { window.clearTimeout(begin); window.clearTimeout(digits); window.clearTimeout(done); };
+  }, [finalText, onDone]);
+  const radius = Math.hypot(Math.max(origin.x, window.innerWidth - origin.x), Math.max(origin.y, window.innerHeight - origin.y));
+  return <div className="lets-begin-fill" aria-hidden="true" style={{ ["--from-x" as string]: `${origin.x}px`, ["--from-y" as string]: `${origin.y}px`, ["--cover" as string]: `${radius * 2 + 4}px` }}>
+    <span className="lets-begin-fill-disc" />
+    <SliceText text={word} className="lets-begin-fill-word" />
+  </div>;
+}
+
+/** Plays the window-filling LET'S BEGIN. `from` is the GO disc, or null to start from the centre. */
+export function playLetsBeginInWindow(from: DOMRect | null, finalText: () => string) {
+  if (typeof document === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+  if (Date.now() - lastLetsBeginAt < 4000) return false;
+  lastLetsBeginAt = Date.now();
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  const finish = () => { root.unmount(); host.remove(); };
+  const origin = from ? { x: from.left + from.width / 2, y: from.top + from.height / 2 } : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  root.render(<LetsBeginFill origin={origin} finalText={finalText} onDone={finish} />);
+  return true;
+}
+
 /** Round GO button: an ink disc that floods outward when pressed. */
-export function GoButton({ label, caption, onClick, className = "", disabled, ...rest }: { label: string; caption?: string } & ButtonHTMLAttributes<HTMLButtonElement>) {
+export function GoButton({ label, caption, fillWindow, onClick, className = "", disabled, ...rest }: { label: string; caption?: string; fillWindow?: () => string } & ButtonHTMLAttributes<HTMLButtonElement>) {
   const [launching, setLaunching] = useState(false);
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
@@ -135,7 +172,10 @@ export function GoButton({ label, caption, onClick, className = "", disabled, ..
     className={`go-button ${launching ? "launching" : ""} ${className}`}
     onClick={(event) => {
       const disc = event.currentTarget.querySelector(".go-disc")?.getBoundingClientRect();
-      if (disc && !disabled) playLetsBegin(disc, caption);
+      if (disc && !disabled) {
+        if (fillWindow) playLetsBeginInWindow(disc, fillWindow);
+        else playLetsBegin(disc, caption);
+      }
       setLaunching(true);
       if (timer.current) window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => setLaunching(false), 700);

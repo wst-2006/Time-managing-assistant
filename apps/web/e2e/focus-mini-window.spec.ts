@@ -307,7 +307,7 @@ test.describe("独立专注窗口", () => {
     await expect(page.getByText(/结果尚未保存|评价刚在另一处更新/)).toHaveCount(0);
   });
 
-  test("液晶七段数字完整统一，多个时间组合都保留双点冒号", async ({ page }) => {
+  test("默认主题：专注时黑底红字，数字为粗体大字并带进度环，多个时间都完整显示", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 360 });
     const fixedNow = new Date("2026-08-17T12:00:00.000Z");
     await page.clock.install();
@@ -316,72 +316,24 @@ test.describe("独立专注窗口", () => {
     let remainingSeconds = 42;
     await page.route(`${apiBase}/api/v1/focus-sessions/current-execution`, (route) => {
       const value = snapshot("running", { now: fixedNow.getTime(), remainingSeconds });
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ session: value.session, snapshot: value }),
-      });
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ session: value.session, snapshot: value }) });
     });
-
-    const cases = [
-      { seconds: 42, label: "00:42" },
-      { seconds: 23 * 60 + 54, label: "23:54" },
-      { seconds: 4 * 60 + 32, label: "04:32" },
-    ];
-    for (const [index, item] of cases.entries()) {
+    for (const [index, item] of [{ seconds: 42, label: "00:42" }, { seconds: 23 * 60 + 54, label: "23:54" }, { seconds: 4 * 60 + 32, label: "04:32" }].entries()) {
       remainingSeconds = item.seconds;
       if (index === 0) await page.goto("/?focus-mini=1");
       else await page.reload();
-      const clock = page.locator(`svg.lcd-clock[aria-label="${item.label}"]`);
-      await expect(clock).toBeVisible();
-      const clockBounds = await clock.boundingBox();
-      expect(clockBounds?.width).toBeLessThanOrEqual(160);
-      await expect(clock.locator(".lcd-digit")).toHaveCount(4);
-      await expect(clock.locator(".lcd-digit .lcd-segment")).toHaveCount(28);
-      await expect(clock.locator(".lcd-colon circle")).toHaveCount(2);
-      await expect(clock.locator(".ink-stamp-blot, .ink-stamp-ring, linearGradient, radialGradient, feDropShadow")).toHaveCount(0);
-      expect(await clock.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
-      const activeStyle = await clock.locator(".lcd-segment.active").first().evaluate((node) => {
-        const style = getComputedStyle(node);
-        return { fill: style.fill, opacity: Number(style.opacity) };
-      });
-      // Segments are drawn in the palette's ink (red on the default black ground).
-      const inkColor = await page.evaluate(() => {
-        const probe = document.createElement("span"); probe.style.color = "var(--ink)"; document.body.append(probe);
-        const value = getComputedStyle(probe).color; probe.remove(); return value;
-      });
-      expect(activeStyle.fill).toBe(inkColor);
-      expect(activeStyle.opacity).toBe(1);
+      const digits = page.locator(".focus-mini-digits");
+      await expect(digits).toHaveText(item.label);
+      expect(await digits.evaluate((node) => getComputedStyle(node).fontFamily)).toContain("Anton");
+      await expect(page.locator(".focus-mini")).toHaveClass(/ink-dark/);
+      await expect(page.locator(".focus-mini")).toHaveCSS("background-color", "rgb(18, 3, 6)");
+      await expect(page.locator(".focus-mini-ring .arc")).toHaveCount(1);
+      await expect(page.locator(".focus-motion-backdrop")).toHaveCount(0);
       const quote = page.locator(".focus-mini-quote");
       await expect(quote).toBeVisible();
       await expect(quote.locator("cite")).toContainText("《");
-      await expect(quote).not.toContainText("一念收束");
-      const digitSizes = await clock.locator(".lcd-digit").evaluateAll((nodes) => nodes.map((node) => {
-        const rect = node.getBoundingClientRect();
-        return { width: rect.width, height: rect.height };
-      }));
-      expect(Math.max(...digitSizes.map((size) => size.width)) - Math.min(...digitSizes.map((size) => size.width))).toBeLessThan(1);
-      expect(Math.max(...digitSizes.map((size) => size.height)) - Math.min(...digitSizes.map((size) => size.height))).toBeLessThan(1);
-      const bounds = await clock.evaluate((svg) => {
-        const frame = svg.getBoundingClientRect();
-        const marks = Array.from(svg.querySelectorAll<SVGGraphicsElement>(".lcd-segment, .lcd-colon circle"));
-        return marks.map((mark) => {
-          const rect = mark.getBoundingClientRect();
-          return {
-            left: rect.left - frame.left,
-            top: rect.top - frame.top,
-            right: frame.right - rect.right,
-            bottom: frame.bottom - rect.bottom,
-          };
-        });
-      });
-      expect(bounds.length).toBeGreaterThan(4);
-      for (const bound of bounds) {
-        expect(bound.left).toBeGreaterThanOrEqual(0);
-        expect(bound.top).toBeGreaterThanOrEqual(0);
-        expect(bound.right).toBeGreaterThanOrEqual(0);
-        expect(bound.bottom).toBeGreaterThanOrEqual(0);
-      }
+      const box = await digits.boundingBox();
+      expect(box && box.x >= 0 && box.x + box.width <= 360).toBe(true);
     }
   });
 
