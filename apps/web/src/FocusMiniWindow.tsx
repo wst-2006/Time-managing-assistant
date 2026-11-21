@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GoButton, LETS_BEGIN_WINDOW_MS, SliceText, playLetsBeginInWindow } from "./ui/FocusTerminal";
+import { GoButton, SliceText, playLetsBeginInWindow } from "./ui/FocusTerminal";
 import { CalendarClock, Lock, Minus, Pin, PinOff, Play, SkipForward, Unlock, X, XCircle } from "lucide-react";
 import { formatFocusClock } from "@personal-ai/domain/focus";
 import type { FocusTheme } from "@personal-ai/domain/user-profile";
@@ -46,6 +46,23 @@ function surfaceCommand(base: "hide" | "minimize" | "start_drag") {
   if (evaluationSurface) return `focus_evaluation_${base}`;
   if (preparationSurface) return `focus_preparation_${base}`;
   return `focus_mini_${base}`;
+}
+
+/** One bar per segment, widths by duration; the running one fills as time passes. */
+function MiniSegmentBar({ segments, nowMs }: { segments: FocusSessionSnapshot["segments"]; nowMs: number }) {
+  const first = new Date(segments[0]!.startsAt).getTime();
+  const last = new Date(segments.at(-1)!.endsAt).getTime();
+  const overall = last > first ? Math.max(0, Math.min(1, (nowMs - first) / (last - first))) : 0;
+  return <div className="mini-segments" aria-label={`全程已完成 ${Math.round(overall * 100)}%`}>
+    <div className="mini-segments-track">
+      {segments.map((segment) => {
+        const start = new Date(segment.startsAt).getTime(), end = new Date(segment.endsAt).getTime();
+        const fill = end > start ? Math.max(0, Math.min(1, (nowMs - start) / (end - start))) : 0;
+        return <span key={segment.position} className={`mini-segment ${segment.segmentType}`} style={{ flexGrow: segment.durationMinutes }}><b style={{ width: `${fill * 100}%` }} /></span>;
+      })}
+    </div>
+    <small><span>{Math.round(overall * 100)}%</span><span>{segments.length} 段</span></small>
+  </div>;
 }
 
 export function FocusMiniWindow() {
@@ -195,7 +212,8 @@ export function FocusMiniWindow() {
       // happens inside the live companion and must keep the timer visible.
       if (action === "skip-preparation" && preparationSurface) {
         // let LET'S BEGIN finish in this window before it hands over to the timer window
-        if (theme === "ink") await new Promise((resolve) => window.setTimeout(resolve, LETS_BEGIN_WINDOW_MS - 120));
+        // show "已确认准时开始" for a moment before the window steps aside until the start time
+        await new Promise((resolve) => window.setTimeout(resolve, 1400));
         await invokeDesktop(surfaceCommand("hide")).catch(() => undefined);
       }
       if (action === "other-arrangement") {
@@ -397,38 +415,42 @@ export function FocusMiniWindow() {
           onSubmit={() => void saveEvaluation()}
         />
       </div>
-    ): snapshot ? <div className={`focus-mini-body focus-mini-ink-body ${ringPhase ? "with-ring" : "getting-ready"}`}>
-      <header className="focus-mini-heading"><strong>{snapshot.task.title}</strong></header>
-      <section className="focus-mini-clock focus-mini-ring-clock" aria-label={`${phaseLabel}剩余 ${formatFocusClock(remaining)}`}>
-        {ringPhase ? <svg className={`focus-mini-ring ${resting ? "resting" : ""}`} viewBox="0 0 200 200" aria-hidden="true">
-          <circle className="track" cx="100" cy="100" r="94" pathLength={100} />
-          <circle className="arc" cx="100" cy="100" r="94" pathLength={100} style={{ strokeDasharray: `${Math.max(0, 100 - phaseProgress)} 100` }} />
-        </svg> : null}
-        <span className="focus-mini-ring-label"><span><SliceText text={phaseLabel} /></span>{segmentCount ? <em> · {segmentCount}</em> : null}</span>
-        <span className="focus-mini-digits">{formatFocusClock(remaining)}</span>
-        <small>{inkMeta}</small>
+    ): snapshot ? <div className={`focus-mini-body mini-poster ${ringPhase ? "mini-poster-live" : "mini-poster-ready"} ${resting ? "resting" : ""}`}>
+      {!ringPhase ? <span className="mini-poster-rays" aria-hidden="true" /> : null}
+      <div className="mini-poster-top">
+        <span className="mini-poster-phase">{phaseLabel}{segmentCount ? <em>{segmentCount}</em> : null}</span>
+        {ringPhase ? <span className="mini-poster-live-dot">{resting ? "休息中" : "进行中"}</span> : null}
+      </div>
+      <header className="focus-mini-heading mini-poster-title"><strong>{snapshot.task.title}</strong></header>
+      <section className="focus-mini-clock mini-poster-clock" aria-label={`${phaseLabel}剩余 ${formatFocusClock(remaining)}`}>
+        <span className="focus-mini-digits">{formatFocusClock(remaining).split("").map((character, index) => <span key={index} className={character === ":" ? "colon" : "digit"}>{character}</span>)}</span>
       </section>
-      {quote ? <div className="focus-mini-quote" aria-label="专注提示名言">
-        <q>{quote.text}</q>
-        <cite>{quote.source}</cite>
-      </div> : null}
+      {ringPhase
+        ? <div className="mini-poster-meta"><span>{phaseEnd ? `到 ${phaseEnd}` : resting ? "休息中" : "专注中"}</span><span>{snapshot.phase === "focus" ? (snapshot.nextSegment ? `然后${snapshot.nextSegment.segmentType === "break" ? "休息" : "专注"} ${snapshot.nextSegment.durationMinutes}′` : "然后记录结果") : finalBreak ? "随后进入评价" : snapshot.nextSegment ? `然后专注 ${snapshot.nextSegment.durationMinutes}′` : ""}</span></div>
+        : <p className="mini-poster-meta"><span>{inkMeta}</span></p>}
+      {ringPhase && snapshot.segments.length > 0 ? <MiniSegmentBar segments={snapshot.segments} nowMs={nowMs} /> : null}
       <div className="focus-mini-controls" aria-label="专注悬浮窗操作">
-        {snapshot.session.state === "reminded" || snapshot.session.state === "scheduled" || snapshot.session.state === "preparing" || snapshot.session.state === "awaiting_late_start"
-          ? <>
-            <GoButton label={startActionLabel} fillWindow={readDigits} className="compact" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")} />
-            <span className="focus-mini-text-actions">
-              <button type="button" disabled={busy} title="停止本次准备并退回未排期" onClick={() => void decidePreparation("other-arrangement")}>另有安排</button>
-              <button type="button" disabled={busy} title="直接取消这项任务" onClick={() => void decidePreparation("cancel-task")}>取消任务</button>
-            </span>
-          </>
-          : snapshot.session.state === "armed"
-            ? <span className="focus-mini-confirmed-state">已确认准时开始，到点自动计时</span>
+        {snapshot.session.state === "awaiting_late_start" && !preparationSurface
+          ? <GoButton label={startActionLabel} fillWindow={readDigits} className="compact" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")} />
+          : snapshot.session.state === "reminded" || snapshot.session.state === "scheduled" || snapshot.session.state === "preparing" || snapshot.session.state === "awaiting_late_start"
+            ? <button type="button" className="mini-poster-confirm" disabled={busy} onClick={() => void act("skip-preparation")}>{startActionLabel}</button>
+            : snapshot.session.state === "armed"
+              ? <span className="focus-mini-confirmed-state">已确认准时开始，到点自动计时</span>
+              : null}
+        {["reminded", "scheduled", "preparing", "awaiting_late_start"].includes(snapshot.session.state)
+          ? <span className="focus-mini-text-actions">
+            <button type="button" disabled={busy} title="停止本次准备并退回未排期" onClick={() => void decidePreparation("other-arrangement")}>另有安排</button>
+            <button type="button" disabled={busy} title="直接取消这项任务" onClick={() => void decidePreparation("cancel-task")}>取消任务</button>
+          </span>
           : null}
         {finalBreak ? <button type="button" className="focus-mini-text-action" disabled={busy} title="跳过最后休息并进入评价" onClick={() => void act("skip-final-break")}>跳过休息</button> : null}
       </div>
-      {!preparationSurface && !["preparing", "armed", "awaiting_late_start", "reminded", "scheduled"].includes(snapshot.session.state)
-        ? <button className={`focus-mini-auto ${settings?.autoShow ? "active" : ""}`} type="button" onClick={() => void updateSetting("focus_mini_set_auto_show", !settings?.autoShow)}>开始时自动出现</button>
-        : null}
+      <footer className="mini-poster-foot">
+        {quote ? <div className="focus-mini-quote" aria-label="专注提示名言"><q>{quote.text}</q><cite>{quote.source}</cite></div> : <span />}
+        {!preparationSurface && ringPhase
+          ? <button className={`focus-mini-auto ${settings?.autoShow ? "active" : ""}`} type="button" aria-pressed={Boolean(settings?.autoShow)} onClick={() => void updateSetting("focus_mini_set_auto_show", !settings?.autoShow)}>开始时自动出现</button>
+          : null}
+      </footer>
     </div> : <div className="focus-mini-empty"><strong>{evaluationSaved ? "记录已经保存" : connectionError ? "正在重新连接" : "现在没有专注"}</strong><button type="button" onClick={() => void invokeDesktop("focus_mini_open_main")}>回到主界面</button></div>}
   </main>;
 }

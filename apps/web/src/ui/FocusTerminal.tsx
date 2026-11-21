@@ -113,6 +113,63 @@ function LetsBegin({ origin, caption, onDone }: { origin: { x: number; y: number
   </div>;
 }
 
+/**
+ * A short lens bulge on the page around a point, like the reference site's
+ * hover distortion: an SVG displacement map pushes pixels outward from the
+ * centre, swells for ~250ms and settles back within ~700ms.
+ */
+let lensMapUrl: string | null = null;
+function lensMap(): string {
+  if (lensMapUrl) return lensMapUrl;
+  const size = 256, canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) return "";
+  const image = context.createImageData(size, size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const dx = (x / (size - 1)) * 2 - 1, dy = (y / (size - 1)) * 2 - 1;
+    const r = Math.hypot(dx, dy);
+    const strength = r < 1 ? Math.sin(Math.PI * r) * (1 - r) : 0;
+    const index = (y * size + x) * 4;
+    image.data[index] = 128 - 127 * dx * strength;
+    image.data[index + 1] = 128 - 127 * dy * strength;
+    image.data[index + 2] = 128;
+    image.data[index + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
+  lensMapUrl = canvas.toDataURL();
+  return lensMapUrl;
+}
+
+export function playLens(target: HTMLElement | null, centreX: number, centreY: number, radius = 260) {
+  if (!target || typeof document === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const box = target.getBoundingClientRect();
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("width", "0"); svg.setAttribute("height", "0");
+  svg.style.position = "absolute";
+  const id = `go-lens-${Date.now()}`;
+  svg.innerHTML = `<filter id="${id}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="0" y="0" width="${box.width}" height="${box.height}" color-interpolation-filters="sRGB">
+    <feFlood flood-color="rgb(128,128,128)" result="neutral"/>
+    <feImage href="${lensMap()}" x="${centreX - box.left - radius}" y="${centreY - box.top - radius}" width="${radius * 2}" height="${radius * 2}" preserveAspectRatio="none" result="bulge"/>
+    <feComposite in="bulge" in2="neutral" operator="over" result="map"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>`;
+  document.body.appendChild(svg);
+  const displacement = svg.querySelector("feDisplacementMap");
+  const previous = target.style.filter;
+  target.style.filter = `url(#${id})`;
+  const started = performance.now(), duration = 720;
+  const step = (now: number) => {
+    const t = Math.min(1, (now - started) / duration);
+    const swell = t < .35 ? Math.sin((t / .35) * Math.PI / 2) : Math.cos(((t - .35) / .65) * Math.PI / 2);
+    displacement?.setAttribute("scale", String(70 * swell));
+    if (t < 1) requestAnimationFrame(step);
+    else { target.style.filter = previous; svg.remove(); }
+  };
+  requestAnimationFrame(step);
+}
+
 export function playLetsBegin(from: DOMRect, caption?: string) {
   if (typeof document === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const host = document.createElement("div");
@@ -120,6 +177,7 @@ export function playLetsBegin(from: DOMRect, caption?: string) {
   const root = createRoot(host);
   const finish = () => { root.unmount(); host.remove(); };
   root.render(<LetsBegin origin={{ x: from.left + from.width / 2, y: from.top + from.height / 2, size: from.width }} caption={caption} onDone={finish} />);
+  playLens(document.querySelector<HTMLElement>(".workspace-layer.current .focus-stage"), from.left + from.width / 2, from.top + from.height / 2);
 }
 
 /**

@@ -767,3 +767,110 @@
 
 /* digits change in place; no drop-in on every tick */
 .focus-theme-ink .ink-clepsydra strong > span { animation: none !important; }
+
+/* every digit gets the same box, so "1" no longer pulls the clock (and its rays) inward */
+.ink-clepsydra strong > span.digit, .focus-mini-digits > span.digit { display: inline-block; width: .5em; text-align: center; }
+
+/* before the start time the button only confirms; it is a plain ink plate, not GO */
+.focus-theme-ink .focus-execution-confirm {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 56px; padding: 0 28px; border: 0; border-radius: 0;
+  background: var(--ink); color: var(--red);
+  font: 400 22px/1 var(--font-display-zh); letter-spacing: .04em;
+  box-shadow: 5px 5px 0 rgba(22, 0, 0, .25);
+}
+.focus-theme-ink .focus-execution-confirm svg { width: 18px; height: 18px; }
+.focus-theme-ink .focus-execution-confirm:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 rgba(22, 0, 0, .3); }
+
+/* ===========================================================================
+   Focus window, rebuilt.
+   Getting ready (red): a left-aligned poster — title, huge digits, one ink
+   plate to confirm, quiet text links, the quote set large at the bottom right,
+   and our speed lines along the right edge.
+   Live (black while focusing, red while resting): centred digits, an end /
+   next row, one bar per segment, and a footer holding the quote and the
+   auto-show toggle side by side so nothing overlaps.
+   =========================================================================== */
+.focus-mini.focus-theme-ink .mini-poster {
+  position: relative; z-index: 1; flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 18px 24px 16px; overflow: hidden; color: var(--ink);
+}
+.focus-mini.focus-theme-ink .mini-poster > * { position: relative; z-index: 1; }
+.focus-mini.focus-theme-ink .mini-poster-rays {
+  position: absolute; z-index: 0; right: 0; top: 12%; width: 34%; height: 64%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M100 0.0L38.0 14.1M100 4.5L38.0 17.4M100 9.1L38.0 20.6M100 13.6L38.0 23.9M100 18.2L38.0 27.1M100 22.7L38.0 30.4M100 27.3L38.0 33.7M100 31.8L38.0 36.9M100 36.4L38.0 40.2M100 40.9L38.0 43.5M100 45.5L38.0 46.7M100 50.0L38.0 50.0M100 54.5L38.0 53.3M100 59.1L38.0 56.5M100 63.6L38.0 59.8M100 68.2L38.0 63.1M100 72.7L38.0 66.3M100 77.3L38.0 69.6M100 81.8L38.0 72.9M100 86.4L38.0 76.1M100 90.9L38.0 79.4M100 95.5L38.0 82.6M100 100.0L38.0 85.9' stroke='%23160000' stroke-width='1' vector-effect='non-scaling-stroke' fill='none'/%3E%3C/svg%3E") center / 100% 100% no-repeat; opacity: .55; pointer-events: none;
+}
+.focus-mini.focus-theme-ink .mini-poster-top { display: flex; justify-content: space-between; align-items: baseline; font: 500 13px/1.2 var(--font-mono); letter-spacing: .14em; }
+.focus-mini.focus-theme-ink .mini-poster-top .slice-text { font: 500 13px/1.2 var(--font-mono) !important; letter-spacing: .14em; }
+.focus-mini.focus-theme-ink .mini-poster-phase em { margin-left: 10px; font-style: normal; }
+.focus-mini.focus-theme-ink .mini-poster-live-dot::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: currentColor; animation: block-state-blink 1.4s steps(2, jump-none) infinite; }
+.focus-mini.focus-theme-ink .mini-poster .mini-poster-title { padding: 0; margin: 2px 0 0; background: none; text-align: left; }
+.focus-mini.focus-theme-ink .mini-poster .mini-poster-title strong {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  max-width: 100%; padding: 0; background: none; color: var(--ink);
+  font: 400 clamp(26px, 8vmin, 40px)/1.1 var(--font-display-zh) !important; letter-spacing: .03em; text-align: left;
+}
+.focus-mini.focus-theme-ink .mini-poster-clock { display: block; width: auto; aspect-ratio: auto; margin: 0; padding: 0; background: none; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-digits {
+  display: block; padding: 0; background: none; color: var(--ink);
+  font: 400 clamp(84px, 30vmin, 150px)/.9 var(--font-display) !important; letter-spacing: 0; white-space: nowrap; text-align: left;
+}
+.focus-mini.focus-theme-ink .mini-poster-live .focus-mini-digits { text-align: center; font-size: clamp(84px, 31vmin, 156px) !important; }
+.focus-mini.focus-theme-ink .mini-poster-meta { display: flex; justify-content: space-between; gap: 12px; margin: 0; font: 500 15px/1.3 var(--font-mono); letter-spacing: .08em; }
+.focus-mini.focus-theme-ink .mini-poster-ready .mini-poster-meta { margin-top: 2px; }
+
+.focus-mini.focus-theme-ink .mini-segments { display: grid; gap: 6px; margin-top: 4px; }
+.focus-mini.focus-theme-ink .mini-segments-track { display: flex; gap: 5px; height: 12px; }
+.focus-mini.focus-theme-ink .mini-segment { position: relative; flex-basis: 0; border: 1.5px solid var(--ink); overflow: hidden; }
+.focus-mini.focus-theme-ink .mini-segment b { position: absolute; inset: 0 auto 0 0; background: var(--ink); transition: width 1s linear; }
+.focus-mini.focus-theme-ink .mini-segment.break { border-style: dashed; }
+.focus-mini.focus-theme-ink .mini-segment.break b { background: repeating-linear-gradient(135deg, var(--ink) 0 1.5px, transparent 1.5px 5px); }
+.focus-mini.focus-theme-ink .mini-segments small { display: flex; justify-content: space-between; font: 500 12px/1 var(--font-mono); letter-spacing: .1em; opacity: .8; }
+
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-controls { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 18px; margin: 10px 0 0; padding: 0; background: none; border: 0; }
+.focus-mini.focus-theme-ink .mini-poster-live .focus-mini-controls { justify-content: center; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-controls:empty { display: none; }
+.focus-mini.focus-theme-ink .mini-poster-confirm {
+  min-height: 52px; padding: 0 24px; border: 0; border-radius: 0; cursor: pointer;
+  background: var(--ink); color: var(--red);
+  font: 400 22px/1 var(--font-display-zh); letter-spacing: .05em;
+  box-shadow: 4px 4px 0 rgba(22, 0, 0, .25);
+}
+.focus-mini.focus-theme-ink .mini-poster-confirm:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(22, 0, 0, .3); }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-text-actions { display: flex; gap: 18px; }
+.focus-mini.focus-theme-ink .mini-poster :is(.focus-mini-text-actions button, .focus-mini-text-action) {
+  min-width: 0; width: auto; min-height: 0; padding: 2px 0; border: 0; border-bottom: 1.5px solid currentColor; border-radius: 0;
+  background: none; color: var(--ink); font: 500 14px/1.3 var(--font-mono); letter-spacing: .06em; cursor: pointer;
+}
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-text-actions button:first-child::after { content: " ↗"; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-text-actions button:last-child::after { content: " ×"; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-confirmed-state { padding: 0; background: none; color: var(--ink); font: 400 20px/1.2 var(--font-display-zh); }
+.focus-mini.focus-theme-ink .mini-poster .go-button.compact { margin: 0; }
+
+.focus-mini.focus-theme-ink .mini-poster-foot { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-top: 10px; }
+.focus-mini.focus-theme-ink .mini-poster-ready .mini-poster-foot { justify-content: flex-end; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-quote { position: static; width: auto; max-width: 78%; margin: 0; padding: 0; background: none; border: 0; text-align: left; color: var(--ink); }
+.focus-mini.focus-theme-ink .mini-poster-ready .focus-mini-quote { text-align: right; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-quote q { display: block; font: 400 19px/1.35 var(--font-serif); letter-spacing: .02em; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-quote cite { display: block; margin-top: 3px; font: 400 13px/1.3 var(--font-serif); font-style: normal; opacity: .78; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-auto {
+  position: static; inset: auto; transform: none; flex: none; margin: 0; padding: 0 0 0 20px; border: 0; border-radius: 0;
+  background: none; color: var(--ink); opacity: .7; font: 500 12px/1.3 var(--font-mono); letter-spacing: .06em; cursor: pointer;
+}
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-auto::before { content: ""; display: inline-block; width: 10px; height: 10px; margin: 0 6px -1px -16px; border: 1.5px solid currentColor; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-auto.active { opacity: 1; text-decoration: none; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-auto.active::before { background: currentColor; }
+@media (max-height: 460px) { .focus-mini.focus-theme-ink .mini-poster .focus-mini-quote cite { display: none; } }
+.focus-mini.focus-theme-ink .focus-mini-body.mini-poster { width: 100%; max-width: none; height: calc(100% - 32px); min-height: 0; margin: 32px 0 0; box-sizing: border-box; display: flex; align-content: normal; justify-items: normal; }
+.focus-mini.focus-theme-ink .mini-poster :is(.focus-mini-text-actions button, .focus-mini-text-action) { box-shadow: none !important; border-top: 0; border-left: 0; border-right: 0; }
+.focus-mini.focus-theme-ink .mini-poster :is(.focus-mini-text-actions button, .focus-mini-text-action):hover:not(:disabled) { transform: none; background: none; opacity: .7; }
+.focus-mini.focus-theme-ink .mini-poster-rays { top: 18%; height: 44%; width: 26%; opacity: .5; }
+.focus-mini.focus-theme-ink .mini-poster .mini-poster-title { display: block; text-align: left; justify-content: flex-start; }
+.focus-mini.focus-theme-ink .mini-poster-clock { text-align: left; justify-items: start; }
+.focus-mini.focus-theme-ink .mini-poster-live .mini-poster-clock { text-align: center; }
+.focus-mini.focus-theme-ink .mini-poster-live .focus-mini-digits { font-size: clamp(84px, 35vmin, 184px) !important; }
+.focus-mini.focus-theme-ink .mini-poster .mini-poster-confirm { background: var(--ink) !important; color: var(--red) !important; border: 0 !important; }
+.focus-mini.focus-theme-ink .mini-poster .mini-poster-title strong { width: 100%; margin: 0; transform: none; }
+.focus-mini.focus-theme-ink .mini-poster .focus-mini-digits { width: 100%; max-width: none; margin: 0; }
+.focus-mini.focus-theme-ink .mini-poster-ready .focus-mini-confirmed-state { width: auto; text-align: left; }

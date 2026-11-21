@@ -28,7 +28,7 @@ import { FocusThemeClock } from "./FocusThemeClock";
 import { FocusMotionBackdrop } from "./FocusMotionBackdrop";
 import { focusQuote } from "./focus-quotes";
 import { invokeDesktop } from "./focus-session-client";
-import { GoButton, SegmentRuler, SessionTable, SliceText, TerminalPrompt } from "./ui/FocusTerminal";
+import { GoButton, SegmentRuler, SessionTable, SliceText, TerminalPrompt, playLetsBegin } from "./ui/FocusTerminal";
 
 const IDLE_EVALUATION_TIMEOUT_MS = 60_000;
 
@@ -299,7 +299,7 @@ function InkClepsydra({ value, progress, resting, empty, compact = false }: { va
       "--ink-progress": `${boundedProgress}%`,
     } as CSSProperties}
   >
-    <strong className={empty ? "empty" : undefined}>{(empty ? "00:00" : value).split("").map((character, index) => <span key={`${character}-${index}`} aria-hidden="true">{character}</span>)}</strong>
+    <strong className={empty ? "empty" : undefined}>{(empty ? "00:00" : value).split("").map((character, index) => <span key={index} className={character === ":" ? "colon" : "digit"} aria-hidden="true">{character}</span>)}</strong>
     <span className="ink-clepsydra-line" aria-hidden="true"><i><b /></i></span>
   </div>;
 }
@@ -1045,6 +1045,15 @@ export function FocusWorkspace({
     ? focusQuote(session?.id ?? displayTask!.id, currentSegment?.segmentType === "break")
     : null;
   const startButtonLabel = stage === "awaiting_late_start" ? "现在开始计时" : "我会准时开始";
+  // The real start (confirmed earlier and the start time arrived) is when LET'S BEGIN plays.
+  const previousStageRef = useRef<string>(stage);
+  useEffect(() => {
+    const previous = previousStageRef.current;
+    previousStageRef.current = stage;
+    if (stage !== "running" || !["armed", "preparing", "reminded", "scheduled"].includes(previous) || !isWorkspaceCurrent) return;
+    const digits = document.querySelector(".focus-center .ink-clepsydra strong")?.getBoundingClientRect();
+    if (digits) playLetsBegin(new DOMRect(digits.left + digits.width / 2 - 60, digits.top + digits.height / 2 - 60, 120, 120));
+  }, [stage, isWorkspaceCurrent]);
 
   // Terminal grammar (default poster theme): prompt line, agenda, status table.
   const terminal = focusTheme === "ink";
@@ -1293,9 +1302,9 @@ export function FocusWorkspace({
                 <button className="focus-execution-quiet" disabled={busy} onClick={() => setExecutionMinimized(true)}><Minimize2 />收起计时{terminal ? <kbd>Esc</kbd> : null}</button>
                 {stage === "reminded" || stage === "scheduled" || stage === "preparing" || stage === "awaiting_late_start" ? (
                   <>
-                    {terminal
-                      ? <GoButton label={startButtonLabel} caption={phaseEndLabel ? `专注到 ${phaseEndLabel}` : undefined} className="focus-execution-go" disabled={busy} onClick={() => void transition(stage === "reminded" ? "respond-start" : "skip-preparation")} />
-                      : <button className="focus-execution-primary" disabled={busy} onClick={() => void transition(stage === "reminded" ? "respond-start" : "skip-preparation")}><Play />{startButtonLabel}</button>}
+                    {terminal && stage === "awaiting_late_start"
+                      ? <GoButton label={startButtonLabel} caption={phaseEndLabel ? `专注到 ${phaseEndLabel}` : undefined} className="focus-execution-go" disabled={busy} onClick={() => void transition("skip-preparation")} />
+                      : <button className={`focus-execution-primary ${terminal ? "focus-execution-confirm" : ""}`} disabled={busy} onClick={() => void transition(stage === "reminded" ? "respond-start" : "skip-preparation")}><Play />{startButtonLabel}</button>}
                     <button className="focus-execution-quiet" disabled={busy} onClick={() => void transition("other-arrangement")}><PencilLine />另有安排</button>
                     <button className="focus-execution-danger" disabled={busy} onClick={() => void transition("cancel-task")}><XCircle />取消任务</button>
                   </>

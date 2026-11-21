@@ -298,7 +298,7 @@ test.describe("独立专注窗口", () => {
     await expect(page.getByText(/结果尚未保存|评价刚在另一处更新/)).toHaveCount(0);
   });
 
-  test("默认主题：专注时黑底红字，数字为粗体大字并带进度环，多个时间都完整显示", async ({ page }) => {
+  test("默认主题：专注时黑底红字，数字为粗体大字并带分段进度，多个时间都完整显示", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 360 });
     const fixedNow = new Date("2026-08-17T12:00:00.000Z");
     await page.clock.install();
@@ -318,7 +318,7 @@ test.describe("独立专注窗口", () => {
       expect(await digits.evaluate((node) => getComputedStyle(node).fontFamily)).toContain("Anton");
       await expect(page.locator(".focus-mini")).toHaveClass(/ink-dark/);
       await expect(page.locator(".focus-mini")).toHaveCSS("background-color", "rgb(18, 3, 6)");
-      await expect(page.locator(".focus-mini-ring .arc")).toHaveCount(1);
+      await expect(page.locator(".mini-poster-live")).toHaveCount(1);
       await expect(page.locator(".focus-motion-backdrop")).toHaveCount(0);
       const quote = page.locator(".focus-mini-quote");
       await expect(quote).toBeVisible();
