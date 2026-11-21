@@ -1144,3 +1144,6 @@
 .now-line { left: -60px; right: -2px; height: 12px; margin-top: -6px; padding: 0 6px; background: linear-gradient(var(--ink), var(--ink)) center / 100% 4px no-repeat content-box; }
 .now-line::before, .now-line::after { top: 0; width: 12px; height: 12px; border: 0; background: var(--ink); }
 .now-line span { top: -13px; right: 22px; }
+/* timeline blocks let the hour lines show through */
+.time-block.time-block { background: transparent; }
+.hour-line { z-index: 4; }

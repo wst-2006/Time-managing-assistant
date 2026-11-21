@@ -566,8 +566,7 @@
   0% { left: var(--from-x); top: var(--from-y); width: var(--from-size); height: var(--from-size); opacity: 1; }
   28% { left: 50%; top: 50%; width: var(--size); height: var(--size); }
   80% { left: 50%; top: 50%; width: var(--size); height: var(--size); opacity: 1; }
-  93% { left: 50%; top: 50%; width: 300vmax; height: 300vmax; opacity: 1; }
-  100% { left: 50%; top: 50%; width: 300vmax; height: 300vmax; opacity: 0; }
+  100% { left: 50%; top: 50%; width: calc(var(--size) * .9); height: calc(var(--size) * .9); opacity: 0; }
 }
 @keyframes lets-begin-word { 0%, 24% { opacity: 0; } 30%, 78% { opacity: 1; } 84%, 100% { opacity: 0; } }
 .go-button.launching .go-disc { animation: go-press 420ms var(--ease-spring); }
@@ -765,3 +764,6 @@
 .focus-range b { position: absolute; left: 0; top: -2px; height: 5.5px; background: var(--ink); transition: width 1s linear; }
 @media (max-width: 640px) { .focus-theme-ink .ink-clepsydra strong::before, .focus-theme-ink .ink-clepsydra strong::after { display: none; } }
 .focus-theme-ink .focus-stage { container-type: inline-size; }
+
+/* digits change in place; no drop-in on every tick */
+.focus-theme-ink .ink-clepsydra strong > span { animation: none !important; }
