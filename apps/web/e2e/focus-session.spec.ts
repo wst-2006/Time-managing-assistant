@@ -290,16 +290,16 @@ async function openTaskStructureEditor(page: Page, title: string, localDate: str
   await expect(page.getByLabel("专注结构编辑器")).toBeVisible();
 }
 
-test("没有可选任务时专注页只显示淡墨点而不是黑横线或翻页钟", async ({ page }) => {
+test("没有可选任务时专注页只显示空心 00:00，没有横条和开始按钮", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2099-12-20T10:00:00+08:00"));
   await page.goto("/");
   await page.locator(".app-rail").getByRole("button", { name: "专注", exact: true }).click();
 
-  await expect(page.locator(".ink-clepsydra strong.empty")).toHaveText("·");
-  await expect(page.getByText("--:--", { exact: true })).toHaveCount(0);
-  await expect(page.locator(".flip-clock,.focus-timer,.focus-orbit")).toHaveCount(0);
-  await expect(page.locator(".ink-clepsydra-line")).toHaveCount(1);
-  await expect.poll(() => page.locator(".ink-clepsydra").evaluate((element) => getComputedStyle(element).getPropertyValue("--ink-progress").trim())).toBe("0%");
+  await expect(page.locator(".ink-clepsydra strong.empty")).toHaveText("00:00");
+  await expect(page.locator(".ink-clepsydra-line")).toBeHidden();
+  await expect(page.locator(".focus-main-action")).toHaveCount(0);
+  await expect(page.locator(".flip-clock,.focus-timer,.focus-orbit,.focus-themed-timer")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "选一件任务开始专注" })).toBeVisible();
 });
 
 test("没有执行中会话时可打开 30 分钟待专注任务而不会触发整页错误", async ({ page }) => {
@@ -354,7 +354,7 @@ test("未排期任务不会进入专注候选且服务端拒绝创建会话", as
     const taskSlip = page.locator(".focus-task-slip").filter({ hasText: title });
     await expect(taskSlip).toHaveCount(0);
     await expect(page.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
-    await expect(page.locator(".ink-clepsydra strong.empty")).toHaveText("·");
+    await expect(page.locator(".ink-clepsydra strong.empty")).toHaveText("00:00");
     await expect.poll(() => page.locator(".ink-clepsydra").evaluate((element) => getComputedStyle(element).getPropertyValue("--ink-progress").trim())).toBe("0%");
 
     const rejected = await request.post(`${apiBase}/api/v1/focus-sessions`, {

@@ -11,8 +11,6 @@ import {
   Sparkles,
   Volume2,
 } from "lucide-react";
-import type { FocusTheme } from "@personal-ai/domain/user-profile";
-import { FocusThemeClock } from "./FocusThemeClock";
 import { invokeDesktop, type FocusMiniPositionMode, type FocusMiniSettings } from "./focus-session-client";
 import { PosterMark } from "./ui/poster";
 import {
@@ -27,13 +25,6 @@ import {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3000";
 
-const themeOptions: Array<{ id: FocusTheme; name: string; description: string }> = [
-  { id: "ink", name: "红色海报", description: "默认主题：红底海报、透视隧道与黑色大字。" },
-  { id: "flip", name: "素简翻页", description: "编辑网格与克制的机械翻页。" },
-  { id: "nixie", name: "辉光电子管", description: "玻璃管与亮橙色发光丝数字。" },
-  { id: "vapor", name: "蒸汽波", description: "紫粉天空、青色网格与复古终端。" },
-  { id: "cyber", name: "赛博终端", description: "黑色命令行、酸性黄绿与数据脉冲。" },
-];
 
 type SettingsWorkspaceProps = {
   onProfileSaved?: (profile: UserProfile) => void;
@@ -118,34 +109,12 @@ export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
     <header className="settings-heading poster-header"><PosterMark word="设置" />
       <div>
         <h1>让工具顺着你的习惯安静下来。</h1>
-        <p>主题、专注窗口、飞书卡片和个人信息都集中在这里；任何自动计划变更仍需你确认。</p>
+        <p>专注窗口、提醒、声音和数据都在这里；任何计划变更仍需你确认。</p>
       </div>
     </header>
 
     <form className="settings-form" onSubmit={save}>
       {error && <p className="user-profile-error" role="alert"><CircleAlert />{error}</p>}
-
-      <section className="settings-section theme-library" aria-labelledby="focus-theme-heading">
-        <header>
-          <div><h2 id="focus-theme-heading">计时主题</h2></div>
-          <span>准备、专注、休息与评价保持一致</span>
-        </header>
-        <div className="theme-choice-grid">
-          {themeOptions.map((theme) => <button
-            className={`theme-choice theme-preview-${theme.id} ${draft.focusTheme === theme.id ? "selected" : ""}`}
-            type="button"
-            aria-pressed={draft.focusTheme === theme.id}
-            onClick={() => setDraft((current) => ({ ...current, focusTheme: theme.id }))}
-            key={theme.id}
-          >
-            <span className="theme-choice-check" aria-hidden="true">{draft.focusTheme === theme.id ? <Check /> : null}</span>
-            <span className="theme-choice-preview"><FocusThemeClock theme={theme.id} value="23:54" compact /></span>
-            <strong>{theme.name}</strong>
-            <small>{theme.description}</small>
-            {profile?.focusTheme === theme.id && <span className="theme-choice-active-label">正在使用</span>}
-          </button>)}
-        </div>
-      </section>
 
       <div className="settings-columns">
         <section className="settings-section">
@@ -210,7 +179,7 @@ export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
         <header><div><h2>每一种提示都可以单独关闭</h2></div><Volume2 /></header>
         <div className="sound-preference-grid">
           {([
-            ["flip", "计时刻度", "分钟变化时的轻柔纸页声"],
+            ["flip", "整分钟提示", "计时每过一分钟轻响一声"],
             ["focusStart", "专注开始", "第一段或下一段专注真正开始"],
             ["breakStart", "休息开始", "从专注切换到休息"],
             ["breakEnd", "休息结束", "准备回到下一段"],

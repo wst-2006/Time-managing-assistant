@@ -81,9 +81,11 @@ async function cleanup(request:APIRequestContext, ids:string[]) {
 }
 
 async function createUnscheduledTask(page:Page,title:string){
-  await page.getByLabel("快速记录内容").fill(title);
+  await page.locator(".task-dock").getByRole("button",{name:"完整添加",exact:true}).click();
+  await page.getByLabel("任务标题").fill(title);
+  await page.getByLabel("排期方式").selectOption("none");
   const created=page.waitForResponse((response)=>response.url()===`${apiBase}/api/v1/tasks`&&response.request().method()==="POST"&&response.status()===201);
-  await page.locator(".quick-capture").getByRole("button",{name:"保存",exact:true}).click();
+  await page.getByRole("button",{name:"保存任务"}).click();
   return ((await (await created).json()) as {task:{id:string;version:number;scheduleRevision:number}}).task;
 }
 
@@ -114,12 +116,10 @@ async function timelinePoint(page:Page, hour:number, minute=0,surface:TimelineSu
 }
 
 test.describe("真实今日时间轴",()=>{
-  test("快速记录只记任务，完整添加打开任务表单",async({page})=>{
+  test("快速记录已移除，完整添加在任务列表顶部打开任务表单",async({page})=>{
     await page.goto("/");
-    await expect(page.locator(".timeline-date").getByRole("button",{name:"完整添加"})).toHaveCount(0);
-    const quickCapture=page.locator(".quick-capture");
-    await expect(quickCapture.getByLabel("快速记录内容")).toBeVisible();
-    await quickCapture.getByRole("button",{name:"完整添加",exact:true}).click();
+    await expect(page.locator(".quick-capture")).toHaveCount(0);
+    await page.locator(".task-dock").getByRole("button",{name:"完整添加",exact:true}).click();
     await expect(page.getByRole("dialog",{name:"让这项安排足够清楚"})).toBeVisible();
   });
 

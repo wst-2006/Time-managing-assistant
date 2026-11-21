@@ -156,7 +156,8 @@ export function FocusMiniWindow() {
 
   const remaining = snapshot ? focusRemainingSeconds(snapshot, nowMs) : 0;
   const phaseProgress = snapshot ? focusPhaseProgress(snapshot, nowMs) : 0;
-  const theme = useMemo<FocusTheme>(() => profile?.focusTheme ?? "ink", [profile?.focusTheme]);
+  // Only the poster/terminal style is kept; older saved theme choices are ignored.
+  const theme: FocusTheme = "ink";
   const resting = snapshot?.phase === "break";
   const startActionLabel = snapshot?.session.state === "awaiting_late_start" ? "现在开始计时" : "我会准时开始";
   const phaseLabel = snapshot?.phase === "break"
@@ -380,8 +381,8 @@ export function FocusMiniWindow() {
     {actionFeedback ? <div className="focus-mini-action-feedback" role="status"><strong>{actionFeedback}</strong><small>窗口即将自动关闭</small></div> : ended && snapshot ? (
       <div className="focus-mini-evaluation-body" onFocusCapture={markEvaluationInteraction} onScrollCapture={markEvaluationInteraction}>
         <p className="focus-evaluation-timeout" role="status">无操作，{evaluationSecondsLeft} 秒后自动关闭并保留为待评价</p>
-        {theme === "cyber" || theme === "ink" ? <CyberFocusEvaluation
-          variant={theme === "ink" ? "ink" : "cyber"}
+        <CyberFocusEvaluation
+          variant="ink"
           taskTitle={snapshot.task.title}
           outcome={outcome}
           progress={progress}
@@ -394,23 +395,9 @@ export function FocusMiniWindow() {
           onSatisfactionChange={(value) => { markEvaluationInteraction(); setSatisfaction(value); }}
           onNoteChange={(value) => { markEvaluationInteraction(); setNote(value); }}
           onSubmit={() => void saveEvaluation()}
-        /> : <FocusEvaluationForm
-          headingId="focus-mini-evaluation-title"
-          taskTitle={snapshot.task.title}
-          outcome={outcome}
-          progress={progress}
-          satisfaction={satisfaction}
-          note={note}
-          busy={busy}
-          error={evaluationError}
-          onOutcomeChange={(value) => { markEvaluationInteraction(); chooseOutcome(value); }}
-          onProgressChange={(value) => { markEvaluationInteraction(); setProgress(value); }}
-          onSatisfactionChange={(value) => { markEvaluationInteraction(); setSatisfaction(value); }}
-          onNoteChange={(value) => { markEvaluationInteraction(); setNote(value); }}
-          onSubmit={() => void saveEvaluation()}
-        />}
+        />
       </div>
-    ) : snapshot && theme === "ink" ? <div className={`focus-mini-body focus-mini-ink-body ${ringPhase ? "with-ring" : "getting-ready"}`}>
+    ): snapshot ? <div className={`focus-mini-body focus-mini-ink-body ${ringPhase ? "with-ring" : "getting-ready"}`}>
       <header className="focus-mini-heading"><strong>{snapshot.task.title}</strong></header>
       <section className="focus-mini-clock focus-mini-ring-clock" aria-label={`${phaseLabel}剩余 ${formatFocusClock(remaining)}`}>
         {ringPhase ? <svg className={`focus-mini-ring ${resting ? "resting" : ""}`} viewBox="0 0 200 200" aria-hidden="true">
@@ -440,41 +427,6 @@ export function FocusMiniWindow() {
         {finalBreak ? <button type="button" className="focus-mini-text-action" disabled={busy} title="跳过最后休息并进入评价" onClick={() => void act("skip-final-break")}>跳过休息</button> : null}
       </div>
       {!preparationSurface && !["preparing", "armed", "awaiting_late_start", "reminded", "scheduled"].includes(snapshot.session.state)
-        ? <button className={`focus-mini-auto ${settings?.autoShow ? "active" : ""}`} type="button" onClick={() => void updateSetting("focus_mini_set_auto_show", !settings?.autoShow)}>开始时自动出现</button>
-        : null}
-    </div> : snapshot ? <div className="focus-mini-body">
-      {theme === "cyber" ? <div className="focus-cyber-telemetry" aria-hidden="true">STATE {snapshot.session.state.toUpperCase()}<br />FLOW {Math.round(phaseProgress)}%</div> : null}
-      <header className="focus-mini-heading">
-        <span>{theme === "ink" ? <SliceText text={phaseLabel} /> : phaseLabel}</span>
-        <strong>{snapshot.task.title}</strong>
-      </header>
-      <section className="focus-mini-clock" aria-label={`${phaseLabel}剩余 ${formatFocusClock(remaining)}`}>
-        <FocusThemeClock theme={theme} value={formatFocusClock(remaining)} />
-        <span className="focus-mini-progress" aria-hidden="true"><i style={{ width: `${phaseProgress}%` }}><b /></i></span>
-        <small>{phaseEnd ? `${snapshot.phase === "awaiting_late_start" ? "可开始至" : `${phaseLabel}至`} ${phaseEnd}` : phaseLabel}</small>
-      </section>
-      {quote ? <div className="focus-mini-quote" aria-label="专注提示名言">
-        <q>{quote.text}</q>
-        <cite>{quote.source}</cite>
-      </div> : null}
-      <div className="focus-mini-controls" aria-label="专注悬浮窗操作">
-        {snapshot.session.state === "reminded" || snapshot.session.state === "scheduled" || snapshot.session.state === "preparing" || snapshot.session.state === "awaiting_late_start"
-          ? <>
-            {theme === "ink"
-              ? <GoButton label={startActionLabel} caption={phaseEnd ? `专注到 ${phaseEnd}` : undefined} className="compact" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")} />
-              : <button className="primary" type="button" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")}><Play />{startActionLabel}</button>}
-            <button type="button" disabled={busy} title="停止本次准备并退回未排期" onClick={() => void decidePreparation("other-arrangement")}><CalendarClock />另有安排</button>
-            <button className="danger" type="button" disabled={busy} title="直接取消这项任务" onClick={() => void decidePreparation("cancel-task")}><XCircle />取消任务</button>
-          </>
-          : snapshot.session.state === "armed"
-            ? <span className="focus-mini-confirmed-state">已确认准时开始，等待原定时间自动计时</span>
-          : null}
-        {finalBreak ? <button type="button" disabled={busy} title="跳过最后休息并进入评价" onClick={() => void act("skip-final-break")}><SkipForward />跳过休息</button> : null}
-      </div>
-      {!preparationSurface && (snapshot.session.state === "reminded" || snapshot.session.state === "scheduled" || snapshot.session.state === "preparing" || snapshot.session.state === "armed" || snapshot.session.state === "awaiting_late_start")
-        ? <p className="focus-mini-confirm-hint">{snapshot.session.state === "armed" ? "已确认会在原定时间开始；到点自动进入专注计时" : snapshot.session.state === "awaiting_late_start" ? "已错过原定开始时间；现在开始只记录实际专注时长" : "点击“我会准时开始”后，到原定时间自动进入专注计时"}</p>
-        : null}
-      {!preparationSurface && !["preparing", "armed", "awaiting_late_start"].includes(snapshot.session.state)
         ? <button className={`focus-mini-auto ${settings?.autoShow ? "active" : ""}`} type="button" onClick={() => void updateSetting("focus_mini_set_auto_show", !settings?.autoShow)}>开始时自动出现</button>
         : null}
     </div> : <div className="focus-mini-empty"><strong>{evaluationSaved ? "记录已经保存" : connectionError ? "正在重新连接" : "现在没有专注"}</strong><button type="button" onClick={() => void invokeDesktop("focus_mini_open_main")}>回到主界面</button></div>}

@@ -1082,3 +1082,27 @@
   .timeline-date { justify-self: stretch; }
 }
 .today-workspace > .poster-header.poster-header { margin: 0; }
+
+/* ===========================================================================
+   Timeline, “DAY PLAN” style: an hour gutter, one faint line per hour, and
+   solid ink slabs with a sliver of red between neighbours. Half-hour lines
+   are gone; dragging still snaps to half hours.
+   =========================================================================== */
+.day-grid { margin-left: 78px; background-image: none; border-left: var(--rule) solid var(--ink); }
+.hour-line { border-top: 1px solid rgba(22, 0, 0, .22); }
+.hour-line[data-terminal="true"] { border-top-color: transparent; }
+.hour-line time { left: -72px; width: 58px; font: 500 13px/18px var(--font-mono); letter-spacing: .04em; color: var(--ink); }
+.time-block { border: 2px solid var(--red); padding: 8px 12px 8px 14px; }
+.time-block::before { display: none; }
+.time-block:hover { box-shadow: 5px 5px 0 rgba(22, 0, 0, .3); transform: translate(-2px, -2px); }
+.time-block .block-copy { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 14px; row-gap: 2px; align-items: start; width: 100%; }
+.time-block .block-copy strong { grid-column: 1; grid-row: 1; font-size: 24px; line-height: 1.05; letter-spacing: .02em; }
+.time-block .block-copy time { grid-column: 2; grid-row: 1; padding-top: 3px; font-size: 13px; letter-spacing: .08em; white-space: nowrap; }
+.time-block .block-copy small { grid-column: 1 / -1; font-size: 13px; }
+.time-block[style*="height: 36px"] .block-copy strong, .time-block[style*="height:36px"] .block-copy strong { font-size: 17px; }
+.time-block[style*="height: 36px"], .time-block[style*="height:36px"] { padding-top: 5px; padding-bottom: 5px; }
+.time-block.closed { background: var(--red); color: var(--ink); border: var(--rule) solid var(--ink); }
+.time-block.closed .block-copy :is(strong, time, small) { color: var(--ink); }
+/* the task list header now carries the full add button that used to sit in quick capture */
+.task-dock > header { gap: 10px; }
+.task-dock-add { margin-left: auto; }

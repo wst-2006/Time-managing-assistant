@@ -215,7 +215,7 @@ test.describe("独立专注窗口", () => {
     await page.clock.install();
     await page.clock.setFixedTime(fixedNow);
     await page.setViewportSize({ width: 540, height: 620 });
-    await routeProfile(page, "flip");
+    await routeProfile(page);
     await page.route(`${apiBase}/api/v1/focus-sessions/pending-evaluation`, (route) => {
       const value = snapshot("ended", { now: fixedNow.getTime() });
       return route.fulfill({
@@ -230,15 +230,15 @@ test.describe("独立专注窗口", () => {
     await page.clock.fastForward(59_000);
     await page.getByLabel("专注过程与原因").fill("补充一条过程记录");
     await page.clock.fastForward(59_000);
-    await expect(page.getByRole("heading", { name: "为这一段留下真实记录" })).toBeVisible();
+    await expect(page.locator(".cyber-evaluation")).toBeVisible();
     await page.clock.fastForward(1_000);
-    await expect(page.getByRole("heading", { name: "为这一段留下真实记录" })).toHaveCount(0);
+    await expect(page.locator(".cyber-evaluation")).toHaveCount(0);
     expect(await page.evaluate(() => localStorage.getItem("personal-ai.focus-evaluation-dismissed.00000000-0000-4000-8000-000000000101"))).toBe("1");
   });
 
-  test("结束后使用独立评价构图并分别保存客观结果与主观感受", async ({ page }) => {
+  test("评价窗用鼠标点选也能分别保存客观结果与主观感受", async ({ page }) => {
     await page.setViewportSize({ width: 540, height: 620 });
-    await routeProfile(page, "flip");
+    await routeProfile(page);
     let evaluated = false;
     let payload: Record<string, unknown> | null = null;
     await page.route(`${apiBase}/api/v1/focus-sessions/pending-evaluation`, (route) => route.fulfill({
@@ -259,21 +259,12 @@ test.describe("独立专注窗口", () => {
     });
 
     await page.goto("/?focus-mini=1&focus-evaluation=1");
-    await expect(page.getByRole("heading", { name: "为这一段留下真实记录" })).toBeVisible();
-    await expect(page.getByText("完成专注窗口结构验收", { exact: true })).toBeVisible();
-
-    const satisfied = page.getByRole("button", { name: "满意", exact: true });
-    const neutral = page.getByRole("button", { name: "一般", exact: true });
-    const dissatisfied = page.getByRole("button", { name: "不满意", exact: true });
-    await expect(satisfied).toHaveClass(/feeling-satisfied/);
-    await expect(neutral).toHaveClass(/feeling-neutral/);
-    await expect(dissatisfied).toHaveClass(/feeling-dissatisfied/);
-
-    await page.getByRole("button", { name: "部分完成" }).click();
+    await expect(page.getByRole("heading", { name: "完成专注窗口结构验收" })).toBeVisible();
+    await page.getByRole("option", { name: /部分完成/ }).click();
     await page.getByLabel("实际完成进度").fill("63");
-    await neutral.click();
+    await page.getByRole("option", { name: /一般/ }).click();
     await page.getByLabel("专注过程与原因").fill("中途处理了一次临时事项。\n剩余部分明天继续。");
-    await page.getByRole("button", { name: "保存本次专注" }).click();
+    await page.getByRole("button", { name: /SAVE_RESULT/ }).click();
 
     await expect(page.getByText("记录已经保存")).toBeVisible();
     expect(payload).toMatchObject({
@@ -288,7 +279,7 @@ test.describe("独立专注窗口", () => {
 
   test("评价已在另一窗口保存时识别为成功而不是继续报错", async ({ page }) => {
     await page.setViewportSize({ width: 540, height: 620 });
-    await routeProfile(page, "flip");
+    await routeProfile(page);
     const ended = snapshot("ended");
     const evaluated = { ...ended, session: { ...ended.session, state: "evaluated", version: 5 } };
     await page.route(`${apiBase}/api/v1/focus-sessions/pending-evaluation`, (route) => route.fulfill({
@@ -302,7 +293,7 @@ test.describe("独立专注窗口", () => {
     }));
 
     await page.goto("/?focus-mini=1&focus-evaluation=1");
-    await page.getByRole("button", { name: "保存本次专注" }).click();
+    await page.getByRole("button", { name: /SAVE_RESULT/ }).click();
     await expect(page.getByText("记录已经保存")).toBeVisible();
     await expect(page.getByText(/结果尚未保存|评价刚在另一处更新/)).toHaveCount(0);
   });
@@ -335,55 +326,6 @@ test.describe("独立专注窗口", () => {
       const box = await digits.boundingBox();
       expect(box && box.x >= 0 && box.x + box.width <= 360).toBe(true);
     }
-  });
-
-  test("赛博评价支持方向键选择、回车推进和快捷键保存", async ({ page }) => {
-    await page.setViewportSize({ width: 540, height: 620 });
-    await routeProfile(page, "cyber");
-    let payload: Record<string, unknown> | null = null;
-    await page.route(`${apiBase}/api/v1/focus-sessions/pending-evaluation`, (route) => route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ session: snapshot("ended").session, snapshot: snapshot("ended") }),
-    }));
-    await page.route(`${apiBase}/api/v1/focus-sessions/*/evaluate`, async (route) => {
-      payload = route.request().postDataJSON() as Record<string, unknown>;
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ session: { ...snapshot("ended").session, state: "evaluated", version: 5 } }),
-      });
-    });
-
-    await page.goto("/?focus-mini=1&focus-evaluation=1");
-    await expect(page.locator(".focus-mini")).toHaveClass(/focus-theme-cyber/);
-    const objective = page.getByRole("listbox", { name: "客观完成情况" });
-    await expect(objective).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(page.getByRole("option", { name: /部分完成/ })).toHaveAttribute("aria-selected", "true");
-    await page.keyboard.press("Enter");
-    const progress = page.getByLabel("实际完成进度");
-    await expect(progress).toBeFocused();
-    await progress.fill("63");
-    await page.keyboard.press("Enter");
-
-    const feeling = page.getByRole("listbox", { name: "主观感受" });
-    await expect(feeling).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(page.getByRole("option", { name: /一般/ })).toHaveAttribute("aria-selected", "true");
-    await page.keyboard.press("Enter");
-
-    const note = page.getByLabel("专注过程与原因");
-    await expect(note).toBeFocused();
-    await note.fill("终端键盘交互已完成。");
-    await page.keyboard.press("Control+Enter");
-    await expect(page.getByText("记录已经保存")).toBeVisible();
-    expect(payload).toMatchObject({
-      outcome: "partial",
-      progressPercent: 63,
-      satisfaction: "neutral",
-      note: "终端键盘交互已完成。",
-    });
   });
 
   test("默认主题评价使用黑底红字终端问答，键盘可完成全部操作", async ({ page }) => {

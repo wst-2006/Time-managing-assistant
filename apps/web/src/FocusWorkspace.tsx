@@ -299,7 +299,7 @@ function InkClepsydra({ value, progress, resting, empty, compact = false }: { va
       "--ink-progress": `${boundedProgress}%`,
     } as CSSProperties}
   >
-    <strong className={empty ? "empty" : undefined}>{empty ? "·" : value.split("").map((character, index) => <span key={`${character}-${index}`} aria-hidden="true">{character}</span>)}</strong>
+    <strong className={empty ? "empty" : undefined}>{(empty ? "00:00" : value).split("").map((character, index) => <span key={`${character}-${index}`} aria-hidden="true">{character}</span>)}</strong>
     <span className="ink-clepsydra-line" aria-hidden="true"><i><b /></i></span>
   </div>;
 }
@@ -391,7 +391,8 @@ export function FocusWorkspace({
       breakEnd: profile.breakEndSoundEnabled ?? true,
       focusEnd: profile.focusEndSoundEnabled ?? true
     });
-    setFocusTheme(profile.focusTheme ?? "ink");
+    // Only the poster/terminal style is kept; older saved theme choices are ignored.
+    setFocusTheme("ink");
     const evaluationSessionCandidate = normalizeSession(current.session);
     const currentSession = normalizeSession(execution.session) ?? evaluationSessionCandidate;
     const listTasks = Array.isArray(list.tasks)
@@ -1321,11 +1322,11 @@ export function FocusWorkspace({
               <div className={`focus-timepiece ${currentSegment?.segmentType === "break" ? "resting" : ""}`}>
                 <span className="focus-timepiece-label">专注余时</span>
                 <ThemedFocusTimer theme={focusTheme} value={clockValue} progress={timerProgress} resting={currentSegment?.segmentType === "break"} empty={!displayTask} />
-                <small>{fixedEndLabel ? `固定结束于 ${fixedEndLabel}` : "选择任务后显示固定结束时间。"}</small>
+                {fixedEndLabel ? <small>固定结束于 {fixedEndLabel}</small> : null}
               </div>
               {selected?.scheduleKind === "exact" && selected.startAt && selected.endAt && !locksSelectedStructure && (loadedStructureKey !== structureKey ? <p className="focus-structure-loading">正在恢复已保存的专注结构…</p> : <FocusStructureEditor task={{ id: selected.id, startAt: selected.startAt, endAt: selected.endAt, timeZone: selected.timeZone }} active={activeStructure} candidate={candidateStructure} busy={busy} onSave={saveStructure} onConfirm={confirmStructure} onConfirmDraft={confirmStructureDraft} onDiscard={discardCandidate} />)}
               <div className="focus-controls">
-                {stage === "idle" && <button className="focus-main-action" disabled={!isFocusStartEligibleTask(selected) || busy || !activeStructure} onClick={() => void begin()}><Play />{selected && !activeStructure ? "先确认专注结构" : "我会准时开始"}</button>}
+                {stage === "idle" && displayTask && <button className="focus-main-action" disabled={!isFocusStartEligibleTask(selected) || busy || !activeStructure} onClick={() => void begin()}><Play />{selected && !activeStructure ? "先确认专注结构" : "我会准时开始"}</button>}
               </div>
             </>
           )}

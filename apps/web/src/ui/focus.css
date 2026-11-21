@@ -733,3 +733,13 @@
 .focus-mini.focus-theme-ink .focus-mini-ink-body { align-content: start; padding-top: 18px; overflow: auto; }
 .focus-mini.focus-theme-ink .with-ring .focus-mini-digits { font-size: clamp(44px, 16vmin, 64px); }
 .focus-mini.focus-theme-ink .with-ring .focus-mini-ring-clock small { max-width: 160px; font-size: 11px; }
+
+/* Focus page before a session (default theme): no bar across the middle.
+   Nothing picked → a ghost 00:00 outline; a task picked → its length in solid type. */
+.focus-workspace.focus-theme-ink .focus-center:not(.focus-center-executing) .ink-clepsydra-line { display: none; }
+.focus-workspace.focus-theme-ink .focus-center:not(.focus-center-executing) .ink-clepsydra strong { font-size: clamp(120px, 16vw, 230px); }
+.focus-workspace.focus-theme-ink .ink-clepsydra strong.empty { color: transparent; -webkit-text-stroke: 2px var(--ink); opacity: .55; min-width: 0; }
+.focus-workspace.focus-theme-ink .focus-center:not(.focus-center-executing) .focus-timepiece { background: none; box-shadow: none; border: 0; padding: 0; gap: 6px; }
+.focus-workspace.focus-theme-ink .focus-center:not(.focus-center-executing) .focus-timepiece small { font: 500 14px var(--font-mono); letter-spacing: .06em; color: var(--ink); }
+.focus-workspace.focus-theme-ink .focus-center:not(.focus-center-executing) > .focus-meta { font: 500 15px/1.5 var(--font-mono); color: var(--ink); letter-spacing: .04em; }
+.focus-workspace.focus-theme-ink .focus-main-action { min-height: 56px; padding: 0 30px; box-shadow: 5px 5px 0 rgba(22, 0, 0, .3); }

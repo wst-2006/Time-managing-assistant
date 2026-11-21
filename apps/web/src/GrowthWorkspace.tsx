@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Leaf, Sparkles, TrendingUp } from "lucide-react";
 import { RadarEditor, numericRadarValues, type RadarKey, type RadarValues } from "./ReviewRadar";
-import { PosterMark } from "./ui/poster";
+import { CountUp, PosterMark } from "./ui/poster";
 
 type Tone = "quiet" | "steady" | "bright" | "strained";
 type TrendGranularity = "day" | "week" | "month";
@@ -523,7 +523,7 @@ async function request<T>(path: string, method = "GET", body?: Record<string, un
 const weekday = (value: string) => new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", weekday: "short" }).format(new Date(`${value}T12:00:00Z`)).replace("周", "");
 const compactDate = (value: string) => `${Number(value.slice(5, 7))}/${Number(value.slice(8, 10))}`;
 const dayLabel = (value: string, windowDays: WindowDays) => windowDays === 7 ? weekday(value) : `${Number(value.slice(5, 7))}/${Number(value.slice(8, 10))}`;
-const stateTitle = (windowDays: WindowDays) => windowDays === 1 ? "当天留下的记录" : windowDays === 7 ? "一周留下的色块" : "一个月留下的色块";
+const stateTitle = (windowDays: WindowDays) => windowDays === 1 ? "这一天的完成情况" : windowDays === 7 ? "这一周的完成情况" : "这个月的完成情况";
 function shiftDate(value: string, amount: number) {
   const date = new Date(`${value}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + amount);
@@ -547,60 +547,76 @@ const leadingCalendarCells = (startDate: string) => {
   return weekdayIndex === 0 ? 6 : weekdayIndex - 1;
 };
 
+const minutesLabel = (minutes: number) => minutes >= 60 ? `${(minutes / 60).toFixed(minutes >= 600 ? 0 : 1)}H` : `${minutes}m`;
+
+/** Effective focus as bars: one bar per day / week / month, the value printed on top. */
 function FocusTrendChart({ trend }: { trend: Summary["focusTrend"] }) {
   const plotWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
   const plotHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
   const maxMinutes = Math.max(30, ...trend.points.map((point) => point.focusMinutes));
-  const coordinates = trend.points.map((point, index) => ({
-    x: CHART_PADDING.left + (trend.points.length === 1 ? plotWidth / 2 : index / (trend.points.length - 1) * plotWidth),
-    y: CHART_PADDING.top + plotHeight - point.focusMinutes / maxMinutes * plotHeight,
-    point
-  }));
-  const path = coordinates.map(({ x, y }, index) => `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`).join(" ");
-  const labelStep = Math.max(1, Math.ceil(trend.points.length / 6));
+  const slot = plotWidth / Math.max(1, trend.points.length);
+  const barWidth = Math.min(64, Math.max(4, slot * .62));
+  const labelStep = Math.max(1, Math.ceil(trend.points.length / 8));
+  const showValues = trend.points.length <= 12;
   const yTicks = [0, 0.5, 1];
-
-  return <div className="focus-line-chart" data-granularity={trend.granularity}>
-    <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label="有效专注时长折线图">
+  return <div className="focus-bar-chart" data-granularity={trend.granularity}>
+    <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label="有效专注时长柱状图">
       {yTicks.map((ratio) => {
         const y = CHART_PADDING.top + plotHeight - ratio * plotHeight;
-        return <g key={ratio} className="focus-line-grid">
+        return <g key={ratio} className="focus-bar-grid">
           <line x1={CHART_PADDING.left} x2={CHART_WIDTH - CHART_PADDING.right} y1={y} y2={y} />
-          <text x={CHART_PADDING.left - 9} y={y + 4}>{Math.round(maxMinutes * ratio)}m</text>
+          <text x={CHART_PADDING.left - 10} y={y + 4}>{minutesLabel(Math.round(maxMinutes * ratio))}</text>
         </g>;
       })}
-      <path className="focus-line-path" d={path} />
-      {coordinates.map(({ x, y, point }, index) => <g key={`${point.startDate}:${point.endDate}`} className="focus-line-point">
-        <circle cx={x} cy={y} r="4"><title>{trendPointTitle(point, trend.granularity)}</title></circle>
-        {(index % labelStep === 0 || index === coordinates.length - 1) && <text className="focus-line-label" x={x} y={CHART_HEIGHT - 13}>{trendPeriodLabel(point, trend.granularity)}</text>}
-      </g>)}
+      {trend.points.map((point, index) => {
+        const height = point.focusMinutes / maxMinutes * plotHeight;
+        const x = CHART_PADDING.left + slot * index + (slot - barWidth) / 2;
+        const y = CHART_PADDING.top + plotHeight - height;
+        return <g key={`${point.startDate}:${point.endDate}`} className="focus-bar" style={{ ["--delay" as string]: `${index * 40}ms` }}>
+          <rect x={x} y={y} width={barWidth} height={Math.max(0, height)}><title>{trendPointTitle(point, trend.granularity)}</title></rect>
+          {showValues && point.focusMinutes > 0 ? <text className="focus-bar-value" x={x + barWidth / 2} y={y - 7}>{minutesLabel(point.focusMinutes)}</text> : null}
+          {(index % labelStep === 0 || index === trend.points.length - 1) && <text className="focus-bar-label" x={x + barWidth / 2} y={CHART_HEIGHT - 14}>{trend.granularity === "day" && trend.points.length <= 7 ? weekday(point.startDate) : trendPeriodLabel(point, trend.granularity)}</text>}
+        </g>;
+      })}
     </svg>
-    <p>{trend.granularity === "day" ? "按日" : trend.granularity === "week" ? "按周汇总" : "按月汇总"}，时间范围内共记录 {trend.points.reduce((total, point) => total + point.focusMinutes, 0)} 分钟有效专注。</p>
+    <p>{trend.granularity === "day" ? "按日" : trend.granularity === "week" ? "按周汇总" : "按月汇总"}，共 {trend.points.reduce((total, point) => total + point.focusMinutes, 0)} 分钟有效专注。</p>
   </div>;
 }
 
-function StateGrid({ days, windowDays }: { days: Summary["days"]; windowDays: WindowDays }) {
-  const compact = windowDays >= 90;
-  if (!compact) {
-    return <div className={`state-grid ${windowDays === 30 ? "month-state-grid" : ""}`}>
-      {days.map((day) => <div key={day.localDate} className={`state-cell ${day.tone}`} title={`${day.localDate} · ${day.focusMinutes} 分钟 · ${day.completedTasks}/${day.plannedTasks} 项完成`}>
-        <strong>{dayLabel(day.localDate, windowDays)}</strong><span>{day.focusMinutes}m</span><small>{day.completedTasks}/{day.plannedTasks} 项</small>
-      </div>)}
-    </div>;
-  }
+type DayMark = "full" | "half" | "empty";
+/** full = focused and finished most of the plan (≥ 80%); half = focused but less; empty = no focus. */
+function dayMark(day: Summary["days"][number]): DayMark {
+  if (day.focusMinutes <= 0) return "empty";
+  if (day.plannedTasks > 0 && day.completedTasks / day.plannedTasks >= .8) return "full";
+  return "half";
+}
+const markLabel: Record<DayMark, string> = { full: "完成得好", half: "一般", empty: "没有专注" };
 
-  const placeholders = days.length ? leadingCalendarCells(days[0]!.localDate) : 0;
-  return <div className="state-heatmap-scroll" aria-label={`${windowDays} 天每日状态色块`}>
-    <div className="state-grid compact-state-grid" data-window-days={windowDays}>
-      {Array.from({ length: placeholders }, (_, index) => <span className="state-cell-placeholder" aria-hidden="true" key={`placeholder-${index}`} />)}
-      {days.map((day) => <span
-        key={day.localDate}
-        className={`state-cell ${day.tone}`}
-        role="img"
-        aria-label={`${day.localDate}，有效专注 ${day.focusMinutes} 分钟，完成 ${day.completedTasks} 项任务，共计划 ${day.plannedTasks} 项`}
-        title={`${day.localDate} · ${day.focusMinutes} 分钟 · ${day.completedTasks}/${day.plannedTasks} 项完成`}
-      />)}
+function currentStreak(days: Summary["days"]) {
+  let streak = 0;
+  for (let index = days.length - 1; index >= 0; index -= 1) {
+    if (days[index]!.focusMinutes > 0) streak += 1; else break;
+  }
+  return streak;
+}
+
+function StateGrid({ days, windowDays }: { days: Summary["days"]; windowDays: WindowDays }) {
+  const streak = currentStreak(days);
+  const placeholders = windowDays === 30 && days.length ? leadingCalendarCells(days[0]!.localDate) : 0;
+  return <div className={`day-dots day-dots-${windowDays}`}>
+    <div className="day-dots-grid" role="list" aria-label="每天的完成情况">
+      {windowDays === 30 ? ["一", "二", "三", "四", "五", "六", "日"].map((label) => <span className="day-dots-head" key={label} aria-hidden="true">{label}</span>) : null}
+      {Array.from({ length: placeholders }, (_, index) => <span className="day-dot-placeholder" aria-hidden="true" key={`p-${index}`} />)}
+      {days.map((day) => {
+        const mark = dayMark(day);
+        return <div role="listitem" key={day.localDate} className={`day-dot-cell ${mark}`} title={`${day.localDate} · ${markLabel[mark]} · ${day.focusMinutes} 分钟 · ${day.completedTasks}/${day.plannedTasks} 项完成`}>
+          {windowDays !== 30 ? <span className="day-dot-label">{windowDays === 7 ? weekday(day.localDate) : dateTitle(day.localDate)}</span> : null}
+          <i className={`day-dot ${mark}`} aria-label={markLabel[mark]} />
+          {windowDays !== 30 ? <small>{day.focusMinutes}m · {day.completedTasks}/{day.plannedTasks}</small> : <small>{Number(day.localDate.slice(8, 10))}</small>}
+        </div>;
+      })}
     </div>
+    <div className="day-dots-streak"><strong>{streak}</strong><span>天</span><em>连续专注</em></div>
   </div>;
 }
 
@@ -622,6 +638,26 @@ function FeelingTraces({ satisfaction }: { satisfaction: Summary["satisfaction"]
   </div>;
 }
 
+/** The week in one disc: total effective focus inside, the growth score as a ring that draws itself. */
+function GrowthRing({ minutes, score, windowDays }: { minutes: number; score: number; windowDays: WindowDays }) {
+  const hours = minutes / 60;
+  const useHours = minutes >= 60;
+  const [drawn, setDrawn] = useState(0);
+  useEffect(() => { const frame = window.requestAnimationFrame(() => setDrawn(score)); return () => window.cancelAnimationFrame(frame); }, [score]);
+  return <div className="growth-ring" role="img" aria-label={`${windowDays === 1 ? "这一天" : windowDays === 7 ? "本周" : "本月"}有效专注 ${minutes} 分钟，成长评分 ${score}/100`}>
+    <svg viewBox="0 0 220 220" aria-hidden="true">
+      <circle className="growth-ring-track" cx="110" cy="110" r="102" pathLength={100} />
+      <circle className="growth-ring-arc" cx="110" cy="110" r="102" pathLength={100} style={{ strokeDasharray: `${Math.max(0, Math.min(100, drawn))} 100` }} />
+    </svg>
+    <div className="growth-ring-disc">
+      <span className="growth-ring-kicker">{windowDays === 1 ? "这一天" : windowDays === 7 ? "本周" : "本月"}有效专注</span>
+      <strong><CountUp to={useHours ? hours : minutes} decimals={useHours ? 1 : 0} />{useHours ? "H" : "m"}</strong>
+      <i aria-hidden="true" />
+      <span className="growth-ring-score">成长评分 {score} / 100</span>
+    </div>
+  </div>;
+}
+
 function GrowthLandscape({ summary, windowDays }: { summary: Summary; windowDays: WindowDays }) {
   const [focusQuoteIndex, setFocusQuoteIndex] = useState(() => Math.floor(Math.random() * FOCUS_QUOTES.length));
   const feelingTotal = summary.satisfaction.satisfied + summary.satisfaction.neutral + summary.satisfaction.dissatisfied;
@@ -630,7 +666,6 @@ function GrowthLandscape({ summary, windowDays }: { summary: Summary; windowDays
     : (summary.satisfaction.satisfied - summary.satisfaction.dissatisfied) / feelingTotal;
   const growthPercent = summary.garden.growthPercent;
   const periodGrowthPercent = windowDays === 1 ? growthPercent : summary.periodGrowthPercent;
-  const bambooStage = growthBambooStage(growthPercent);
   const focusQuote = FOCUS_QUOTES[focusQuoteIndex]!;
 
   useEffect(() => {
@@ -655,7 +690,7 @@ function GrowthLandscape({ summary, windowDays }: { summary: Summary; windowDays
       </p>
       <p className="growth-scene-description">每一笔都来自任务、专注、感受与主动复盘的真实记录。</p>
     </div>
-    <GrowthBamboo stage={bambooStage} bambooCount={summary.garden.bambooCount} />
+    <GrowthRing minutes={summary.focusMinutes} score={periodGrowthPercent} windowDays={windowDays} />
     <dl className="growth-scene-metrics" id="growth-scene-details">
       <div><dt>有效专注</dt><dd>{summary.focusMinutes}<small>分钟</small></dd></div>
       <div><dt>{windowDays === 1 ? "所选日任务完成" : windowDays === 7 ? "本周任务完成" : "本月任务完成"}</dt><dd>{summary.completedTasks}<small>/{summary.plannedTasks} 项</small></dd></div>
@@ -749,7 +784,7 @@ export function GrowthWorkspace() {
         </section>
         <section className="growth-record">
           <div className="panel-heading"><div><h2>{stateTitle(windowDays)}</h2></div><Leaf /></div>
-          <p className="growth-state-legend">实心黑块偏满意，斜线块为混合或一般，米白块偏不满意；空框表示当天没有主观反馈。</p>
+          <p className="growth-state-legend"><i className="day-dot full" /> 完成得好（计划完成八成以上） <i className="day-dot half" /> 一般 <i className="day-dot empty" /> 没有专注</p>
           <StateGrid days={summary.days} windowDays={windowDays} />
         </section>
         <section className="growth-record radar-panel">
