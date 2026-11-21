@@ -1147,3 +1147,25 @@
 /* timeline blocks let the hour lines show through */
 .time-block.time-block { background: transparent; }
 .hour-line { z-index: 4; }
+
+/* State strip: a full-height band on the block's left edge, sharing its
+   border, instead of a small square that read like a checkbox. */
+.time-block.time-block { padding-left: 28px; }
+.time-block .block-state {
+  left: 0; top: 0; bottom: 0; width: 14px; height: auto;
+  border: 0; border-right: 1.5px solid var(--ink);
+  background: radial-gradient(circle, var(--ink) 0 1.4px, transparent 1.7px) 1px 1px / 6px 6px;
+}
+.time-block[data-state="complete"] .block-state { background: var(--ink); }
+.time-block[data-state="partial"] .block-state { background: linear-gradient(to top, var(--ink) 50%, transparent 50%); }
+.time-block[data-state="incomplete"] .block-state { background: none; border-right: 2px dotted var(--ink); }
+.time-block[data-state="awaiting"] .block-state { background: repeating-linear-gradient(135deg, var(--ink) 0 1.5px, transparent 1.5px 5px); }
+.time-block[data-state="active"] .block-state { background: var(--ink); }
+.time-block[style*="height: 36px"] .block-state, .time-block[style*="height:36px"] .block-state { top: 0; width: 14px; height: auto; }
+.time-block.fact-record .block-state { border-right-style: dashed; }
+
+/* narrow or short blocks keep one line instead of wrapping into a mess */
+.time-block .block-copy { min-width: 0; }
+.time-block .block-copy :is(time, strong, small) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.time-block.fact-record .record-kind-badge { padding: 0 5px; font-size: 11px; line-height: 16px; white-space: nowrap; }
+.time-block.time-block.fact-record { padding-left: 10px; }
