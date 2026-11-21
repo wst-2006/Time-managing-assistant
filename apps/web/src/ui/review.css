@@ -39,7 +39,7 @@
 .review-colophon-metrics dd { margin: 0; font-family: var(--font-num); font-size: var(--fs-22); font-weight: 600; line-height: 1.3; }
 .review-colophon-metrics dd small { font-family: var(--font-ui); font-size: var(--fs-12); color: var(--ink-3); font-weight: 400; margin-left: 2px; }
 .review-completion-mark { background: var(--accent) !important; color: var(--red); }
-.review-completion-mark dt, .review-completion-mark dd small { color: rgba(var(--red-rgb),  .8) !important; }
+.review-completion-mark dt, .review-completion-mark dd small { color: rgba(255, 20, 70, .8) !important; }
 
 .review-board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 20px; align-items: start; }
 .review-main-column, .review-side-column { display: grid; gap: 20px; min-width: 0; }
@@ -178,11 +178,11 @@
 .review-radar-grid polygon:last-child { stroke: var(--line-strong); }
 .review-radar-grid line { stroke: var(--line); stroke-width: 1; }
 .review-radar-axis-hit { fill: none; stroke: transparent; stroke-width: 18; stroke-linecap: round; cursor: grab; pointer-events: stroke; }
-.review-radar-axis-hit.active { stroke: rgba(var(--ink-rgb),  .08); }
-.review-radar-area { fill: rgba(var(--ink-rgb),  .14); stroke: none; transition: d var(--dur-3) var(--ease-enter); }
+.review-radar-axis-hit.active { stroke: rgba(22, 0, 0, .08); }
+.review-radar-area { fill: rgba(22, 0, 0, .14); stroke: none; transition: d var(--dur-3) var(--ease-enter); }
 .review-radar-outline { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
 .review-radar-axis text { fill: var(--ink-2); font: 500 12px/1 var(--font-ui); }
-.review-radar-axis .review-radar-value { fill: var(--accent); font: 600 13px/1 var(--font-num); }
+.review-radar-axis .review-radar-value { fill: var(--accent); font: 600 11px/1 var(--font-num); }
 .review-radar-handle { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .review-radar-handle.editable { cursor: grab; touch-action: none; transition: r var(--dur-2) var(--ease-standard), fill var(--dur-2) var(--ease-standard); }
 .review-radar-handle.editable:hover, .review-radar-handle.editable:focus-visible, .review-radar-handle.editable.active { fill: var(--mark); stroke: var(--ink); outline: none; }
@@ -234,10 +234,10 @@
   font-weight: 500;
 }
 .diary-day strong { font-family: var(--font-num); font-size: var(--fs-13); font-weight: 600; line-height: 1; }
-.diary-day small { font-family: var(--font-num); font-size: 11px; color: inherit; opacity: .7; line-height: 1.2; }
+.diary-day small { font-family: var(--font-num); font-size: 9px; color: inherit; opacity: .7; line-height: 1.2; }
 .diary-day i { position: absolute; left: 50%; bottom: 4px; width: 14px; height: 3px; margin-left: -7px; border-radius: 0; background: transparent; }
-.diary-day.focus-short { background: rgba(var(--ink-rgb),  .18); }
-.diary-day.focus-medium { background: rgba(var(--ink-rgb),  .42); }
+.diary-day.focus-short { background: rgba(22, 0, 0, .18); }
+.diary-day.focus-medium { background: rgba(22, 0, 0, .42); }
 .diary-day.focus-long { background: var(--accent); color: var(--red); }
 .diary-day.has-diary i { background: var(--mark); }
 .diary-day:hover:not(:disabled) { border: 0; box-shadow: inset 0 0 0 1.5px var(--accent-line); background-color: inherit; }

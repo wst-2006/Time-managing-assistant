@@ -24,11 +24,6 @@
   color-scheme: light;
 
   /* Poster */
-  --ink-rgb: 22, 0, 0;
-  --red-rgb: 255, 20, 70;
-  --cream-rgb: 255, 232, 220;
-  --tone-deep: #5c0016;
-  --tone-dark: #2e0020;
   --red: #ff1446;
   --red-2: #ff3a63;
   --red-deep: #e00a37;
@@ -40,17 +35,17 @@
   --surface: var(--red);
   --surface-2: #f5103f;
   --surface-3: #e90d3b;
-  --line: rgba(var(--ink-rgb), .9);
-  --line-soft: rgba(var(--ink-rgb), .28);
-  --line-strong: var(--ink);
-  --grid-line: rgba(var(--ink-rgb), .16);
+  --line: rgba(22, 0, 0, .9);
+  --line-soft: rgba(22, 0, 0, .28);
+  --line-strong: #160000;
+  --grid-line: rgba(22, 0, 0, .16);
   --rule: 1.5px;
 
   /* Ink */
   --ink: #160000;
-  --ink-2: rgba(var(--ink-rgb), .78);
-  --ink-3: rgba(var(--ink-rgb), .62);
-  --ink-4: rgba(var(--ink-rgb), .42);
+  --ink-2: rgba(22, 0, 0, .78);
+  --ink-3: rgba(22, 0, 0, .62);
+  --ink-4: rgba(22, 0, 0, .42);
   --on-accent: var(--red);
 
   /* Action = ink */
@@ -91,12 +86,12 @@
   --font-display: "Anton", "ZCOOL QingKe HuangYou", "Impact", sans-serif;
   --font-display-zh: "ZCOOL QingKe HuangYou", "Anton", "Microsoft YaHei UI", sans-serif;
   --font-serif: "Instrument Serif", "Noto Serif SC", "Songti SC", "SimSun", serif;
-  --fs-11: 12px;
-  --fs-12: 13px;
-  --fs-13: 14px;
-  --fs-14: 15px;
-  --fs-16: 17px;
-  --fs-18: 19px;
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-18: 18px;
   --fs-22: 22px;
   --fs-28: 28px;
   --fs-36: 36px;
@@ -111,10 +106,10 @@
   --r-pill: 0;
 
   /* Depth: hard offset shadows only */
-  --shadow-1: 0 0 0 1.5px var(--ink);
-  --shadow-2: 6px 6px 0 rgba(var(--ink-rgb), .9);
-  --shadow-pop: 12px 12px 0 var(--ink);
-  --focus-ring: 0 0 0 2px var(--red), 0 0 0 4px var(--ink);
+  --shadow-1: 0 0 0 1.5px #160000;
+  --shadow-2: 6px 6px 0 rgba(22, 0, 0, .9);
+  --shadow-pop: 12px 12px 0 #160000;
+  --focus-ring: 0 0 0 2px var(--red), 0 0 0 4px #160000;
 
   /* Space */
   --s-1: 4px;
@@ -145,59 +140,6 @@
   --content-max: 1480px;
   --page-pad-x: clamp(18px, 2.6vw, 40px);
 }
-
-/*
- * 黑底红字 (default). Same pairs, inverted: the ground is near-black, everything
- * that was ink is a slightly softened red so long reading is easier on the eyes.
- * Chosen blocks become red slabs with black type, like the dark wodniack panels.
- */
-html[data-palette="dark"] {
-  color-scheme: dark;
-  --ink-rgb: 255, 72, 102;
-  --red-rgb: 18, 3, 6;
-  --cream-rgb: 46, 10, 18;
-  --tone-deep: #c4183f;
-  --tone-dark: #8a1030;
-
-  --red: #120306;
-  --red-2: #1c060b;
-  --red-deep: #0b0204;
-  --cream: #2e0a12;
-  --ink-solid: #ff4866;
-  --surface-2: #180509;
-  --surface-3: #1f070d;
-
-  --ink: #ff4866;
-  --ink-2: rgba(255, 72, 102, .9);
-  --ink-3: rgba(255, 72, 102, .76);
-  --ink-4: rgba(255, 72, 102, .56);
-  --line: rgba(255, 72, 102, .7);
-  --line-soft: rgba(255, 72, 102, .26);
-  --grid-line: rgba(255, 72, 102, .09);
-
-  --accent: #ff4866;
-  --accent-hover: #ff6a83;
-  --accent-press: #ff2f52;
-  --accent-soft: rgba(255, 72, 102, .12);
-  --accent-soft-2: rgba(255, 72, 102, .18);
-  --accent-line: rgba(255, 72, 102, .5);
-  --mark: #ff4866;
-  --mark-soft: rgba(255, 72, 102, .14);
-  --morning: #ff4866;
-  --morning-soft: rgba(255, 72, 102, .12);
-  --afternoon: #ff7a8f;
-  --afternoon-soft: rgba(255, 122, 143, .14);
-  --evening: #d63a5a;
-  --evening-soft: rgba(214, 58, 90, .14);
-  --ok: #ff4866;
-  --ok-soft: rgba(255, 72, 102, .14);
-  --warn: #ff4866;
-  --danger: #ff4866;
-  --neutral: rgba(255, 72, 102, .6);
-  --neutral-soft: rgba(255, 72, 102, .08);
-  --shadow-2: 6px 6px 0 rgba(255, 72, 102, .55);
-}
-html[data-palette="dark"] body { background: var(--red); }
 
 @media (prefers-reduced-motion: reduce) {
   :root {

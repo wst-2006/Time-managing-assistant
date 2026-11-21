@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { applyPalette, storedPalette, type Palette } from "./palette";
 import {
   Bell,
   Check,
@@ -41,7 +40,6 @@ type SettingsWorkspaceProps = {
 };
 
 export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
-  const [palette, setPalette] = useState<Palette>(() => storedPalette());
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [draft, setDraft] = useState<UserProfileDraft>(defaultUserProfileDraft);
   const [desktopSettings, setDesktopSettings] = useState<FocusMiniSettings | null>(null);
@@ -120,27 +118,12 @@ export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
     <header className="settings-heading poster-header"><PosterMark word="设置" />
       <div>
         <h1>让工具顺着你的习惯安静下来。</h1>
-        <p>配色、计时主题、专注窗口和提醒都集中在这里；任何计划变更仍需你确认。</p>
+        <p>主题、专注窗口、飞书卡片和个人信息都集中在这里；任何自动计划变更仍需你确认。</p>
       </div>
     </header>
 
     <form className="settings-form" onSubmit={save}>
       {error && <p className="user-profile-error" role="alert"><CircleAlert />{error}</p>}
-
-      <section className="settings-section palette-library" aria-labelledby="palette-heading">
-        <header>
-          <div><h2 id="palette-heading">界面配色</h2></div>
-          <span>立即生效，只影响这台电脑</span>
-        </header>
-        <div className="palette-choice-grid" role="radiogroup" aria-label="界面配色">
-          {([["dark", "黑底红字", "暗色背景、字更大，适合长时间看"], ["poster", "红底黑字", "原来的红色海报，更醒目"]] as const).map(([id, label, note]) =>
-            <button key={id} type="button" role="radio" aria-checked={palette === id} className={`palette-choice palette-preview-${id} ${palette === id ? "selected" : ""}`} onClick={() => { applyPalette(id); setPalette(id); }}>
-              <span className="palette-choice-swatch" aria-hidden="true">序</span>
-              <span><strong>{label}</strong><small>{note}</small></span>
-              {palette === id && <Check aria-hidden="true" />}
-            </button>)}
-        </div>
-      </section>
 
       <section className="settings-section theme-library" aria-labelledby="focus-theme-heading">
         <header>

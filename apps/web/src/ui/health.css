@@ -100,7 +100,7 @@
 .health-manual-days button span, .health-days button span { font-size: var(--fs-12); color: var(--ink-3); font-weight: 500; }
 .health-manual-days button strong, .health-days button strong { font-family: var(--font-num); font-size: var(--fs-18); line-height: 1.1; }
 .health-manual-days button.active, .health-days button.active { background: var(--accent); border-color: var(--accent); color: var(--red); }
-.health-manual-days button.active span, .health-days button.active span { color: rgba(var(--red-rgb),  .8); }
+.health-manual-days button.active span, .health-days button.active span { color: rgba(255, 20, 70, .8); }
 .health-manual-day-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .health-manual-fieldset { display: grid; gap: 12px; margin: 0; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: var(--r-md); min-width: 0; }
 .health-manual-fieldset legend { padding: 0 6px; font-size: var(--fs-13); font-weight: 600; color: var(--ink-2); }
@@ -158,9 +158,9 @@
 }
 .health-target-row[data-tone="protein"] { --tone: var(--evening); }
 .health-target-row[data-tone="carb"], .health-target-row[data-tone="carbohydrate"] { --tone: var(--afternoon); }
-.health-target-row[data-tone="fat"] { --tone: var(--tone-deep); }
+.health-target-row[data-tone="fat"] { --tone: #5c0016; }
 .health-target-row[data-tone="fiber"] { --tone: var(--ok); }
-.health-target-row[data-tone="hydration"], .health-target-row[data-tone="water"] { --tone: var(--tone-dark); }
+.health-target-row[data-tone="hydration"], .health-target-row[data-tone="water"] { --tone: #2e0020; }
 .health-target-row > span { grid-area: label; font-size: var(--fs-13); color: var(--ink-2); }
 .health-target-row > strong { grid-area: value; justify-self: end; font-family: var(--font-num); font-size: var(--fs-16); }
 .health-target-row > i { grid-area: bar; position: relative; height: 8px; border-radius: 0; background: var(--surface-2); }
@@ -174,7 +174,7 @@
 .health-macro-ratio > div { display: flex; height: 12px; border-radius: 0; overflow: hidden; gap: 2px; }
 .health-macro-ratio > div i { flex: 0 0 var(--macro-share); background: var(--evening); }
 .health-macro-ratio [data-tone="carb"] { background: var(--afternoon) !important; }
-.health-macro-ratio [data-tone="fat"] { background: var(--tone-deep) !important; }
+.health-macro-ratio [data-tone="fat"] { background: #5c0016 !important; }
 .health-macro-ratio p { display: flex; gap: 16px; font-size: var(--fs-12); color: var(--ink-2); }
 .health-macro-ratio p span { display: inline-flex; align-items: center; gap: 5px; }
 .health-macro-ratio p b { width: 8px; height: 8px; border-radius: 0; background: var(--evening); }
@@ -282,3 +282,77 @@
 .health-choice input:checked + span { background: var(--ink); color: var(--red); box-shadow: 3px 3px 0 var(--cream); }
 .health-choice input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 3px; }
 @media (max-width: 720px) { .health-profile-form { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------------------------------------------------------------------------
+   Health page only: 黑底红字 and a larger type scale for comfortable reading.
+   Every other page keeps the red poster. Tokens are re-declared on the health
+   layer, so the shared controls inside it (buttons, inputs, labels) follow.
+   --------------------------------------------------------------------------- */
+.workspace-layer[data-layer-view="health"] {
+  color-scheme: dark;
+  min-height: calc(100vh - var(--masthead-h) - var(--strip-h));
+  background: #120306;
+  color: #ff4866;
+
+  --red: #120306;
+  --red-2: #1c060b;
+  --red-deep: #0b0204;
+  --cream: #2e0a12;
+  --ink-solid: #ff4866;
+  --paper: #120306;
+  --surface: #120306;
+  --surface-2: #180509;
+  --surface-3: #1f070d;
+  --line: rgba(255, 72, 102, .7);
+  --line-soft: rgba(255, 72, 102, .26);
+  --line-strong: #ff4866;
+  --grid-line: rgba(255, 72, 102, .09);
+
+  --ink: #ff4866;
+  --ink-2: rgba(255, 72, 102, .9);
+  --ink-3: rgba(255, 72, 102, .76);
+  --ink-4: rgba(255, 72, 102, .56);
+  --on-accent: #120306;
+  --accent: #ff4866;
+  --accent-hover: #ff6a83;
+  --accent-press: #ff2f52;
+  --accent-soft: rgba(255, 72, 102, .12);
+  --accent-soft-2: rgba(255, 72, 102, .18);
+  --accent-line: rgba(255, 72, 102, .5);
+  --mark: #ff4866;
+  --mark-soft: rgba(255, 72, 102, .14);
+  --mark-ink: #120306;
+  --ok: #ff4866;
+  --ok-soft: rgba(255, 72, 102, .14);
+  --warn: #ff4866;
+  --warn-soft: #2e0a12;
+  --danger: #ff4866;
+  --danger-soft: #2e0a12;
+  --neutral: rgba(255, 72, 102, .6);
+  --neutral-soft: rgba(255, 72, 102, .08);
+  --shadow-1: 0 0 0 1.5px #ff4866;
+  --shadow-2: 6px 6px 0 rgba(255, 72, 102, .55);
+  --shadow-pop: 12px 12px 0 #ff4866;
+  --focus-ring: 0 0 0 2px #120306, 0 0 0 4px #ff4866;
+
+  --fs-11: 13px;
+  --fs-12: 14px;
+  --fs-13: 15px;
+  --fs-14: 16px;
+  --fs-16: 18px;
+  --fs-18: 20px;
+}
+.workspace-layer[data-layer-view="health"] .health-workspace { font-size: 16px; line-height: 1.65; }
+.workspace-layer[data-layer-view="health"] .health-target-row[data-tone="fat"] { --tone: #c4183f; }
+.workspace-layer[data-layer-view="health"] :is(.health-target-row[data-tone="hydration"], .health-target-row[data-tone="water"]) { --tone: #8a1030; }
+.workspace-layer[data-layer-view="health"] .health-macro-ratio [data-tone="fat"] { background: #c4183f !important; }
+/* Field labels and small kickers: readable size, no wide letter-spacing on Chinese. */
+.workspace-layer[data-layer-view="health"] label > span:first-child,
+.workspace-layer[data-layer-view="health"] .health-choice legend { font: 500 15px/1.4 var(--font-ui); letter-spacing: .02em; color: var(--ink-2); }
+.workspace-layer[data-layer-view="health"] :is(.section-kicker, .eyebrow) { font-size: 14px; letter-spacing: .08em; }
+.workspace-layer[data-layer-view="health"] :is(input, select, textarea) { font-size: 16px; }
+.workspace-layer[data-layer-view="health"] .health-choice span { font-size: 15px; }
+/* Buttons that used dark ink shadows need a visible shadow on black. */
+.workspace-layer[data-layer-view="health"] .primary-button { box-shadow: 4px 4px 0 rgba(255, 72, 102, .35); }
+.workspace-layer[data-layer-view="health"] :is(input, select, textarea) { background: #1a0509; color: var(--ink); border-color: var(--line); }
+.workspace-layer[data-layer-view="health"] :is(input, textarea)::placeholder { color: rgba(255, 72, 102, .5); }
