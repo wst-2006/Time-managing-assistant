@@ -557,9 +557,20 @@
 .go-button:focus-visible { outline: none; }
 .go-button:focus-visible .go-disc { box-shadow: 0 0 0 var(--rule) var(--ink), 0 0 0 8px var(--red), 0 0 0 11px var(--ink); }
 .go-button:disabled { cursor: default; opacity: .55; }
-.go-flood { position: fixed; z-index: 90; width: var(--go-size, 96px); height: var(--go-size, 96px); margin: calc(var(--go-size, 96px) / -2) 0 0 calc(var(--go-size, 96px) / -2); border-radius: 50%; background: var(--ink); pointer-events: none; animation: go-flood 720ms cubic-bezier(.76, 0, .24, 1) forwards; }
+/* LET'S BEGIN: GO travels to the centre, swells, swaps words in bands, then floods away */
+.lets-begin { position: fixed; inset: 0; z-index: 300; pointer-events: none; }
+.lets-begin-disc { --size: min(72vmin, 660px); position: fixed; display: grid; place-items: center; align-content: center; gap: 3vmin; border-radius: 50%; background: var(--ink); color: var(--red); transform: translate(-50%, -50%); overflow: hidden; animation: lets-begin-disc 2050ms cubic-bezier(.76, 0, .24, 1) forwards; }
+.lets-begin-word { font: 400 calc(var(--size) * .26)/1 var(--font-display) !important; letter-spacing: .01em; color: var(--red); opacity: 0; animation: lets-begin-word 2050ms linear forwards; }
+.lets-begin-caption { font: 500 13px/1 var(--font-mono); letter-spacing: .16em; color: var(--red); opacity: 0; animation: lets-begin-word 2050ms linear forwards; }
+@keyframes lets-begin-disc {
+  0% { left: var(--from-x); top: var(--from-y); width: var(--from-size); height: var(--from-size); opacity: 1; }
+  28% { left: 50%; top: 50%; width: var(--size); height: var(--size); }
+  80% { left: 50%; top: 50%; width: var(--size); height: var(--size); opacity: 1; }
+  93% { left: 50%; top: 50%; width: 300vmax; height: 300vmax; opacity: 1; }
+  100% { left: 50%; top: 50%; width: 300vmax; height: 300vmax; opacity: 0; }
+}
+@keyframes lets-begin-word { 0%, 24% { opacity: 0; } 30%, 78% { opacity: 1; } 84%, 100% { opacity: 0; } }
 .go-button.launching .go-disc { animation: go-press 420ms var(--ease-spring); }
-@keyframes go-flood { 0% { transform: scale(1); opacity: 1; } 55% { transform: scale(14); opacity: .92; } 100% { transform: scale(22); opacity: 0; } }
 @keyframes go-press { 30% { transform: scale(.88); } }
 .focus-execution-actions .go-button { margin: 0 10px; }
 
@@ -634,3 +645,32 @@
 .slice-text .slice-sizer { color: transparent !important; background: none !important; }
 .slice-text :is(.slice-sizer, .slice-band, .slice-roll, .slice-roll > span) { font: inherit !important; letter-spacing: inherit !important; padding: 0 !important; margin: 0 !important; }
 .slice-text .slice-roll > span { color: inherit; }
+
+/* ===========================================================================
+   Calm focus page (default theme): one outer frame, no boxes inside it.
+   Big type on plain red carries the page; the tunnel is only a faint floor.
+   =========================================================================== */
+.focus-workspace.focus-theme-ink .focus-center-executing { border: 0; padding: 20px 24px 28px; }
+.focus-workspace.focus-theme-ink .focus-center-executing .ink-clepsydra strong { box-shadow: none; background: transparent; padding: 0; }
+.focus-workspace.focus-theme-ink .focus-center-executing > .focus-motion-backdrop {
+  opacity: .32;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0 66%, #000 92%);
+  mask-image: linear-gradient(to bottom, transparent 0 66%, #000 92%);
+}
+.focus-workspace.focus-theme-ink .focus-execution { gap: 18px; }
+.focus-workspace.focus-theme-ink .focus-timepiece-label { font-size: 13px; letter-spacing: .2em; }
+/* the status table on the right already says when this segment ends and what follows */
+.focus-workspace.focus-theme-ink .focus-scene-focus :is(.focus-phase-line, .focus-next-phase),
+.focus-workspace.focus-theme-ink .focus-scene-break :is(.focus-phase-line, .focus-next-phase) { display: none; }
+.focus-workspace.focus-theme-ink .focus-phase-line { background: none; font: 500 15px/1.6 var(--font-ui); }
+.focus-workspace.focus-theme-ink .focus-next-phase { background: none; font-size: 14px; color: var(--ink-2); }
+/* the quote: readable serif on clean red, no patch, nothing behind it */
+.focus-workspace.focus-theme-ink .focus-workspace-quote { display: grid; justify-items: center; gap: 6px; max-width: 34ch; padding: 4px 0 0; background: none; text-align: center; }
+.focus-workspace.focus-theme-ink .focus-workspace-quote q { font: 400 24px/1.55 "Noto Serif SC", var(--font-serif); color: var(--ink); quotes: "“" "”"; }
+.focus-workspace.focus-theme-ink .focus-workspace-quote cite { font: 500 13px/1 var(--font-mono); letter-spacing: .12em; color: var(--ink-2); }
+/* secondary actions are words, not boxes; GO is the only shape */
+.focus-workspace.focus-theme-ink .focus-execution-actions { gap: 22px; }
+.focus-workspace.focus-theme-ink :is(.focus-execution-quiet, .focus-execution-danger) { min-height: 0 !important; padding: 4px 2px !important; border: 0 !important; border-bottom: var(--rule) solid transparent !important; background: transparent !important; color: var(--ink) !important; box-shadow: none !important; font: 500 14px/1.4 var(--font-mono) !important; }
+.focus-workspace.focus-theme-ink :is(.focus-execution-quiet, .focus-execution-danger):hover:not(:disabled) { background: transparent !important; color: var(--ink) !important; border-bottom-color: var(--ink) !important; }
+.focus-workspace.focus-theme-ink .focus-execution-locked { border: 0; background: none; padding: 0; font: 500 14px/1.4 var(--font-mono); color: var(--ink-2); }
+.focus-workspace.focus-theme-ink .focus-execution-disclosure button { font: 500 13px var(--font-mono); }

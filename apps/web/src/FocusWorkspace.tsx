@@ -28,7 +28,7 @@ import { FocusThemeClock } from "./FocusThemeClock";
 import { FocusMotionBackdrop } from "./FocusMotionBackdrop";
 import { focusQuote } from "./focus-quotes";
 import { invokeDesktop } from "./focus-session-client";
-import { GoButton, SegmentRuler, SessionAgenda, SessionTable, SliceText, TerminalPrompt, type AgendaLine } from "./ui/FocusTerminal";
+import { GoButton, SegmentRuler, SessionTable, SliceText, TerminalPrompt } from "./ui/FocusTerminal";
 
 const IDLE_EVALUATION_TIMEOUT_MS = 60_000;
 
@@ -1046,22 +1046,6 @@ export function FocusWorkspace({
   const terminalZone = displayTask?.timeZone ?? "Asia/Shanghai";
   const atClock = (ms: number) => clock(new Date(ms).toISOString(), terminalZone);
   const currentPosition = stage === "running" ? session?.currentSegmentPosition ?? null : null;
-  const agendaLines: AgendaLine[] = (() => {
-    if (!terminal || !executionStage || !segmentTimings.length) return [];
-    const lines: AgendaLine[] = [];
-    if (session?.preparingEndsAt && ["preparing", "armed", "running", "awaiting_late_start"].includes(stage)) {
-      lines.push({ time: atClock(new Date(session.preparingEndsAt).getTime() - 60_000), tag: "准备", text: "提前一分钟进入准备", state: stage === "preparing" ? "current" : "past" });
-    }
-    segmentTimings.forEach((segment, index) => {
-      const state: AgendaLine["state"] = currentPosition === null ? "next" : index < currentPosition ? "past" : index === currentPosition ? "current" : "next";
-      const kind = segment.segmentType === "break" ? "休息" : "专注";
-      lines.push({ time: atClock(segment.startsAt), tag: index === 0 ? "开始" : kind, text: `第 ${index + 1} 段 · ${kind} ${segment.durationMinutes} 分钟，到 ${atClock(segment.endsAt)}`, state });
-    });
-    const last = segmentTimings[segmentTimings.length - 1];
-    if (last) lines.push({ time: atClock(last.endsAt), tag: "结束", text: "固定结束，随后记录完成情况", state: "next" });
-    const focusIndex = Math.max(0, lines.findIndex((line) => line.state === "current"));
-    return lines.slice(Math.max(0, focusIndex - 2), Math.max(0, focusIndex - 2) + 5);
-  })();
   const terminalRows: Array<[string, string]> = displayTask ? [
     ["任务", displayTask.title],
     ["段落", currentPosition === null ? `共 ${safeSegments.length || 1} 段 · 未开始` : `${currentPosition + 1} / ${safeSegments.length} · ${resting ? "休息" : "专注"}`],
@@ -1292,13 +1276,12 @@ export function FocusWorkspace({
                     : "这是本次安排的最后一段"}
               </p>
 
-              {terminal ? <SessionAgenda lines={agendaLines} /> : null}
               <div className="focus-execution-actions">
                 <button className="focus-execution-quiet" disabled={busy} onClick={() => setExecutionMinimized(true)}><Minimize2 />收起计时{terminal ? <kbd>Esc</kbd> : null}</button>
                 {stage === "reminded" || stage === "scheduled" || stage === "preparing" || stage === "awaiting_late_start" ? (
                   <>
                     {terminal
-                      ? <GoButton label={startButtonLabel} className="focus-execution-go" disabled={busy} onClick={() => void transition(stage === "reminded" ? "respond-start" : "skip-preparation")} />
+                      ? <GoButton label={startButtonLabel} caption={phaseEndLabel ? `专注到 ${phaseEndLabel}` : undefined} className="focus-execution-go" disabled={busy} onClick={() => void transition(stage === "reminded" ? "respond-start" : "skip-preparation")} />
                       : <button className="focus-execution-primary" disabled={busy} onClick={() => void transition(stage === "reminded" ? "respond-start" : "skip-preparation")}><Play />{startButtonLabel}</button>}
                     <button className="focus-execution-quiet" disabled={busy} onClick={() => void transition("other-arrangement")}><PencilLine />另有安排</button>
                     <button className="focus-execution-danger" disabled={busy} onClick={() => void transition("cancel-task")}><XCircle />取消任务</button>

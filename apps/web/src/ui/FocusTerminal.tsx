@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { createRoot } from "react-dom/client";
 
 /**
  * Terminal grammar for the focus page and focus window: a prompt line that
@@ -87,8 +88,42 @@ export function SliceText({ text, className = "" }: { text: string; className?: 
   </span>;
 }
 
+/**
+ * “LET'S BEGIN”: the GO disc travels to the centre and swells into a large ink
+ * circle, the words swap LET'S → BEGIN in horizontal bands, then the circle
+ * floods the screen and lifts away to reveal the running timer. It lives on
+ * <body> so it keeps playing while the page underneath changes state.
+ */
+function LetsBegin({ origin, caption, onDone }: { origin: { x: number; y: number; size: number }; caption?: string; onDone: () => void }) {
+  const [word, setWord] = useState("LET'S");
+  useEffect(() => {
+    const swap = window.setTimeout(() => setWord("BEGIN"), 820);
+    const done = window.setTimeout(onDone, 2050);
+    return () => { window.clearTimeout(swap); window.clearTimeout(done); };
+  }, [onDone]);
+  return <div className="lets-begin" aria-hidden="true" style={{
+    ["--from-x" as string]: `${origin.x}px`,
+    ["--from-y" as string]: `${origin.y}px`,
+    ["--from-size" as string]: `${origin.size}px`
+  }}>
+    <div className="lets-begin-disc">
+      <SliceText text={word} className="lets-begin-word" />
+      {caption ? <span className="lets-begin-caption">{caption}</span> : null}
+    </div>
+  </div>;
+}
+
+export function playLetsBegin(from: DOMRect, caption?: string) {
+  if (typeof document === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  const finish = () => { root.unmount(); host.remove(); };
+  root.render(<LetsBegin origin={{ x: from.left + from.width / 2, y: from.top + from.height / 2, size: from.width }} caption={caption} onDone={finish} />);
+}
+
 /** Round GO button: an ink disc that floods outward when pressed. */
-export function GoButton({ label, onClick, className = "", disabled, ...rest }: { label: string } & ButtonHTMLAttributes<HTMLButtonElement>) {
+export function GoButton({ label, caption, onClick, className = "", disabled, ...rest }: { label: string; caption?: string } & ButtonHTMLAttributes<HTMLButtonElement>) {
   const [launching, setLaunching] = useState(false);
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
@@ -99,18 +134,8 @@ export function GoButton({ label, onClick, className = "", disabled, ...rest }: 
     disabled={disabled}
     className={`go-button ${launching ? "launching" : ""} ${className}`}
     onClick={(event) => {
-      // The ring lives on <body> so it keeps flooding outward even after the
-      // state change replaces this button.
       const disc = event.currentTarget.querySelector(".go-disc")?.getBoundingClientRect();
-      if (disc && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        const ring = document.createElement("span");
-        ring.className = "go-flood";
-        ring.style.left = `${disc.left + disc.width / 2}px`;
-        ring.style.top = `${disc.top + disc.height / 2}px`;
-        ring.style.setProperty("--go-size", `${disc.width}px`);
-        document.body.appendChild(ring);
-        window.setTimeout(() => ring.remove(), 760);
-      }
+      if (disc && !disabled) playLetsBegin(disc, caption);
       setLaunching(true);
       if (timer.current) window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => setLaunching(false), 700);

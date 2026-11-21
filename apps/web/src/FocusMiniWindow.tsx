@@ -404,7 +404,7 @@ export function FocusMiniWindow() {
         {snapshot.session.state === "reminded" || snapshot.session.state === "scheduled" || snapshot.session.state === "preparing" || snapshot.session.state === "awaiting_late_start"
           ? <>
             {theme === "ink"
-              ? <GoButton label={startActionLabel} className="compact" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")} />
+              ? <GoButton label={startActionLabel} caption={phaseEnd ? `专注到 ${phaseEnd}` : undefined} className="compact" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")} />
               : <button className="primary" type="button" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")}><Play />{startActionLabel}</button>}
             <button type="button" disabled={busy} title="停止本次准备并退回未排期" onClick={() => void decidePreparation("other-arrangement")}><CalendarClock />另有安排</button>
             <button className="danger" type="button" disabled={busy} title="直接取消这项任务" onClick={() => void decidePreparation("cancel-task")}><XCircle />取消任务</button>
