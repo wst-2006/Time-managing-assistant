@@ -752,7 +752,7 @@ export function GrowthWorkspace() {
 
   return <section className="page growth-page" aria-labelledby="growth-title" aria-busy={!summary && !error}>
     <div className="growth-heading poster-header"><PosterMark word="成长" />
-      <div><p className="eyebrow">成长</p><h1 id="growth-title">生长来自留下的数据。</h1></div>
+      <h1 id="growth-title" style={{position:"absolute",width:1,height:1,overflow:"hidden",clip:"rect(0 0 0 0)",whiteSpace:"nowrap"}}>成长</h1>
       <div className="growth-history-tools">
         <div className="growth-date-navigator" role="group" aria-label="历史日期">
           <button type="button" className="icon-button" aria-label="前一天" title="前一天" onClick={() => setSelectedDate((value) => shiftDate(value, -1))}><ChevronLeft /></button>
