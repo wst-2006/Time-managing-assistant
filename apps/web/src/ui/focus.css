@@ -874,3 +874,13 @@
 .focus-mini.focus-theme-ink .mini-poster .mini-poster-title strong { width: 100%; margin: 0; transform: none; }
 .focus-mini.focus-theme-ink .mini-poster .focus-mini-digits { width: 100%; max-width: none; margin: 0; }
 .focus-mini.focus-theme-ink .mini-poster-ready .focus-mini-confirmed-state { width: auto; text-align: left; }
+
+/* phone widths: long task names shrink inside the command line instead of widening the page */
+.focus-center, .focus-center > * { min-width: 0; max-width: 100%; }
+.term-prompt .term-state { flex: none; }
+@media (max-width: 640px) {
+  .term-prompt { gap: 10px; font-size: 14px; }
+  .focus-meta { overflow-wrap: anywhere; }
+}
+/* keyboard shortcuts mean nothing on a touch screen */
+@media (hover: none) and (pointer: coarse) { .term-keys { display: none; } }

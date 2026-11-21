@@ -1,0 +1,28 @@
+{
+  "name": "@personal-ai/mobile",
+  "version": "0.1.3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build:web": "pnpm --filter @personal-ai/web exec vite build --mode mobile --outDir ../mobile/www --emptyOutDir",
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.10",
+    "@capacitor/local-notifications": "^7.0.7",
+    "@electric-sql/pglite": "0.5.17",
+    "@noble/hashes": "^1.8.0",
+    "@personal-ai/db": "workspace:*",
+    "@personal-ai/domain": "workspace:*",
+    "drizzle-orm": "^0.38.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.10",
+    "@types/node": "^22.20.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.4.3"
+  }
+}

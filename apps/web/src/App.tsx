@@ -344,7 +344,7 @@ export function App() {
         </button>;
       })}</nav>
       <div className="masthead-actions">
-        <a className="quiet-icon backup-trigger" href={`${apiBaseUrl}/api/v1/backups/export`} download aria-label="备份所有数据" title="备份所有数据"><HardDriveDownload /></a>
+        {import.meta.env.VITE_TMA_TARGET === "mobile" ? null : <a className="quiet-icon backup-trigger" href={`${apiBaseUrl}/api/v1/backups/export`} download aria-label="备份所有数据" title="备份所有数据"><HardDriveDownload /></a>}
         <button className={`rail-settings-button mobile-settings-shortcut ${view === "settings" ? "active" : ""}`} type="button" aria-label="设置" title="设置" aria-current={view === "settings" ? "page" : undefined} onClick={() => navigateToView("settings")}><Settings2 /></button>
         <span className="masthead-clock" aria-label={`现在 ${clock}`}><Rolling value={clock} /></span>
       </div>

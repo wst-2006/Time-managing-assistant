@@ -24,6 +24,8 @@ import {
 } from "./user-profile-client";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3000";
+/** The phone build has no desktop windows, Feishu or file download. */
+const phoneApp = import.meta.env.VITE_TMA_TARGET === "mobile";
 
 
 type SettingsWorkspaceProps = {
@@ -109,13 +111,18 @@ export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
     <header className="settings-heading poster-header"><PosterMark word="设置" />
       <div>
         <h1>让工具顺着你的习惯安静下来。</h1>
-        <p>专注窗口、提醒、声音和数据都在这里；任何计划变更仍需你确认。</p>
+        <p>{phoneApp ? "提醒、声音和日常规则都在这里；任何计划变更仍需你确认。" : "专注窗口、提醒、声音和数据都在这里；任何计划变更仍需你确认。"}</p>
       </div>
     </header>
 
     <form className="settings-form" onSubmit={save}>
       {error && <p className="user-profile-error" role="alert"><CircleAlert />{error}</p>}
 
+      {phoneApp ? <section className="settings-section">
+        <header><div><h2>手机提醒</h2></div><Bell /></header>
+        <p className="settings-section-copy">每个排了精确时间的任务，会在开始前 15 分钟和开始时各收到一条系统通知。第一次使用时请允许通知；如果手机开了省电模式，可能需要在系统设置里允许本应用后台提醒。</p>
+        {memoMode && <p className="settings-memo-mode"><CircleAlert />当前为备忘录模式：不创建专注会话、不记录专注时长，也不收集完成反馈。</p>}
+      </section> : <>
       <div className="settings-columns">
         <section className="settings-section">
           <header><div><h2>桌面专注伴随</h2></div><MonitorUp /></header>
@@ -150,17 +157,18 @@ export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
         </section>
       </div>
 
+      </>}
       <div className="settings-columns">
         <section className="settings-section">
           <header><div><h2>可选功能</h2></div><Sparkles /></header>
           <SettingToggle label="显示健康参考页面" help="关闭只隐藏入口与展示，已有健康资料不会删除。" checked={draft.healthPageEnabled} onChange={(checked) => setDraft((current) => ({ ...current, healthPageEnabled: checked }))} />
         </section>
 
-        <section className="settings-section">
+        {phoneApp ? null : <section className="settings-section">
           <header><div><h2>带走自己的记录</h2></div><HardDriveDownload /></header>
           <p className="settings-section-copy">导出本机保存的任务、专注、复盘、健康参考与设置，生成一个 JSON 文件。</p>
           <a className="settings-download" href={`${apiBaseUrl}/api/v1/backups/export`} download><Download />导出全部数据</a>
-        </section>
+        </section>}
       </div>
 
       <section className="settings-section profile-settings-section">
