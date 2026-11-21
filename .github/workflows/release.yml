@@ -1,8 +1,11 @@
 name: Windows installer
 
-# Push a tag such as v0.2.0 (or run this workflow by hand) to build the
-# Windows installer. Tagged builds attach the .exe to a GitHub Release.
+# Publishing a GitHub Release (or pushing a v* tag, or running this workflow by
+# hand) builds the Windows installer. Release and tag builds attach the .exe
+# to that release.
 on:
+  release:
+    types: [published]
   push:
     tags: ["v*"]
   workflow_dispatch:
