@@ -28,6 +28,7 @@ import { FocusThemeClock } from "./FocusThemeClock";
 import { FocusMotionBackdrop } from "./FocusMotionBackdrop";
 import { focusQuote } from "./focus-quotes";
 import { invokeDesktop } from "./focus-session-client";
+import { GoButton, SegmentRuler, SessionAgenda, SessionTable, SliceText, TerminalPrompt, type AgendaLine } from "./ui/FocusTerminal";
 
 const IDLE_EVALUATION_TIMEOUT_MS = 60_000;
 
@@ -1032,6 +1033,42 @@ export function FocusWorkspace({
     ? focusQuote(session?.id ?? displayTask!.id, currentSegment?.segmentType === "break")
     : null;
   const startButtonLabel = stage === "awaiting_late_start" ? "现在开始计时" : "我会准时开始";
+
+  // Terminal grammar (default poster theme): prompt line, agenda, status table.
+  const terminal = focusTheme === "ink";
+  const resting = currentSegment?.segmentType === "break";
+  const stageCode = stage === "running" ? (resting ? "BREAK" : "RUN")
+    : stage === "preparing" ? "PREP" : stage === "armed" ? "ARMED" : stage === "awaiting_late_start" ? "WAIT"
+      : stage === "scheduled" ? "SCHED" : stage === "reminded" ? "CONFIRM" : stage === "ended" ? "DONE" : "IDLE";
+  const stageWord = stage === "running" ? (resting ? "休息" : "专注")
+    : stage === "preparing" ? "准备" : stage === "armed" ? "就绪" : stage === "awaiting_late_start" ? "待开始"
+      : stage === "scheduled" ? "排队" : stage === "reminded" ? "确认" : stage === "ended" ? "结束" : "选择";
+  const terminalZone = displayTask?.timeZone ?? "Asia/Shanghai";
+  const atClock = (ms: number) => clock(new Date(ms).toISOString(), terminalZone);
+  const currentPosition = stage === "running" ? session?.currentSegmentPosition ?? null : null;
+  const agendaLines: AgendaLine[] = (() => {
+    if (!terminal || !executionStage || !segmentTimings.length) return [];
+    const lines: AgendaLine[] = [];
+    if (session?.preparingEndsAt && ["preparing", "armed", "running", "awaiting_late_start"].includes(stage)) {
+      lines.push({ time: atClock(new Date(session.preparingEndsAt).getTime() - 60_000), tag: "准备", text: "提前一分钟进入准备", state: stage === "preparing" ? "current" : "past" });
+    }
+    segmentTimings.forEach((segment, index) => {
+      const state: AgendaLine["state"] = currentPosition === null ? "next" : index < currentPosition ? "past" : index === currentPosition ? "current" : "next";
+      const kind = segment.segmentType === "break" ? "休息" : "专注";
+      lines.push({ time: atClock(segment.startsAt), tag: index === 0 ? "开始" : kind, text: `第 ${index + 1} 段 · ${kind} ${segment.durationMinutes} 分钟，到 ${atClock(segment.endsAt)}`, state });
+    });
+    const last = segmentTimings[segmentTimings.length - 1];
+    if (last) lines.push({ time: atClock(last.endsAt), tag: "结束", text: "固定结束，随后记录完成情况", state: "next" });
+    const focusIndex = Math.max(0, lines.findIndex((line) => line.state === "current"));
+    return lines.slice(Math.max(0, focusIndex - 2), Math.max(0, focusIndex - 2) + 5);
+  })();
+  const terminalRows: Array<[string, string]> = displayTask ? [
+    ["任务", displayTask.title],
+    ["段落", currentPosition === null ? `共 ${safeSegments.length || 1} 段 · 未开始` : `${currentPosition + 1} / ${safeSegments.length} · ${resting ? "休息" : "专注"}`],
+    ["本段结束", phaseEndLabel ?? "—"],
+    ["之后", nextSegmentTiming ? `${nextSegmentTiming.segmentType === "break" ? "休息" : "专注"} ${nextSegmentTiming.durationMinutes} 分钟` : "记录完成情况"],
+    ["整体结束", fixedEndLabel ?? "—"]
+  ] : [];
   function selectWaitingTask(taskId: string) {
     setSelectedId(taskId);
     if (executionStage && session?.taskId !== taskId) setExecutionMinimized(true);
@@ -1122,6 +1159,27 @@ export function FocusWorkspace({
     if (!executionStage) setExecutionMinimized(false);
   }, [executionStage]);
 
+  // Keyboard: 1–9 pick a waiting task, Enter starts the picked task, Esc folds the timer away.
+  const keyboardRef = useRef<{ run: (event: KeyboardEvent) => void }>({ run: () => undefined });
+  keyboardRef.current.run = (event: KeyboardEvent) => {
+    if (!isWorkspaceCurrent || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
+    if (/^[1-9]$/.test(event.key) && !executionStage) {
+      const task = displayedWaitingTasks[Number(event.key) - 1];
+      if (task) { event.preventDefault(); selectWaitingTask(task.id); }
+    } else if (event.key === "Enter" && stage === "idle" && !busy && activeStructure && isFocusStartEligibleTask(selected) && !(target?.closest("button, a"))) {
+      event.preventDefault(); void begin();
+    } else if (event.key === "Escape" && executionStage && !executionMinimized) {
+      event.preventDefault(); setExecutionMinimized(true);
+    }
+  };
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => keyboardRef.current.run(event);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
+
   return (
     <section className={`focus-workspace page focus-theme-${focusTheme} ${executionStage ? "focus-workspace-executing" : ""}`} aria-labelledby="focus-title">
       <div className={`focus-stage focus-stage-${stage} focus-scene-${focusScene}`}>
@@ -1174,9 +1232,10 @@ export function FocusWorkspace({
             </div>
           ) : (
             <div className="focus-execution" aria-label="当前专注执行状态">
+              {terminal ? <TerminalPrompt command={resting ? "rest" : "focus"} argument={displayTask?.title} flags={phaseEndLabel ? `--until ${phaseEndLabel}` : null} state={<><span>{stageCode}</span><SliceText text={stageWord} /></>} /> : null}
               <div className="focus-execution-context">
                 <span>{stage === "reminded" ? "等待确认" : stage === "scheduled" ? "等待准备" : stage === "preparing" ? "准备" : stage === "armed" ? "已确认准时开始" : stage === "awaiting_late_start" ? "等待开始" : currentSegment?.segmentType === "break" ? "休息" : "正在专注"}</span>
-                <h1 id="focus-title">{displayTask?.title ?? "留在此刻"}</h1>
+                <h1 id="focus-title">{displayTask?.title ?? "当前专注"}</h1>
               </div>
               <div
                 className={`focus-timepiece focus-timepiece-execution ${stage === "running" ? "running" : ""} ${currentSegment?.segmentType === "break" ? "resting" : ""}`}
@@ -1202,6 +1261,7 @@ export function FocusWorkspace({
                 <span className="focus-timepiece-label">{stage === "reminded" ? "等待开始" : stage === "scheduled" ? "距离准备" : stage === "armed" ? "距离开始" : stage === "awaiting_late_start" ? "可用余时" : currentSegment?.segmentType === "break" ? "休息余时" : stage === "preparing" ? "准备倒计时" : "专注余时"}</span>
                 <ThemedFocusTimer theme={focusTheme} value={clockValue} progress={timerProgress} resting={currentSegment?.segmentType === "break"} empty={false} />
               </div>
+              {terminal ? <SegmentRuler segments={safeSegments.map((segment, position) => ({ position, segmentType: segment.segmentType, durationMinutes: segment.durationMinutes }))} currentPosition={stage === "running" ? currentPosition : null} progress={timerProgress} /> : null}
               {executionQuote ? <p className="focus-workspace-quote"><q>{executionQuote.text}</q><cite>{executionQuote.source}</cite></p> : null}
               <p className="focus-phase-line">
                 {stage === "reminded"
@@ -1232,11 +1292,14 @@ export function FocusWorkspace({
                     : "这是本次安排的最后一段"}
               </p>
 
+              {terminal ? <SessionAgenda lines={agendaLines} /> : null}
               <div className="focus-execution-actions">
-                <button className="focus-execution-quiet" disabled={busy} onClick={() => setExecutionMinimized(true)}><Minimize2 />收起计时</button>
+                <button className="focus-execution-quiet" disabled={busy} onClick={() => setExecutionMinimized(true)}><Minimize2 />收起计时{terminal ? <kbd>Esc</kbd> : null}</button>
                 {stage === "reminded" || stage === "scheduled" || stage === "preparing" || stage === "awaiting_late_start" ? (
                   <>
-                    <button className="focus-execution-primary" disabled={busy} onClick={() => void transition(stage === "reminded" ? "respond-start" : "skip-preparation")}><Play />{startButtonLabel}</button>
+                    {terminal
+                      ? <GoButton label={startButtonLabel} className="focus-execution-go" disabled={busy} onClick={() => void transition(stage === "reminded" ? "respond-start" : "skip-preparation")} />
+                      : <button className="focus-execution-primary" disabled={busy} onClick={() => void transition(stage === "reminded" ? "respond-start" : "skip-preparation")}><Play />{startButtonLabel}</button>}
                     <button className="focus-execution-quiet" disabled={busy} onClick={() => void transition("other-arrangement")}><PencilLine />另有安排</button>
                     <button className="focus-execution-danger" disabled={busy} onClick={() => void transition("cancel-task")}><XCircle />取消任务</button>
                   </>
@@ -1269,7 +1332,8 @@ export function FocusWorkspace({
             </div>
           ) : (
             <>
-              <h1 id="focus-title">{displayTask?.title ?? "选择一件任务，留在此刻"}</h1>
+              {terminal ? <TerminalPrompt command="focus" argument={displayTask?.title ?? null} flags={displayTask ? "--ready" : "--select"} state={<><span>{stageCode}</span><SliceText text={stageWord} /></>} /> : null}
+              <h1 id="focus-title">{displayTask?.title ?? "选一件任务开始专注"}</h1>
               <p className="focus-meta">{displayTask ? displayTask.startAt && displayTask.endAt ? `${clock(displayTask.startAt, displayTask.timeZone)}–${clock(displayTask.endAt, displayTask.timeZone)} · ${selectedMinutes} 分钟固定时间块` : "这项任务尚未设置精确起止时间" : "从今日时间轴或右侧列表选择任务"}</p>
               <div className={`focus-timepiece ${currentSegment?.segmentType === "break" ? "resting" : ""}`}>
                 <span className="focus-timepiece-label">专注余时</span>
@@ -1305,6 +1369,8 @@ export function FocusWorkspace({
         )}
       </div>
       <aside className="focus-picker focus-picker-split" aria-label="今日专注任务">
+        {terminal && executionStage && terminalRows.length ? <SessionTable title="SESSION · 当前" count={currentPosition === null ? undefined : `${currentPosition + 1} / ${safeSegments.length}`} rows={terminalRows} /> : null}
+        {terminal && !executionStage ? <p className="term-keys">数字键选任务 · Enter 开始</p> : null}
         <section className="focus-picker-section" aria-labelledby="waiting-focus-heading">
           <div className="focus-picker-heading"><p className="section-kicker" id="waiting-focus-heading">等待专注的任务</p><span>{waitingTasks.length} 项</span></div>
           <div className="focus-task-slips">
@@ -1337,7 +1403,7 @@ export function FocusWorkspace({
           <header className="themed-outcome-titlebar"><span>评价任务：{evaluationTask.title}</span><button type="button" aria-label="关闭评价" onClick={() => { window.localStorage.setItem(`personal-ai.focus-evaluation-dismissed.${evaluationSession.id}`, "1"); evaluationIdentityRef.current = null; if (evaluationTimerRef.current) window.clearTimeout(evaluationTimerRef.current); evaluationTimerRef.current = null; setEvaluationSession(null); setEvaluationTask(null); setEvaluationDeadlineMs(null); }}><X /></button></header>
           <div className="themed-outcome-body" onFocusCapture={markEvaluationInteraction} onScrollCapture={markEvaluationInteraction}>
             {evaluationSecondsLeft !== null ? <p className="focus-evaluation-timeout" role="status">无操作，{evaluationSecondsLeft} 秒后自动关闭并保留为待评价</p> : null}
-            {focusTheme === "cyber" ? <CyberFocusEvaluation taskTitle={evaluationTask.title} outcome={outcome} progress={progress} satisfaction={satisfaction} note={note} busy={busy} error={error} onOutcomeChange={chooseOutcome} onProgressChange={(value) => { markEvaluationInteraction(); setProgress(value); }} onSatisfactionChange={(value) => { markEvaluationInteraction(); setSatisfaction(value); }} onNoteChange={(value) => { markEvaluationInteraction(); setNote(value); }} onSubmit={() => void evaluate()} /> : <FocusEvaluationForm headingId="focus-page-evaluation-title" taskTitle={evaluationTask.title} outcome={outcome} progress={progress} satisfaction={satisfaction} note={note} busy={busy} error={error} onOutcomeChange={chooseOutcome} onProgressChange={(value) => { markEvaluationInteraction(); setProgress(value); }} onSatisfactionChange={(value) => { markEvaluationInteraction(); setSatisfaction(value); }} onNoteChange={(value) => { markEvaluationInteraction(); setNote(value); }} onSubmit={() => void evaluate()} />}
+            {focusTheme === "cyber" || focusTheme === "ink" ? <CyberFocusEvaluation variant={focusTheme === "ink" ? "ink" : "cyber"} taskTitle={evaluationTask.title} outcome={outcome} progress={progress} satisfaction={satisfaction} note={note} busy={busy} error={error} onOutcomeChange={chooseOutcome} onProgressChange={(value) => { markEvaluationInteraction(); setProgress(value); }} onSatisfactionChange={(value) => { markEvaluationInteraction(); setSatisfaction(value); }} onNoteChange={(value) => { markEvaluationInteraction(); setNote(value); }} onSubmit={() => void evaluate()} /> : <FocusEvaluationForm headingId="focus-page-evaluation-title" taskTitle={evaluationTask.title} outcome={outcome} progress={progress} satisfaction={satisfaction} note={note} busy={busy} error={error} onOutcomeChange={chooseOutcome} onProgressChange={(value) => { markEvaluationInteraction(); setProgress(value); }} onSatisfactionChange={(value) => { markEvaluationInteraction(); setSatisfaction(value); }} onNoteChange={(value) => { markEvaluationInteraction(); setNote(value); }} onSubmit={() => void evaluate()} />}
           </div>
         </section>
       </div> : null}

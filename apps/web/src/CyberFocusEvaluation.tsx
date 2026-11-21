@@ -20,6 +20,8 @@ type CyberFocusEvaluationProps = {
   onNoteChange: (value: string) => void;
   onSubmit: () => void;
   showNote?: boolean;
+  /** "ink" = the default theme's 黑底红字 terminal; "cyber" = the original green terminal. */
+  variant?: "cyber" | "ink";
 };
 
 const outcomeOptions: Array<{ value: FocusOutcome; label: string }> = [
@@ -76,10 +78,12 @@ export function CyberFocusEvaluation(props: CyberFocusEvaluationProps) {
     }
   }
 
-  return <section className="cyber-evaluation" aria-labelledby="cyber-evaluation-title">
-    <FocusMotionBackdrop theme="cyber" evaluation />
+  const ink = props.variant === "ink";
+  const prompt = (command: string) => ink ? `> ${command}` : `PS C:\\Focus\\review> ${command}`;
+  return <section className={`cyber-evaluation ${ink ? "terminal-ink" : ""}`} aria-labelledby="cyber-evaluation-title">
+    {ink ? null : <FocusMotionBackdrop theme="cyber" evaluation />}
     <p className="cyber-copyright">TIME MANAGING ASSISTANT / SESSION REVIEW</p>
-    <p className="cyber-prompt">PS C:\Focus\review&gt; evaluate --latest<span className="focus-terminal-cursor" aria-hidden="true" /></p>
+    <p className="cyber-prompt">{prompt("evaluate --latest")}<span className="focus-terminal-cursor" aria-hidden="true" /></p>
     <h1 id="cyber-evaluation-title">{props.taskTitle}</h1>
 
     <div className="cyber-command-group" ref={objectiveRef} tabIndex={0} role="listbox" aria-label="客观完成情况" onKeyDown={handleObjectiveKey}>
@@ -95,7 +99,7 @@ export function CyberFocusEvaluation(props: CyberFocusEvaluationProps) {
     </div>
 
     {props.outcome === "partial" && <label className="cyber-progress-input">
-      <span>PS C:\Focus\review&gt; progress --percent</span>
+      <span>{prompt("progress --percent")}</span>
       <input
         ref={progressRef}
         aria-label="实际完成进度"
@@ -126,7 +130,7 @@ export function CyberFocusEvaluation(props: CyberFocusEvaluationProps) {
     </div>
 
     {props.showNote !== false ? <label className="cyber-note-input">
-      <span className="cyber-prompt">PS C:\Focus\review&gt; note --optional</span>
+      <span className="cyber-prompt">{prompt("note --optional")}</span>
       <textarea
         ref={noteRef}
         aria-label="专注过程与原因"

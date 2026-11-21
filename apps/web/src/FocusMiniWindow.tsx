@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GoButton, SliceText } from "./ui/FocusTerminal";
 import { CalendarClock, Lock, Minus, Pin, PinOff, Play, SkipForward, Unlock, X, XCircle } from "lucide-react";
 import { formatFocusClock } from "@personal-ai/domain/focus";
 import type { FocusTheme } from "@personal-ai/domain/user-profile";
@@ -354,7 +355,8 @@ export function FocusMiniWindow() {
     {actionFeedback ? <div className="focus-mini-action-feedback" role="status"><strong>{actionFeedback}</strong><small>窗口即将自动关闭</small></div> : ended && snapshot ? (
       <div className="focus-mini-evaluation-body" onFocusCapture={markEvaluationInteraction} onScrollCapture={markEvaluationInteraction}>
         <p className="focus-evaluation-timeout" role="status">无操作，{evaluationSecondsLeft} 秒后自动关闭并保留为待评价</p>
-        {theme === "cyber" ? <CyberFocusEvaluation
+        {theme === "cyber" || theme === "ink" ? <CyberFocusEvaluation
+          variant={theme === "ink" ? "ink" : "cyber"}
           taskTitle={snapshot.task.title}
           outcome={outcome}
           progress={progress}
@@ -386,7 +388,7 @@ export function FocusMiniWindow() {
     ) : snapshot ? <div className="focus-mini-body">
       {theme === "cyber" ? <div className="focus-cyber-telemetry" aria-hidden="true">STATE {snapshot.session.state.toUpperCase()}<br />FLOW {Math.round(phaseProgress)}%</div> : null}
       <header className="focus-mini-heading">
-        <span>{phaseLabel}</span>
+        <span>{theme === "ink" ? <SliceText text={phaseLabel} /> : phaseLabel}</span>
         <strong>{snapshot.task.title}</strong>
       </header>
       <section className="focus-mini-clock" aria-label={`${phaseLabel}剩余 ${formatFocusClock(remaining)}`}>
@@ -401,7 +403,9 @@ export function FocusMiniWindow() {
       <div className="focus-mini-controls" aria-label="专注悬浮窗操作">
         {snapshot.session.state === "reminded" || snapshot.session.state === "scheduled" || snapshot.session.state === "preparing" || snapshot.session.state === "awaiting_late_start"
           ? <>
-            <button className="primary" type="button" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")}><Play />{startActionLabel}</button>
+            {theme === "ink"
+              ? <GoButton label={startActionLabel} className="compact" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")} />
+              : <button className="primary" type="button" disabled={busy} title={startActionLabel} onClick={() => void act("skip-preparation")}><Play />{startActionLabel}</button>}
             <button type="button" disabled={busy} title="停止本次准备并退回未排期" onClick={() => void decidePreparation("other-arrangement")}><CalendarClock />另有安排</button>
             <button className="danger" type="button" disabled={busy} title="直接取消这项任务" onClick={() => void decidePreparation("cancel-task")}><XCircle />取消任务</button>
           </>
@@ -416,6 +420,6 @@ export function FocusMiniWindow() {
       {!preparationSurface && !["preparing", "armed", "awaiting_late_start"].includes(snapshot.session.state)
         ? <button className={`focus-mini-auto ${settings?.autoShow ? "active" : ""}`} type="button" onClick={() => void updateSetting("focus_mini_set_auto_show", !settings?.autoShow)}>开始时自动出现</button>
         : null}
-    </div> : <div className="focus-mini-empty"><strong>{evaluationSaved ? "记录已经保存" : connectionError ? "正在重新连接" : "此刻没有专注"}</strong><button type="button" onClick={() => void invokeDesktop("focus_mini_open_main")}>回到主界面</button></div>}
+    </div> : <div className="focus-mini-empty"><strong>{evaluationSaved ? "记录已经保存" : connectionError ? "正在重新连接" : "现在没有专注"}</strong><button type="button" onClick={() => void invokeDesktop("focus_mini_open_main")}>回到主界面</button></div>}
   </main>;
 }

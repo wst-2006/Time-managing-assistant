@@ -59,11 +59,11 @@ const navItems: Array<{ id: View; label: string; en: string; space: Space; icon:
   { id: "review", label: "复盘", en: "REVIEW", space: "echo", icon: Sparkles },
   { id: "growth", label: "成长", en: "GROWTH", space: "echo", icon: BarChart3 },
 ];
-/** Three spaces group the seven workspaces: what is happening now, the longer arc of time, and looking back. */
+/** Three groups of pages, named plainly: doing today's work, planning ahead, looking back. */
 const spaces: Array<{ id: Space; label: string; en: string }> = [
-  { id: "now", label: "此刻", en: "NOW" },
-  { id: "time", label: "时间", en: "TIME" },
-  { id: "echo", label: "回声", en: "ECHO" },
+  { id: "now", label: "执行", en: "DO" },
+  { id: "time", label: "计划", en: "PLAN" },
+  { id: "echo", label: "回顾", en: "LOOK BACK" },
 ];
 const viewOrder: View[] = [...navItems.map((item) => item.id), "settings"];
 const viewLabel = (view: View) => view === "settings" ? "设置" : navItems.find((item) => item.id === view)?.label ?? "今日";
@@ -336,9 +336,9 @@ export function App() {
     <Cursor />
     <header className="masthead">
       <button className="brand-mark" type="button" aria-label="回到今日" onClick={() => navigateToView("today")}><span aria-hidden="true">序</span><b aria-hidden="true">PLANNER</b></button>
-      <nav className="space-nav" aria-label="三个空间">{spaces.map((space) => {
+      <nav className="space-nav" aria-label="页面分组">{spaces.map((space) => {
         const first = visibleNavItems.find((item) => item.space === space.id);
-        return <button key={space.id} type="button" className={activeSpace === space.id ? "active" : ""} aria-label={`${space.label}空间`} aria-current={activeSpace === space.id ? "true" : undefined} disabled={!first} onClick={() => first && navigateToView(activeSpace === space.id ? view : first.id)}>
+        return <button key={space.id} type="button" className={activeSpace === space.id ? "active" : ""} aria-label={`${space.label}分组`} aria-current={activeSpace === space.id ? "true" : undefined} disabled={!first} onClick={() => first && navigateToView(activeSpace === space.id ? view : first.id)}>
           {activeSpace === space.id && <motion.span layoutId="space-ink" className="space-ink" transition={{ type: "spring", stiffness: 380, damping: 32 }} aria-hidden="true" />}
           <span>{space.label}</span>
         </button>;

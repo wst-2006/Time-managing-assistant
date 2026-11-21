@@ -499,3 +499,138 @@
 .focus-theme-ink .focus-evaluation-note textarea::placeholder { color: var(--ink-3); }
 .focus-theme-ink .focus-evaluation-footer button { border-radius: 0; background: var(--ink); color: var(--red); box-shadow: 3px 3px 0 var(--cream); }
 .focus-theme-ink .focus-evaluation-footer button:hover:not(:disabled) { background: var(--ink); color: var(--cream); }
+
+/* ===========================================================================
+   Terminal grammar for the focus page (default poster theme)
+   =========================================================================== */
+@keyframes term-blink { 50% { opacity: 0; } }
+.term-prompt { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; padding: 0 0 12px; border-bottom: var(--rule) solid var(--ink); font: 500 16px/1.4 var(--font-mono); color: var(--ink); position: relative; z-index: 1; }
+.term-prompt-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.term-prompt-line b { font-weight: 500; background: var(--ink); color: var(--red); padding: 0 6px; }
+.term-caret { font-weight: 600; }
+.term-flags { opacity: .85; }
+.term-cursor { display: inline-block; width: 10px; height: 1.1em; margin-left: 6px; vertical-align: -3px; background: var(--ink); animation: term-blink 1.05s steps(1) infinite; }
+.term-state { display: inline-flex; align-items: center; gap: 10px; flex: none; padding: 4px 10px; background: var(--ink); color: var(--red); font: 500 14px/1 var(--font-mono); letter-spacing: .12em; }
+.term-state .slice-text { font: 400 24px/1.1 var(--font-display-zh); letter-spacing: .04em; }
+
+.term-ruler { display: flex; gap: 6px; width: min(760px, 100%); height: 32px; position: relative; z-index: 1; }
+.term-ruler-segment { position: relative; min-width: 64px; border: var(--rule) solid var(--ink); background: linear-gradient(90deg, var(--ink) 0 var(--fill), var(--red) var(--fill)); font: 500 13px/29px var(--font-mono); }
+.term-ruler-segment.break:not(.done) { background: linear-gradient(90deg, var(--ink) 0 var(--fill), transparent var(--fill)), repeating-linear-gradient(115deg, var(--ink) 0 1.5px, var(--red) 1.5px 7px); }
+.term-ruler-segment > span { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); padding: 0 6px; line-height: 20px; background: var(--red); color: var(--ink); white-space: nowrap; }
+.term-ruler-segment.done > span { background: var(--ink); color: var(--red); }
+.term-ruler-segment > em { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); padding: 0 6px; line-height: 20px; font-style: normal; background: var(--red); }
+
+.term-agenda { list-style: none; display: grid; width: min(760px, 100%); margin: 4px 0 0; padding: 10px 0 0; border-top: var(--rule) solid var(--ink); font: 400 14px/1.9 var(--font-mono); position: relative; z-index: 1; text-align: left; background: var(--red); }
+.term-agenda li { display: grid; grid-template-columns: 64px 76px minmax(0, 1fr); gap: 8px; padding: 0 8px; }
+.term-agenda li.past { opacity: .5; }
+.term-agenda li.next { opacity: .72; }
+.term-agenda li.current { background: var(--ink); color: var(--red); }
+.term-agenda-tag { font-weight: 500; }
+
+.term-table { border: var(--rule) solid var(--ink); background: var(--red); }
+.term-table > header { display: flex; justify-content: space-between; padding: 9px 14px; border-bottom: var(--rule) solid var(--ink); font: 500 13px var(--font-mono); letter-spacing: .14em; }
+.term-table dl { display: grid; margin: 0; }
+.term-table dl > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); font: 400 14px/1.4 var(--font-mono); }
+.term-table dl > div:last-child { border-bottom: 0; }
+.term-table dt { opacity: .7; }
+.term-table dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.term-keys { margin: 0 0 4px; font: 500 13px var(--font-mono); letter-spacing: .06em; opacity: .75; }
+.focus-workspace kbd { margin-left: 8px; padding: 1px 6px; border: 1px solid currentColor; font: 500 11px/1.4 var(--font-mono); }
+
+/* the prompt line already names the state: hide the duplicates in the poster theme */
+.focus-theme-ink .focus-stage-header > span,
+.focus-theme-ink .focus-execution-context > span { display: none; }
+
+/* waiting list reads like a menu: [1] … with a caret on the picked one */
+.focus-theme-ink .focus-picker-section:not(.pending) .focus-task-slips { counter-reset: slip; }
+.focus-theme-ink .focus-picker-section:not(.pending) .focus-task-slip { position: relative; counter-increment: slip; }
+.focus-theme-ink .focus-picker-section:not(.pending) .focus-task-slip::after { content: "[" counter(slip) "]"; position: absolute; top: 10px; right: 12px; font: 500 13px var(--font-mono); }
+.focus-theme-ink .focus-picker-section:not(.pending) .focus-task-slip.selected::after { content: "> [" counter(slip) "]"; }
+
+/* Round GO button: ink disc, floods outward on press */
+.go-button { position: relative; display: inline-grid; justify-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer; isolation: isolate; }
+.go-disc { display: grid; place-items: center; width: 96px; height: 96px; border-radius: 50%; background: var(--ink); color: var(--red); box-shadow: 0 0 0 var(--rule) var(--ink), 0 0 0 8px var(--red), 0 0 0 9.5px var(--ink); transition: transform 260ms var(--ease-spring); }
+.go-disc > span { font: 400 38px/1 var(--font-display); letter-spacing: .02em; transition: transform 260ms var(--ease-spring); }
+.go-caption { font: 500 13px var(--font-mono); letter-spacing: .08em; padding: 2px 8px; background: var(--red); }
+.go-button:hover:not(:disabled) .go-disc { transform: scale(1.06); }
+.go-button:hover:not(:disabled) .go-disc > span { transform: scale(1.12) rotate(-6deg); }
+.go-button:focus-visible { outline: none; }
+.go-button:focus-visible .go-disc { box-shadow: 0 0 0 var(--rule) var(--ink), 0 0 0 8px var(--red), 0 0 0 11px var(--ink); }
+.go-button:disabled { cursor: default; opacity: .55; }
+.go-flood { position: fixed; z-index: 90; width: var(--go-size, 96px); height: var(--go-size, 96px); margin: calc(var(--go-size, 96px) / -2) 0 0 calc(var(--go-size, 96px) / -2); border-radius: 50%; background: var(--ink); pointer-events: none; animation: go-flood 720ms cubic-bezier(.76, 0, .24, 1) forwards; }
+.go-button.launching .go-disc { animation: go-press 420ms var(--ease-spring); }
+@keyframes go-flood { 0% { transform: scale(1); opacity: 1; } 55% { transform: scale(14); opacity: .92; } 100% { transform: scale(22); opacity: 0; } }
+@keyframes go-press { 30% { transform: scale(.88); } }
+.focus-execution-actions .go-button { margin: 0 10px; }
+
+/* Sliced word swap */
+.slice-text { position: relative; display: inline-block; line-height: 1.15; vertical-align: baseline; white-space: nowrap; }
+.slice-sizer { color: transparent; }
+.slice-band { position: absolute; inset: 0; clip-path: inset(calc(var(--band) * 100% / var(--bands)) -50% calc((var(--bands) - 1 - var(--band)) * 100% / var(--bands)) -50%); }
+.slice-roll { position: absolute; left: 0; top: 0; width: 100%; height: 200%; transform: translateY(-50%); }
+.slice-roll > span { display: block; height: 50%; }
+.slice-roll > span::before { content: attr(data-text); }
+.slice-band.rolling .slice-roll { animation: slice-roll 620ms cubic-bezier(.76, 0, .24, 1) both; animation-delay: calc(var(--band) * 55ms); }
+.slice-band.rolling:nth-child(odd) .slice-roll { animation-name: slice-roll-skew; }
+@keyframes slice-roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@keyframes slice-roll-skew { from { transform: translate(0, 0); } 50% { transform: translate(5px, -25%); } to { transform: translate(0, -50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .slice-band.rolling .slice-roll, .go-button.launching .go-disc, .term-cursor { animation: none; }
+}
+.focus-theme-ink .focus-execution:has(.term-ruler) .ink-clepsydra-line { display: none; }
+
+/* ===========================================================================
+   Evaluation, default theme: the original terminal Q&A recoloured 黑底红字
+   =========================================================================== */
+.cyber-evaluation.terminal-ink {
+  --term-bg: #120306; --term-ink: #ff4866; --term-dim: rgba(255, 72, 102, .62); --term-line: rgba(255, 72, 102, .32);
+  /* shared selected-option rule paints ink on red: swap them inside the dark terminal */
+  --ink: #ff4866; --red: #120306;
+  gap: 12px; padding: 4px 2px; background: var(--term-bg); color: var(--term-ink);
+  font: 500 14px/1.6 var(--font-mono);
+}
+.terminal-ink .cyber-copyright { color: var(--term-dim); letter-spacing: .08em; }
+.terminal-ink .cyber-prompt { color: var(--term-ink); }
+.terminal-ink .focus-terminal-cursor { background: var(--term-ink); }
+.terminal-ink h1 { margin: 2px 0 4px; color: var(--term-ink); font: 400 26px/1.2 var(--font-display-zh); white-space: normal; }
+.terminal-ink .cyber-command-group { gap: 2px; padding: 4px 0 4px 12px; border-left: var(--rule) solid var(--term-ink); }
+.terminal-ink .cyber-command-group:focus-visible { box-shadow: inset 4px 0 var(--term-ink); }
+.terminal-ink .cyber-command-group > p { color: var(--term-ink); font-weight: 600; }
+.terminal-ink .cyber-command-group button { min-height: 30px; padding: 3px 10px; color: var(--term-dim); font: inherit; justify-content: flex-start; text-align: left; }
+.terminal-ink .cyber-command-group button:hover { color: var(--term-ink); }
+.terminal-ink .cyber-command-group button.selected { color: var(--term-bg); background: var(--term-ink); }
+.terminal-ink .cyber-progress-input { color: var(--term-ink); }
+.terminal-ink .cyber-progress-input input { color: var(--term-ink); border-bottom-color: var(--term-ink); font: inherit; }
+.terminal-ink .cyber-note-input textarea { border: var(--rule) solid var(--term-line); color: var(--term-ink); background: #1a0509; font: 400 14px/1.6 var(--font-mono); }
+.terminal-ink .cyber-note-input textarea:focus { border-color: var(--term-ink); outline: none; }
+.terminal-ink .cyber-note-input textarea::placeholder { color: var(--term-dim); }
+.terminal-ink .cyber-evaluation-status { color: var(--term-dim); }
+.terminal-ink .cyber-evaluation-status.error { color: #ffd2da; }
+.terminal-ink .cyber-submit { min-height: 42px; border: var(--rule) solid var(--term-ink); color: var(--term-bg); background: var(--term-ink); font: 600 14px/1 var(--font-mono); letter-spacing: .06em; }
+.terminal-ink .cyber-submit:hover:not(:disabled) { color: var(--term-ink); background: var(--term-bg); }
+.terminal-ink .cyber-key-help { color: var(--term-dim); }
+
+/* containers around it go dark too */
+.focus-mini.focus-mini-evaluation.focus-theme-ink { background: #120306; color: #ff4866; border-color: #ff4866; }
+.focus-mini.focus-mini-evaluation.focus-theme-ink .focus-mini-titlebar { background: #120306; color: #ff4866; border-bottom: var(--rule) solid rgba(255, 72, 102, .45); }
+.focus-mini.focus-mini-evaluation.focus-theme-ink .focus-mini-titlebar button { color: #ff4866; }
+.focus-mini.focus-mini-evaluation.focus-theme-ink .focus-mini-titlebar button:hover { background: #ff4866; color: #120306; }
+.focus-mini.focus-mini-evaluation.focus-theme-ink .focus-evaluation-timeout { background: #1c060b; color: rgba(255, 72, 102, .8); }
+.themed-outcome-dialog.focus-theme-ink { background: #120306; color: #ff4866; border: var(--rule) solid #ff4866; box-shadow: 10px 10px 0 var(--ink); }
+.themed-outcome-dialog.focus-theme-ink .themed-outcome-titlebar { background: #120306; color: #ff4866; border-bottom: var(--rule) solid rgba(255, 72, 102, .45); font-family: var(--font-mono); }
+.themed-outcome-dialog.focus-theme-ink .themed-outcome-titlebar button { color: #ff4866; }
+.themed-outcome-dialog.focus-theme-ink .focus-evaluation-timeout { color: rgba(255, 72, 102, .75); font-family: var(--font-mono); }
+
+/* GO in the small focus window */
+.go-button.compact { grid-auto-flow: column; align-items: center; gap: 8px; }
+.go-button.compact .go-disc { width: 54px; height: 54px; box-shadow: 0 0 0 var(--rule) var(--ink), 0 0 0 4px var(--red), 0 0 0 5.5px var(--ink); }
+.go-button.compact .go-disc > span { font-size: 22px; }
+.go-button.compact .go-caption { font-size: 12px; }
+.focus-mini.focus-theme-ink .focus-mini-controls .go-button { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; }
+.focus-mini.focus-theme-ink .focus-mini-controls .go-button:hover:not(:disabled) { transform: none; box-shadow: none; background: none; }
+.focus-mini.focus-theme-ink .focus-mini-heading .slice-text { font: 400 22px/1.1 var(--font-display-zh); letter-spacing: .06em; }
+.focus-theme-ink .focus-execution-actions { align-items: center; }
+/* host styles (e.g. the focus window's heading span rule) must not restyle the slice internals */
+.slice-text .slice-sizer { color: transparent !important; background: none !important; }
+.slice-text :is(.slice-sizer, .slice-band, .slice-roll, .slice-roll > span) { font: inherit !important; letter-spacing: inherit !important; padding: 0 !important; margin: 0 !important; }
+.slice-text .slice-roll > span { color: inherit; }

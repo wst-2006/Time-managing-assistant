@@ -1,0 +1,123 @@
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+
+/**
+ * Terminal grammar for the focus page and focus window: a prompt line that
+ * states what is really happening, a segment ruler, the session agenda and a
+ * status table. No fake window chrome, paths or binary rain.
+ */
+
+export function TerminalPrompt({ command, argument, flags, state }: { command: string; argument?: string | null; flags?: string | null; state?: ReactNode }) {
+  return <div className="term-prompt" aria-hidden="true">
+    <span className="term-prompt-line">
+      <span className="term-caret">&gt;</span> {command}
+      {argument ? <> <b>{argument}</b></> : null}
+      {flags ? <> <span className="term-flags">{flags}</span></> : null}
+      <i className="term-cursor" />
+    </span>
+    {state ? <span className="term-state">{state}</span> : null}
+  </div>;
+}
+
+export type RulerSegment = { position: number; segmentType: "focus" | "break"; durationMinutes: number };
+
+/** One block per segment, width by duration; the current block fills as it runs. */
+export function SegmentRuler({ segments, currentPosition, progress }: { segments: RulerSegment[]; currentPosition: number | null; progress: number }) {
+  if (!segments.length) return null;
+  return <div className="term-ruler" role="img" aria-label={`共 ${segments.length} 段，当前第 ${(currentPosition ?? -1) + 1} 段`}>
+    {segments.map((segment) => {
+      const state = currentPosition === null || segment.position > currentPosition ? "next" : segment.position < currentPosition ? "done" : "current";
+      return <div
+        key={segment.position}
+        className={`term-ruler-segment ${segment.segmentType} ${state}`}
+        style={{ flexGrow: segment.durationMinutes, ["--fill" as string]: `${state === "done" ? 100 : state === "current" ? Math.round(progress) : 0}%` }}
+      >
+        <span>{String(segment.position + 1).padStart(2, "0")} {segment.segmentType === "break" ? "休" : "专注"} {segment.durationMinutes}′</span>
+        {state === "current" ? <em>{Math.round(progress)}%</em> : null}
+      </div>;
+    })}
+  </div>;
+}
+
+export type AgendaLine = { time: string; tag: string; text: string; state: "past" | "current" | "next" };
+
+/** The session's agenda, read top to bottom like a log: past solid, now marked, later dim. */
+export function SessionAgenda({ lines }: { lines: AgendaLine[] }) {
+  if (!lines.length) return null;
+  return <ol className="term-agenda" aria-label="本次安排">
+    {lines.map((line, index) => <li key={`${line.time}-${index}`} className={line.state}>
+      <span className="term-agenda-time">{line.time}</span>
+      <span className="term-agenda-tag">{line.state === "current" ? "▸ " : ""}{line.tag}</span>
+      <span>{line.text}</span>
+    </li>)}
+  </ol>;
+}
+
+export function SessionTable({ title, count, rows }: { title: string; count?: string; rows: Array<[string, string]> }) {
+  return <section className="term-table" aria-label="当前专注状态">
+    <header><span>{title}</span>{count ? <span>{count}</span> : null}</header>
+    <dl>{rows.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl>
+  </section>;
+}
+
+const SLICE_BANDS = 6;
+
+/**
+ * Word swap in horizontal bands (the wodniack “LET’S ↔ ROCK” move): the word is
+ * stacked several times, each copy clipped to one strip, and every strip rolls
+ * to the new word a moment after the one above it.
+ */
+export function SliceText({ text, className = "" }: { text: string; className?: string }) {
+  const [shown, setShown] = useState({ from: text, to: text, key: 0 });
+  useEffect(() => {
+    setShown((current) => current.to === text ? current : { from: current.to, to: text, key: current.key + 1 });
+  }, [text]);
+  const animating = shown.from !== shown.to;
+  // The sizer holds the one real text node (transparent, it sets the width and is what
+  // assistive tech and text search see); the bands draw copies via CSS so they add no text.
+  return <span className={`slice-text ${animating ? "is-rolling" : ""} ${className}`}>
+    <span className="slice-sizer">{shown.to}</span>
+    {Array.from({ length: SLICE_BANDS }, (_, band) => <span
+      key={`${shown.key}-${band}`}
+      className={`slice-band ${animating ? "rolling" : ""}`}
+      aria-hidden="true"
+      style={{ ["--band" as string]: band, ["--bands" as string]: SLICE_BANDS }}
+    >
+      <span className="slice-roll"><span data-text={shown.from} /><span data-text={shown.to} /></span>
+    </span>)}
+  </span>;
+}
+
+/** Round GO button: an ink disc that floods outward when pressed. */
+export function GoButton({ label, onClick, className = "", disabled, ...rest }: { label: string } & ButtonHTMLAttributes<HTMLButtonElement>) {
+  const [launching, setLaunching] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  return <button
+    {...rest}
+    type="button"
+    aria-label={label}
+    disabled={disabled}
+    className={`go-button ${launching ? "launching" : ""} ${className}`}
+    onClick={(event) => {
+      // The ring lives on <body> so it keeps flooding outward even after the
+      // state change replaces this button.
+      const disc = event.currentTarget.querySelector(".go-disc")?.getBoundingClientRect();
+      if (disc && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const ring = document.createElement("span");
+        ring.className = "go-flood";
+        ring.style.left = `${disc.left + disc.width / 2}px`;
+        ring.style.top = `${disc.top + disc.height / 2}px`;
+        ring.style.setProperty("--go-size", `${disc.width}px`);
+        document.body.appendChild(ring);
+        window.setTimeout(() => ring.remove(), 760);
+      }
+      setLaunching(true);
+      if (timer.current) window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => setLaunching(false), 700);
+      onClick?.(event);
+    }}
+  >
+    <span className="go-disc" aria-hidden="true"><span>GO</span></span>
+    <span className="go-caption" aria-hidden="true">{label}</span>
+  </button>;
+}
