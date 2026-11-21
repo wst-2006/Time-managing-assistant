@@ -1083,26 +1083,60 @@
 }
 .today-workspace > .poster-header.poster-header { margin: 0; }
 
-/* ===========================================================================
-   Timeline, “DAY PLAN” style: an hour gutter, one faint line per hour, and
-   solid ink slabs with a sliver of red between neighbours. Half-hour lines
-   are gone; dragging still snaps to half hours.
-   =========================================================================== */
-.day-grid { margin-left: 78px; background-image: none; border-left: var(--rule) solid var(--ink); }
-.hour-line { border-top: 1px solid rgba(22, 0, 0, .22); }
-.hour-line[data-terminal="true"] { border-top-color: transparent; }
-.hour-line time { left: -72px; width: 58px; font: 500 13px/18px var(--font-mono); letter-spacing: .04em; color: var(--ink); }
-.time-block { border: 2px solid var(--red); padding: 8px 12px 8px 14px; }
-.time-block::before { display: none; }
-.time-block:hover { box-shadow: 5px 5px 0 rgba(22, 0, 0, .3); transform: translate(-2px, -2px); }
-.time-block .block-copy { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 14px; row-gap: 2px; align-items: start; width: 100%; }
-.time-block .block-copy strong { grid-column: 1; grid-row: 1; font-size: 24px; line-height: 1.05; letter-spacing: .02em; }
-.time-block .block-copy time { grid-column: 2; grid-row: 1; padding-top: 3px; font-size: 13px; letter-spacing: .08em; white-space: nowrap; }
-.time-block .block-copy small { grid-column: 1 / -1; font-size: 13px; }
-.time-block[style*="height: 36px"] .block-copy strong, .time-block[style*="height:36px"] .block-copy strong { font-size: 17px; }
-.time-block[style*="height: 36px"], .time-block[style*="height:36px"] { padding-top: 5px; padding-bottom: 5px; }
-.time-block.closed { background: var(--red); color: var(--ink); border: var(--rule) solid var(--ink); }
-.time-block.closed .block-copy :is(strong, time, small) { color: var(--ink); }
 /* the task list header now carries the full add button that used to sit in quick capture */
 .task-dock > header { gap: 10px; }
 .task-dock-add { margin-left: auto; }
+
+/* ===========================================================================
+   Timeline blocks: outlined, not filled. A small square on the left carries
+   the state — dot array = not started, solid = done, half = partly done,
+   dotted outline = not done, hatched = waiting for a result, blinking = now.
+   =========================================================================== */
+.time-block { background: var(--red); color: var(--ink); border: var(--rule) solid var(--ink); padding-left: 36px; }
+.time-block::before { display: none; }
+.time-block .block-copy time, .time-block .block-copy strong { color: var(--ink); }
+.time-block .block-copy small { color: rgba(22, 0, 0, .62); }
+.time-block :is(.block-edit, .block-actions-toggle, .resize-handle) { color: var(--ink); }
+.time-block :is(.block-edit, .block-actions-toggle, .resize-handle):hover:not(:disabled) { background: var(--ink); color: var(--red); }
+.time-block:hover { box-shadow: 5px 5px 0 rgba(22, 0, 0, .28); transform: translate(-2px, -2px); }
+
+.block-state {
+  position: absolute; left: 10px; top: 9px;
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--ink);
+  background: radial-gradient(circle, var(--ink) 0 1px, transparent 1.3px) 0 0 / 4px 4px;
+  pointer-events: none;
+}
+.time-block[data-state="complete"] .block-state { background: var(--ink); }
+.time-block[data-state="partial"] .block-state { background: linear-gradient(to top, var(--ink) 50%, transparent 50%); }
+.time-block[data-state="incomplete"] .block-state { border: 2px dotted var(--ink); background: none; }
+.time-block[data-state="awaiting"] .block-state { background: repeating-linear-gradient(135deg, var(--ink) 0 1.5px, transparent 1.5px 4px); }
+.time-block[data-state="active"] .block-state { background: var(--ink); animation: block-state-blink 1.1s steps(2, jump-none) infinite; }
+@keyframes block-state-blink { 50% { background: transparent; } }
+
+.time-block.active { background: var(--red); border-width: 2.5px; outline: none; }
+.time-block.active::after { display: none; }
+.time-block.awaiting_outcome { background: var(--red); }
+.time-block.closed .block-copy strong { text-decoration: none; opacity: .72; }
+.time-block.closed .block-copy time { opacity: .72; }
+.time-block.conflict { outline: 2px dashed var(--ink); outline-offset: -6px; }
+.time-block.conflict .block-copy small { color: var(--ink); font-weight: 700; }
+.time-block.fact-record { background: var(--red); border-style: dashed; }
+.time-block[style*="height: 36px"] .block-state, .time-block[style*="height:36px"] .block-state { top: 9px; width: 14px; height: 14px; }
+
+/* the current time: a dash-dot rail with hollow rings at both ends */
+.now-line {
+  left: -4px; height: 8px; margin-top: -4px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='8'%3E%3Cpath d='M0 2.2H22M0 5.8H22' stroke='%23160000' stroke-width='1.5'/%3E%3Crect x='29' y='2' width='6' height='4' fill='%23160000'/%3E%3C/svg%3E") 12px 0 / 44px 8px repeat-x;
+  background-clip: content-box; padding: 0 12px;
+}
+.now-line::before, .now-line::after {
+  content: ""; position: absolute; top: -1px; bottom: auto;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1.5px solid var(--ink); background: var(--red);
+  display: block; box-sizing: border-box;
+}
+.now-line::before { left: 0; right: auto; }
+.now-line::after { right: 0; }
+.now-line span { right: 18px; top: -11px; padding: 1px 6px; font-size: 11px; }
+.time-block.time-block { background: var(--red); }

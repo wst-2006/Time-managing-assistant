@@ -304,6 +304,17 @@ function InkClepsydra({ value, progress, resting, empty, compact = false }: { va
   </div>;
 }
 
+/** Start and end of the fixed block joined by a line that fills as time passes. */
+function FocusRange({ startAt, endAt, timeZone, nowMs }: { startAt: string; endAt: string; timeZone: string; nowMs: number }) {
+  const start = new Date(startAt).getTime(), end = new Date(endAt).getTime();
+  const progress = end > start ? Math.max(0, Math.min(1, (nowMs - start) / (end - start))) : 0;
+  return <span className="focus-range" aria-label={`固定时间 ${clock(startAt, timeZone)} 至 ${clock(endAt, timeZone)}`}>
+    <time>{clock(startAt, timeZone)}</time>
+    <i aria-hidden="true"><b style={{ width: `${progress * 100}%` }} /></i>
+    <time>{clock(endAt, timeZone)}</time>
+  </span>;
+}
+
 function ThemedFocusTimer({ theme, value, progress, resting, empty, compact = false }: { theme: FocusTheme; value: string; progress: number; resting: boolean; empty: boolean; compact?: boolean }) {
   if (theme === "ink") return <InkClepsydra value={value} progress={progress} resting={resting} empty={empty} compact={compact} />;
   const displayValue = empty ? "00:00" : value;
@@ -1245,6 +1256,7 @@ export function FocusWorkspace({
               >
                 <span className="focus-timepiece-label">{stage === "reminded" ? "等待开始" : stage === "scheduled" ? "距离准备" : stage === "armed" ? "距离开始" : stage === "awaiting_late_start" ? "可用余时" : currentSegment?.segmentType === "break" ? "休息余时" : stage === "preparing" ? "准备倒计时" : "专注余时"}</span>
                 <ThemedFocusTimer theme={focusTheme} value={clockValue} progress={timerProgress} resting={currentSegment?.segmentType === "break"} empty={false} />
+                {displayTask?.startAt && displayTask.endAt ? <FocusRange startAt={displayTask.startAt} endAt={displayTask.endAt} timeZone={displayTask.timeZone} nowMs={nowMs} /> : null}
               </div>
               {terminal ? <SegmentRuler segments={safeSegments.map((segment, position) => ({ position, segmentType: segment.segmentType, durationMinutes: segment.durationMinutes }))} currentPosition={stage === "running" ? currentPosition : null} progress={timerProgress} /> : null}
               {executionQuote ? <p className="focus-workspace-quote"><q>{executionQuote.text}</q><cite>{executionQuote.source}</cite></p> : null}
@@ -1322,7 +1334,7 @@ export function FocusWorkspace({
               <div className={`focus-timepiece ${currentSegment?.segmentType === "break" ? "resting" : ""}`}>
                 <span className="focus-timepiece-label">专注余时</span>
                 <ThemedFocusTimer theme={focusTheme} value={clockValue} progress={timerProgress} resting={currentSegment?.segmentType === "break"} empty={!displayTask} />
-                {fixedEndLabel ? <small>固定结束于 {fixedEndLabel}</small> : null}
+                {displayTask?.startAt && displayTask.endAt ? <FocusRange startAt={displayTask.startAt} endAt={displayTask.endAt} timeZone={displayTask.timeZone} nowMs={nowMs} /> : null}
               </div>
               {selected?.scheduleKind === "exact" && selected.startAt && selected.endAt && !locksSelectedStructure && (loadedStructureKey !== structureKey ? <p className="focus-structure-loading">正在恢复已保存的专注结构…</p> : <FocusStructureEditor task={{ id: selected.id, startAt: selected.startAt, endAt: selected.endAt, timeZone: selected.timeZone }} active={activeStructure} candidate={candidateStructure} busy={busy} onSave={saveStructure} onConfirm={confirmStructure} onConfirmDraft={confirmStructureDraft} onDiscard={discardCandidate} />)}
               <div className="focus-controls">

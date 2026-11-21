@@ -252,3 +252,8 @@
 .growth-landscape .growth-scene-metrics { grid-column: 1; grid-row: 2; align-self: start; }
 .growth-landscape .growth-score-detail { grid-column: 1; grid-row: 3; justify-self: start; }
 @media (max-width: 900px) { .growth-landscape .growth-ring, .growth-landscape .growth-scene-metrics, .growth-landscape .growth-score-detail { grid-column: 1; grid-row: auto; } }
+
+/* “不满意” as a row of ink dots instead of a cream strip */
+.feeling-trace.dissatisfied { --trace: radial-gradient(circle, var(--ink) 0 2px, transparent 2.4px) 0 50% / 8px 8px repeat-x; }
+.feeling-trace.dissatisfied .feeling-trace-track b { box-shadow: none; }
+.feeling-trace.dissatisfied .feeling-trace-dot { border-style: dotted; border-width: 2px; background: none; }

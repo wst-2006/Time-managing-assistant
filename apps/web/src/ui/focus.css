@@ -743,3 +743,25 @@
 .focus-workspace.focus-theme-ink .focus-center:not(.focus-center-executing) .focus-timepiece small { font: 500 14px var(--font-mono); letter-spacing: .06em; color: var(--ink); }
 .focus-workspace.focus-theme-ink .focus-center:not(.focus-center-executing) > .focus-meta { font: 500 15px/1.5 var(--font-mono); color: var(--ink); letter-spacing: .04em; }
 .focus-workspace.focus-theme-ink .focus-main-action { min-height: 56px; padding: 0 30px; box-shadow: 5px 5px 0 rgba(22, 0, 0, .3); }
+
+/* ===========================================================================
+   Focus page timer: digits between converging speed lines, a letter-spaced
+   label above, and start—end joined by a line that fills as time passes.
+   =========================================================================== */
+.focus-timepiece { position: relative; isolation: isolate; width: 100%; }
+.focus-theme-ink .ink-clepsydra strong { position: relative; }
+.focus-theme-ink .ink-clepsydra:not(.compact) strong::before, .focus-theme-ink .ink-clepsydra:not(.compact) strong::after {
+  content: ""; position: absolute; top: 50%; width: calc(50cqw - 50% - .12em); height: 1.5em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M0 0.0L100.0 25.0M0 5.6L98.5 27.5M0 11.1L97.2 30.0M0 16.7L96.1 32.7M0 22.2L95.2 35.4M0 27.8L94.4 38.3M0 33.3L93.8 41.1M0 38.9L93.3 44.1M0 44.4L93.1 47.0M0 50.0L93.0 50.0M0 55.6L93.1 53.0M0 61.1L93.3 55.9M0 66.7L93.8 58.9M0 72.2L94.4 61.7M0 77.8L95.2 64.6M0 83.3L96.1 67.3M0 88.9L97.2 70.0M0 94.4L98.5 72.5M0 100.0L100.0 75.0' stroke='%23160000' stroke-width='1.2' vector-effect='non-scaling-stroke' fill='none'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  transform: translateY(-50%); pointer-events: none;
+}
+.focus-theme-ink .ink-clepsydra:not(.compact) strong::before { right: calc(100% + .12em); }
+.focus-theme-ink .ink-clepsydra:not(.compact) strong::after { left: calc(100% + .12em); transform: translateY(-50%) scaleX(-1); }
+.focus-theme-ink .focus-timepiece-label { letter-spacing: .9em; margin-right: -.9em; font-size: 13px; color: var(--ink); }
+.focus-theme-ink .focus-center-executing .ink-clepsydra strong { background: none; box-shadow: none; padding: 0; }
+.focus-theme-ink .ink-clepsydra-line { display: none; }
+.focus-range { display: inline-flex; align-items: center; gap: 14px; font: 500 14px/1 var(--font-mono); letter-spacing: .06em; color: var(--ink); }
+.focus-range i { position: relative; width: min(300px, 40vw); height: 1.5px; background: var(--ink); }
+.focus-range b { position: absolute; left: 0; top: -2px; height: 5.5px; background: var(--ink); transition: width 1s linear; }
+@media (max-width: 640px) { .focus-theme-ink .ink-clepsydra strong::before, .focus-theme-ink .ink-clepsydra strong::after { display: none; } }
+.focus-theme-ink .focus-stage { container-type: inline-size; }
