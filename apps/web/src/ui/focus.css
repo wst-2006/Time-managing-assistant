@@ -1013,3 +1013,100 @@
 .focus-theme-ink .focus-stage.room-black .ink-clepsydra strong { color: var(--ink); text-shadow: 3px 3px 0 #7a1022, 6px 6px 0 #4a0914, 9px 9px 0 #2a050b; }
 .focus-theme-ink .focus-stage.room-black .focus-execution-backdrop, .focus-theme-ink .focus-stage.room-black .focus-scene-backdrop { opacity: 0; }
 .focus-theme-ink .focus-stage.room-black .focus-motion-backdrop { opacity: 0; transition: opacity 600ms; }
+
+/* ===========================================================================
+   Focus window v3: three layers.
+   1. the room (canvas): a perspective tunnel drifting toward the viewer
+   2. the wall: title and digits on the back wall, digits with depth
+   3. the keys: physical push buttons in front
+   Red room while getting ready / resting, black room while focusing; the
+   window's --ink / --red swap does the inversion.
+   =========================================================================== */
+.focus-mini.focus-theme-ink .focus-mini-body.mini-stage {
+  position: relative; z-index: 1; box-sizing: border-box; isolation: isolate;
+  display: flex; flex-direction: column; align-items: stretch; gap: 0;
+  width: 100%; max-width: none; height: calc(100% - 32px); min-height: 0;
+  margin: 32px 0 0; padding: 0; overflow: hidden;
+  color: var(--ink); background: var(--red);
+}
+.focus-room { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
+.focus-mini.focus-theme-ink .mini-stage > :not(.focus-room) { position: relative; }
+.focus-mini.focus-theme-ink .mini-stage > .focus-room { position: absolute; inset: 0; }
+/* text sitting over room lines gets a halo in the room colour so lines never cut through letters */
+.focus-mini.focus-theme-ink .mini-stage { --halo: 0 0 6px var(--red), 0 0 2px var(--red), 0 0 1px var(--red); }
+
+.focus-mini.focus-theme-ink .mini-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 0; }
+.focus-mini.focus-theme-ink .mini-chip { display: inline-flex; gap: 6px; padding: 4px 8px; background: var(--ink); color: var(--red); font: 500 11px/1 var(--font-mono); letter-spacing: .14em; }
+.focus-mini.focus-theme-ink .mini-chip em { font-style: normal; opacity: .75; }
+.focus-mini.focus-theme-ink .mini-until { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--font-mono); letter-spacing: .1em; text-shadow: var(--halo); }
+.focus-mini.focus-theme-ink .mini-live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: block-state-blink 1.4s steps(2, jump-none) infinite; }
+
+.focus-mini.focus-theme-ink .mini-wall { display: grid; justify-items: center; gap: 2px; margin: 10px auto 0; padding: 0 12px; max-width: calc(100% - 28px); }
+.focus-mini.focus-theme-ink .mini-stage .mini-title { display: block; max-width: 100%; margin: 0; padding: 0; background: none; text-align: center; }
+.focus-mini.focus-theme-ink .mini-stage .mini-title strong {
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 0; background: none; color: var(--ink); text-shadow: var(--halo);
+  font: 400 21px/1.15 var(--font-display-zh) !important; letter-spacing: .05em;
+}
+.focus-mini.focus-theme-ink .mini-stage .mini-clock { display: block; width: auto; margin: 0; padding: 0; background: none; aspect-ratio: auto; }
+.focus-mini.focus-theme-ink .mini-stage .focus-mini-digits {
+  display: block; margin: 0; padding: 0; background: none; color: var(--ink); white-space: nowrap;
+  font: 400 88px/.92 var(--font-display) !important; letter-spacing: 0;
+  text-shadow: 2px 2px 0 #b8002c, 4px 4px 0 #85001f, 6px 6px 0 #570014;
+}
+.focus-mini.focus-theme-ink .mini-stage.is-live .focus-mini-digits { font-size: 108px !important; }
+.focus-mini.focus-theme-ink .mini-stage .focus-mini-digits.long { font-size: 66px !important; }
+.focus-mini.focus-theme-ink.ink-dark .mini-stage .focus-mini-digits { text-shadow: 2px 2px 0 #8a1226, 4px 4px 0 #570b18, 6px 6px 0 #2e060d; }
+
+.focus-mini.focus-theme-ink .mini-rail { display: grid; justify-items: center; gap: 6px; width: 76%; margin: 12px auto 0; }
+.focus-mini.focus-theme-ink .mini-rail small { font: 500 11px/1 var(--font-mono); letter-spacing: .1em; text-shadow: var(--halo); white-space: nowrap; }
+.focus-mini.focus-theme-ink .mini-prep-rail { display: block; position: relative; width: 100%; height: 2px; background: var(--ink); }
+.focus-mini.focus-theme-ink .mini-prep-rail i { position: absolute; inset: -2px auto -2px 0; background: var(--ink); transition: width 1s linear; }
+.focus-mini.focus-theme-ink .mini-prep-rail b { position: absolute; right: -5px; top: -4px; width: 10px; height: 14px; background: var(--red); border: 2px solid var(--ink); box-sizing: border-box; }
+.focus-mini.focus-theme-ink .mini-stage .mini-segments { display: flex; align-items: center; gap: 8px; width: 100%; margin: 0; }
+.focus-mini.focus-theme-ink .mini-stage .mini-segments-track { flex: 1; display: flex; gap: 4px; height: 8px; }
+.focus-mini.focus-theme-ink .mini-stage .mini-segment { position: relative; flex-basis: 0; border: 1px solid var(--ink); background: var(--red); overflow: hidden; }
+.focus-mini.focus-theme-ink .mini-stage .mini-segment b { position: absolute; inset: 0 auto 0 0; background: var(--ink); transition: width 1s linear; }
+.focus-mini.focus-theme-ink .mini-stage .mini-segment.break { border-style: dashed; }
+.focus-mini.focus-theme-ink .mini-stage .mini-segment.break b { background: repeating-linear-gradient(135deg, var(--ink) 0 1px, transparent 1px 4px); }
+.focus-mini.focus-theme-ink .mini-stage .mini-segments small { flex: none; font: 500 10px/1 var(--font-mono); letter-spacing: .08em; opacity: 1; }
+
+.focus-mini.focus-theme-ink .mini-stage .focus-mini-quote {
+  position: static; display: grid; justify-items: center; gap: 2px; width: auto; max-width: calc(100% - 40px);
+  margin: 12px auto 0; padding: 0; background: none; border: 0; text-align: center; color: var(--ink);
+}
+.focus-mini.focus-theme-ink .mini-stage .focus-mini-quote q { font: 400 15px/1.3 var(--font-serif); letter-spacing: .02em; text-shadow: var(--halo); }
+.focus-mini.focus-theme-ink .mini-stage .focus-mini-quote cite { font: 400 10px/1.2 var(--font-serif); font-style: normal; opacity: .8; text-shadow: var(--halo); }
+
+/* keys: ink thickness below each key; lift on hover, sink on press */
+.focus-mini.focus-theme-ink .mini-keys { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 8px; margin: auto 0 0; padding: 0 14px 16px; background: none; border: 0; }
+.focus-mini.focus-theme-ink .mini-stage.is-live .mini-keys { justify-content: flex-end; padding-bottom: 12px; }
+.focus-mini.focus-theme-ink .mini-keys .focus-mini-text-actions { display: flex; gap: 8px; width: auto; }
+.focus-mini.focus-theme-ink .mini-stage .mini-key {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: none;
+  height: 38px; min-width: 0; padding: 0 11px; border: 1.5px solid var(--ink); border-radius: 0;
+  background: var(--red); color: var(--ink);
+  font: 600 13px/1 "Noto Sans SC", "Microsoft YaHei UI", sans-serif; letter-spacing: .04em; white-space: nowrap; cursor: pointer;
+  box-shadow: 0 4px 0 var(--ink); transform: translateY(0);
+  transition: transform 120ms var(--ease-standard), box-shadow 120ms var(--ease-standard), background-color 160ms;
+}
+.focus-mini.focus-theme-ink .mini-stage .mini-key svg { width: 15px; height: 15px; flex: none; }
+.focus-mini.focus-theme-ink .mini-stage .mini-key:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0 var(--ink); }
+.focus-mini.focus-theme-ink .mini-stage .mini-key:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 var(--ink); }
+.focus-mini.focus-theme-ink .mini-stage .mini-key:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.focus-mini.focus-theme-ink .mini-stage .mini-key.primary { flex: 1; background: var(--ink); color: var(--red); box-shadow: 0 4px 0 #6b0019; }
+.focus-mini.focus-theme-ink .mini-stage .mini-key.primary:hover:not(:disabled) { box-shadow: 0 6px 0 #6b0019; }
+.focus-mini.focus-theme-ink .mini-stage .mini-key.primary:active:not(:disabled) { box-shadow: 0 0 0 #6b0019; }
+.focus-mini.focus-theme-ink .mini-stage .mini-key.is-pressed { flex: 1; transform: translateY(4px); box-shadow: none; cursor: default; padding: 0 10px; background: var(--ink); color: var(--red); }
+.focus-mini.focus-theme-ink .mini-stage .mini-key:disabled { opacity: .6; cursor: progress; }
+.focus-mini.focus-theme-ink .mini-stage .mini-auto {
+  position: static; inset: auto; transform: none; display: inline-flex; align-items: center; gap: 6px;
+  margin: 0; padding: 4px 0; border: 0; background: none; color: var(--ink); opacity: .78; cursor: pointer;
+  font: 500 11px/1 var(--font-mono); letter-spacing: .06em; text-shadow: var(--halo);
+}
+.focus-mini.focus-theme-ink .mini-stage .mini-auto::before { content: ""; width: 10px; height: 10px; border: 1.5px solid currentColor; box-sizing: border-box; }
+.focus-mini.focus-theme-ink .mini-stage .mini-auto.active { opacity: 1; text-decoration: none; }
+.focus-mini.focus-theme-ink .mini-stage .mini-auto.active::before { background: currentColor; }
+/* keys keep their own colours on hover/press (the global button hover is cream) */
+.focus-mini.focus-theme-ink .mini-stage .mini-key:not(.primary):not(.is-pressed):is(:hover, :active, :focus-visible) { background: var(--red) !important; color: var(--ink) !important; }
+.focus-mini.focus-theme-ink .mini-stage .mini-key:is(.primary, .is-pressed):is(:hover, :active, :focus-visible) { background: var(--ink) !important; color: var(--red) !important; }

@@ -320,7 +320,7 @@ test.describe("独立专注窗口", () => {
       expect(await digits.evaluate((node) => getComputedStyle(node).fontFamily)).toContain("Anton");
       await expect(page.locator(".focus-mini")).toHaveClass(/ink-dark/);
       await expect(page.locator(".focus-mini")).toHaveCSS("background-color", "rgb(18, 3, 6)");
-      await expect(page.locator(".mini-room.room-black")).toHaveCount(1);
+      await expect(page.locator(".mini-stage.room-black")).toHaveCount(1);
       await expect(page.locator(".focus-motion-backdrop")).toHaveCount(0);
       const quote = page.locator(".focus-mini-quote");
       await expect(quote).toBeVisible();

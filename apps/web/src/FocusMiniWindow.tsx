@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { playLetsBeginInWindow } from "./ui/FocusTerminal";
-import { FocusDial } from "./ui/FocusDial";
-import { CalendarClock, Lock, Minus, Pin, PinOff, Play, SkipForward, Unlock, X, XCircle } from "lucide-react";
+import { FocusRoom } from "./ui/FocusRoom";
+import { CalendarClock, Check, Lock, Minus, PencilLine, Pin, PinOff, Play, SkipForward, Unlock, X, XCircle } from "lucide-react";
 import { formatFocusClock } from "@personal-ai/domain/focus";
 import type { FocusTheme } from "@personal-ai/domain/user-profile";
 import { CyberFocusEvaluation } from "./CyberFocusEvaluation";
@@ -418,42 +418,42 @@ export function FocusMiniWindow() {
           onSubmit={() => void saveEvaluation()}
         />
       </div>
-    ): snapshot ? <div className={`focus-mini-body mini-room ${blackRoom ? "room-black" : "room-red"} ${resting ? "resting" : ""}`}>
-      <div className="mini-row mini-head">
-        <span className="mini-cell mini-phase">{phaseLabel}{segmentCount ? <em>{segmentCount}</em> : null}</span>
-        <header className="mini-cell mini-title focus-mini-heading"><strong>{snapshot.task.title}</strong></header>
-        <span className="mini-cell mini-end">{phaseEnd ? `至 ${phaseEnd}` : "—"}</span>
+    ): snapshot ? <div className={`focus-mini-body mini-stage ${blackRoom ? "room-black" : "room-red"} ${ringPhase ? "is-live" : "is-ready"}`}>
+      <FocusRoom anchor=".mini-wall" tone={blackRoom ? "black" : "red"} speed={blackRoom ? 0.12 : resting ? 0.03 : 0.06} rushKey={dialSpin} />
+      <div className="mini-top">
+        <span className="mini-chip">{phaseLabel}{segmentCount ? <em>{segmentCount}</em> : null}</span>
+        <span className="mini-until">{ringPhase ? <><i className="mini-live-dot" />{resting ? "休息中" : "进行中"}</> : phaseEnd ? `至 ${phaseEnd}` : ""}</span>
       </div>
-      <section className="mini-dial-room focus-mini-clock" aria-label={`${phaseLabel}剩余 ${formatFocusClock(remaining)}`}>
-        <FocusDial anchor=".focus-mini-digits" ticking={ringPhase} spinKey={dialSpin} />
-        <span className={`focus-mini-digits ${formatFocusClock(remaining).length > 5 ? "long" : ""}`}>{formatFocusClock(remaining).split("").map((character, index) => <span key={index} className={character === ":" ? "colon" : "digit"}>{character}</span>)}</span>
-      </section>
-      <div className="mini-row mini-ticker" aria-hidden={!ringPhase}>
-        <span className="mini-ticker-mark">►</span>
+      <div className="mini-wall">
+        <header className="mini-title focus-mini-heading"><strong>{snapshot.task.title}</strong></header>
+        <section className="focus-mini-clock mini-clock" aria-label={`${phaseLabel}剩余 ${formatFocusClock(remaining)}`}>
+          <span className={`focus-mini-digits ${formatFocusClock(remaining).length > 5 ? "long" : ""}`}>{formatFocusClock(remaining).split("").map((character, index) => <span key={index} className={character === ":" ? "colon" : "digit"}>{character}</span>)}</span>
+        </section>
+      </div>
+      <div className="mini-rail">
         {ringPhase && snapshot.segments.length > 0
           ? <MiniSegmentBar segments={snapshot.segments} nowMs={nowMs} />
-          : <><span className="mini-ticker-text">{inkMeta}</span><span className="mini-ticker-fill" /></>}
-        <span className="mini-ticker-mark">◄</span>
+          : <span className="mini-prep-rail"><i style={{ width: `${Math.max(0, Math.min(100, phaseProgress))}%` }}><b /></i></span>}
+        <small>{ringPhase ? (snapshot.phase === "focus" ? `${phaseEnd ? `到 ${phaseEnd}` : ""} · ${snapshot.nextSegment ? `然后${snapshot.nextSegment.segmentType === "break" ? "休息" : "专注"} ${snapshot.nextSegment.durationMinutes}′` : "然后记录结果"}` : finalBreak ? "随后进入评价" : snapshot.nextSegment ? `然后专注 ${snapshot.nextSegment.durationMinutes}′` : "") : inkMeta}</small>
       </div>
-      {quote ? <div className="mini-row focus-mini-quote" aria-label="专注提示名言"><q>{quote.text}</q><cite>{quote.source}</cite></div> : <div className="mini-row focus-mini-quote" />}
-      <div className="mini-row mini-actions focus-mini-controls" aria-label="专注悬浮窗操作">
+      {quote ? <div className="focus-mini-quote" aria-label="专注提示名言"><q>{quote.text}</q><cite>{quote.source}</cite></div> : null}
+      <div className="focus-mini-controls mini-keys" aria-label="专注悬浮窗操作">
         {snapshot.session.state === "awaiting_late_start" && !preparationSurface
-          ? <button type="button" className="mini-cell mini-primary" disabled={busy} onClick={(event) => { const box = event.currentTarget.getBoundingClientRect(); playLetsBeginInWindow(box, readDigits); setDialSpin((value) => value + 1); void act("skip-preparation"); }}><b>GO</b>{startActionLabel}</button>
+          ? <button type="button" className="mini-key primary" disabled={busy} onClick={(event) => { const box = event.currentTarget.getBoundingClientRect(); playLetsBeginInWindow(box, readDigits); setDialSpin((value) => value + 1); void act("skip-preparation"); }}><Play />{startActionLabel}</button>
           : ["reminded", "scheduled", "preparing", "awaiting_late_start"].includes(snapshot.session.state)
-            ? <button type="button" className="mini-cell mini-primary" disabled={busy} onClick={() => void act("skip-preparation")}>{startActionLabel}</button>
+            ? <button type="button" className="mini-key primary" disabled={busy} onClick={() => void act("skip-preparation")}><Play />{startActionLabel}</button>
             : snapshot.session.state === "armed"
-              ? <span className="mini-cell mini-primary is-static focus-mini-confirmed-state">已确认 · 到点自动开始</span>
+              ? <span className="mini-key primary is-pressed focus-mini-confirmed-state"><Check />已确认 · 到点自动开始</span>
               : null}
         {["reminded", "scheduled", "preparing", "awaiting_late_start"].includes(snapshot.session.state)
           ? <span className="focus-mini-text-actions">
-            <button type="button" className="mini-cell" disabled={busy} title="停止本次准备并退回未排期" onClick={() => void decidePreparation("other-arrangement")}>另有安排</button>
-            <button type="button" className="mini-cell" disabled={busy} title="直接取消这项任务" onClick={() => void decidePreparation("cancel-task")}>取消任务</button>
+            <button type="button" className="mini-key" disabled={busy} title="停止本次准备并退回未排期" onClick={() => void decidePreparation("other-arrangement")}><PencilLine />另有安排</button>
+            <button type="button" className="mini-key" disabled={busy} title="直接取消这项任务" onClick={() => void decidePreparation("cancel-task")}><XCircle />取消任务</button>
           </span>
           : null}
-        {ringPhase ? <span className="mini-cell mini-next">{snapshot.phase === "focus" ? (snapshot.nextSegment ? `然后${snapshot.nextSegment.segmentType === "break" ? "休息" : "专注"} ${snapshot.nextSegment.durationMinutes}′` : "然后记录结果") : finalBreak ? "随后进入评价" : snapshot.nextSegment ? `然后专注 ${snapshot.nextSegment.durationMinutes}′` : "休息中"}</span> : null}
-        {finalBreak ? <button type="button" className="mini-cell focus-mini-text-action" disabled={busy} title="跳过最后休息并进入评价" onClick={() => void act("skip-final-break")}>跳过休息</button> : null}
+        {finalBreak ? <button type="button" className="mini-key focus-mini-text-action" disabled={busy} title="跳过最后休息并进入评价" onClick={() => void act("skip-final-break")}><SkipForward />跳过休息</button> : null}
         {!preparationSurface && ringPhase
-          ? <button className={`mini-cell focus-mini-auto ${settings?.autoShow ? "active" : ""}`} type="button" aria-pressed={Boolean(settings?.autoShow)} title="开始时自动出现" onClick={() => void updateSetting("focus_mini_set_auto_show", !settings?.autoShow)}>开始时自动出现</button>
+          ? <button className={`mini-auto focus-mini-auto ${settings?.autoShow ? "active" : ""}`} type="button" aria-pressed={Boolean(settings?.autoShow)} title="开始时自动出现" onClick={() => void updateSetting("focus_mini_set_auto_show", !settings?.autoShow)}>开始时自动出现</button>
           : null}
       </div>
     </div> : <div className="focus-mini-empty"><strong>{evaluationSaved ? "记录已经保存" : connectionError ? "正在重新连接" : "现在没有专注"}</strong><button type="button" onClick={() => void invokeDesktop("focus_mini_open_main")}>回到主界面</button></div>}

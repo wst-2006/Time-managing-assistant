@@ -1190,7 +1190,7 @@ export function FocusWorkspace({
 
   return (
     <section className={`focus-workspace page focus-theme-${focusTheme} ${executionStage ? "focus-workspace-executing" : ""}`} aria-labelledby="focus-title">
-      <div className={`focus-stage focus-stage-${stage} focus-scene-${focusScene} ${stage === "running" && currentSegment?.segmentType !== "break" ? "room-black" : ""}`} data-dial-room>
+      <div className={`focus-stage focus-stage-${stage} focus-scene-${focusScene}`} data-dial-room>
         <div className="focus-stage-header">
           <button className="back-button" onClick={onBack}>
             <ChevronLeft />
