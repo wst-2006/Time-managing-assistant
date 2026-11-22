@@ -146,8 +146,21 @@ async function findApp() {
 
 /** Launches the installed app in demo mode with WebView2 remote debugging and connects to it. */
 async function openInstalledApp() {
-  if (await fetch("http://127.0.0.1:3000/health").then((r) => r.ok).catch(() => false)) {
-    throw new Error("软件正在运行。请先完全退出（右下角托盘图标 → 退出），再运行本脚本，避免碰到你的真实数据。");
+  const apiUp = () => fetch("http://127.0.0.1:3000/health").then((r) => r.ok).catch(() => false);
+  if (await apiUp()) {
+    // A closed app can leave its background service (node.exe inside the app's
+    // "runtime" folder) running. End only that process, never other Node programs.
+    console.log("发现软件残留的后台进程（任务管理器里显示为 Node.js），正在结束它……");
+    await new Promise((resolve) => {
+      const kill = spawn("powershell", ["-NoProfile", "-Command",
+        "Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*Time Managing Assistant*' } | Stop-Process -Force"],
+        { stdio: "ignore", windowsHide: true });
+      kill.once("exit", resolve); kill.once("error", resolve);
+    });
+    await new Promise((r) => setTimeout(r, 1500));
+    if (await apiUp()) {
+      throw new Error("软件还开着（或者 3000 端口被别的程序占用）。请从右下角托盘图标退出软件后再运行。");
+    }
   }
   const exe = await findApp();
   const debugPort = await freePort();
