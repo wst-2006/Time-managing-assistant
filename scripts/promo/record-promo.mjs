@@ -147,27 +147,30 @@ async function findApp() {
 /** Launches the installed app in demo mode with WebView2 remote debugging and connects to it. */
 async function openInstalledApp() {
   const apiUp = () => fetch("http://127.0.0.1:3000/health").then((r) => r.ok).catch(() => false);
+  // A closed app can leave processes behind: its background service (node.exe
+  // in the app's runtime folder) and its WebView2 browser processes. A
+  // leftover WebView2 process makes the new window reuse it and ignore the
+  // debugging port, so end them first. Only this app's processes are touched:
+  // the WebView2 ones are matched by this app's data folder in their command line.
+  console.log("清理软件残留的后台进程（如果有）……");
+  await new Promise((resolve) => {
+    const kill = spawn("powershell", ["-NoProfile", "-Command", [
+      "Get-Process personal-ai-desktop -ErrorAction SilentlyContinue | Stop-Process -Force",
+      "Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*Time Managing Assistant*' } | Stop-Process -Force",
+      "Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe'\" | Where-Object { $_.CommandLine -like '*timemanagingassistant*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+    ].join("; ")], { stdio: "ignore", windowsHide: true });
+    kill.once("exit", resolve); kill.once("error", resolve);
+  });
+  await new Promise((r) => setTimeout(r, 2000));
   if (await apiUp()) {
-    // A closed app can leave its background service (node.exe inside the app's
-    // "runtime" folder) running. End only that process, never other Node programs.
-    console.log("发现软件残留的后台进程（任务管理器里显示为 Node.js），正在结束它……");
-    await new Promise((resolve) => {
-      const kill = spawn("powershell", ["-NoProfile", "-Command",
-        "Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*Time Managing Assistant*' } | Stop-Process -Force"],
-        { stdio: "ignore", windowsHide: true });
-      kill.once("exit", resolve); kill.once("error", resolve);
-    });
-    await new Promise((r) => setTimeout(r, 1500));
-    if (await apiUp()) {
-      throw new Error("软件还开着（或者 3000 端口被别的程序占用）。请从右下角托盘图标退出软件后再运行。");
-    }
+    throw new Error("3000 端口仍被占用（软件还开着，或者被别的程序占用）。请从右下角托盘退出软件后再运行。");
   }
   const exe = await findApp();
   const debugPort = await freePort();
   console.log(`以演示模式启动软件：${exe}`);
   const child = spawn(exe, [], {
     detached: false, windowsHide: false, stdio: "ignore",
-    env: { ...process.env, TMA_DEMO_DATA_DIR: tempRoot, TMA_E2E_ISOLATED: "1", WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${debugPort}` },
+    env: { ...process.env, TMA_DEMO_DATA_DIR: tempRoot, TMA_E2E_ISOLATED: "1", WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${debugPort} --remote-allow-origins=*` },
   });
   children.push({ kill: () => { try { spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }); } catch {} } });
   const api = "http://127.0.0.1:3000";
@@ -175,7 +178,7 @@ async function openInstalledApp() {
   await waitFor(`${api}/health`, 90_000);
   console.log(`[2/4] 后台已启动。等待软件窗口的调试端口 ${debugPort}……`);
   try { await waitFor(`http://127.0.0.1:${debugPort}/json/version`, 45_000); }
-  catch { throw new Error(`软件窗口的调试端口 ${debugPort} 没有打开。可能装的还是旧版软件，或者 WebView2 已有别的实例在运行。请重启电脑后再试一次，并确认已安装最新安装包。`); }
+  catch { throw new Error(`软件窗口的调试端口 ${debugPort} 没有打开。请关掉这个窗口，重启电脑（清掉所有残留进程）后再运行一次；如果还是这样，把这段输出发给开发者。`); }
   const targets = await fetch(`http://127.0.0.1:${debugPort}/json/list`).then((r) => r.json()).catch(() => []);
   console.log("[3/4] 调试端口已连上，软件里的页面：");
   for (const target of targets) console.log(`      - ${target.type}  ${target.url}`);
