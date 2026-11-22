@@ -20,7 +20,8 @@
     "check": "corepack pnpm --filter @personal-ai/domain --filter @personal-ai/db --filter @personal-ai/worker -r --if-present run build && corepack pnpm -r --if-present run check",
     "test": "corepack pnpm -r --if-present run test",
     "db:generate": "corepack pnpm --filter @personal-ai/db generate",
-    "build:android": "corepack pnpm --filter @personal-ai/domain --filter @personal-ai/db -r run build && corepack pnpm --filter @personal-ai/mobile run build:web && corepack pnpm --filter @personal-ai/mobile exec cap sync android"
+    "build:android": "corepack pnpm --filter @personal-ai/domain --filter @personal-ai/db -r run build && corepack pnpm --filter @personal-ai/mobile run build:web && corepack pnpm --filter @personal-ai/mobile exec cap sync android",
+    "promo": "node scripts/promo/record-promo.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
