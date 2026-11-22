@@ -1,8 +1,8 @@
 // Drives the app through a short, choreographed demo for a promo video.
 // By default it opens the installed desktop app in demo mode (a throwaway
 // data folder, no Feishu) and drives its real windows, including the focus
-// popup. With --web it runs a throwaway copy in Edge instead. Start screen
-// recording, then press Space in the app to roll. See docs/PROMO.md.
+// popup. With --web it runs a throwaway copy in Edge instead. A 15-second
+// countdown on screen gives time to maximise the window and start recording. See docs/PROMO.md.
 //
 //   corepack pnpm promo                 # the installed app (quit it first)
 //   corepack pnpm promo -- --web        # Edge instead
@@ -262,11 +262,17 @@ try {
 
   await card("把一天排清楚", "PLANNER · 时间管理助手");
   if (process.env.PROMO_NO_WAIT !== "1" && !headless) {
-    console.log(web === null
-      ? "\n软件已用演示模式打开。把软件窗口最大化，开始录屏，然后点一下软件窗口、按空格键开始演示。"
-      : "\n浏览器已全屏打开。先开始录屏，然后在浏览器里按空格键开始演示。");
-    await page.evaluate(() => addEventListener("keydown", (event) => { if (event.code === "Space") window.__promoGo = true; }));
-    await page.waitForFunction(() => window.__promoGo === true, null, { timeout: 0, polling: 200 });
+    // No key press needed: a countdown under the opening caption gives time to
+    // maximise the window and start recording.
+    const seconds = Number(process.env.PROMO_COUNTDOWN ?? 15);
+    console.log(`\n${seconds} 秒后自动开始：现在把窗口最大化，并开始录屏。`);
+    for (let left = seconds; left > 0; left--) {
+      await page.evaluate((left) => { const small = document.querySelector("#promo-card small"); if (small) small.textContent = `${left} 秒后开始`; }, left).catch(() => {});
+      process.stdout.write(`\r${left} `);
+      await page.waitForTimeout(1000);
+    }
+    process.stdout.write("\n");
+    await page.evaluate(() => { const small = document.querySelector("#promo-card small"); if (small) small.textContent = "PLANNER · 时间管理助手"; }).catch(() => {});
   }
   console.log("开始演示");
   await page.waitForTimeout(2600);
