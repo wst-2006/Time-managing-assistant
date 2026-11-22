@@ -1,11 +1,12 @@
 // Drives the app through a short, choreographed demo for a promo video.
-// Uses a throwaway data folder (your real data is never touched), starts the
-// API and web app, opens Edge full-screen and waits for you to start screen
-// recording (OBS, or Win+Alt+R with Xbox Game Bar), then press Space in the
-// browser to roll. See docs/PROMO.md.
+// By default it opens the installed desktop app in demo mode (a throwaway
+// data folder, no Feishu) and drives its real windows, including the focus
+// popup. With --web it runs a throwaway copy in Edge instead. Start screen
+// recording, then press Space in the app to roll. See docs/PROMO.md.
 //
-//   corepack pnpm promo                 # Edge, full screen
-//   PROMO_BROWSER=chrome corepack pnpm promo
+//   corepack pnpm promo                 # the installed app (quit it first)
+//   corepack pnpm promo -- --web        # Edge instead
+//   PROMO_APP="D:\\...\\Time Managing Assistant.exe" corepack pnpm promo
 //   PROMO_NO_WAIT=1 ...                 # start immediately, no Space
 //
 // Run between 08:00 and 20:30: the demo schedules tasks around "now".
@@ -66,17 +67,20 @@ const at = (date, minute) => `${date}T${String(Math.floor(minute / 60)).padStart
 async function seed(api) {
   const sql = (q, params = []) => fetch(`${api}/__e2e/sql`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sql: q, params }) }).then((r) => r.json());
   const { date, minute } = shanghaiNow();
-  if (minute < 8 * 60 || minute > 20 * 60 + 30) throw new Error("请在 08:00–20:30 之间运行：演示会围绕当前时间排任务。");
+  if (minute < 8 * 60 || minute > 20 * 60 + 59) throw new Error("请在 08:00–21:00 之间运行：演示会围绕当前时间排任务。");
   const slot = Math.floor(minute / 30) * 30;            // current half hour
   const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  // Laid out around now so nothing overlaps: done tasks this morning, the task
+  // already under way (the page offers GO), a free hour the demo draws
+  // 高等代数 into, then later tasks only if they still fit before 23:00.
   const plan = [
     // [title, start, end, status, outcome]
     ["背单词", 8 * 60, 8 * 60 + 30, "closed", "complete"],
     ["读完第三章并整理笔记", 9 * 60, 10 * 60 + 30, "closed", "partial"],
-    ["数据库大作业", slot - 30, slot + 60, "open", null],      // already started: the page offers GO
+    ["数据库大作业", slot - 30, slot + 60, "open", null],
     ["跑步", slot + 120, slot + 180, "open", null],
-    ["复盘今天", 21 * 60 + 30, 22 * 60, "open", null],
-  ].filter(([, start, end]) => end <= 23 * 60 && (start >= slot - 30 || end <= slot - 30));
+    ["复盘今天", Math.max(21 * 60 + 30, slot + 180), Math.max(22 * 60, slot + 210), "open", null],
+  ].filter(([title, start, end]) => end <= 23 * 60 && (title === "数据库大作业" || end <= slot - 30 || start >= slot + 120));
   let index = 0;
   for (const [title, startMinute, endMinute, status, outcome] of plan) {
     // created tomorrow (always allowed), then moved to today's slot
@@ -125,7 +129,53 @@ const overlayScript = () => {
 };
 
 // ---------- main ----------
-try {
+const appMode = !process.argv.includes("--web");
+const headless = process.env.PROMO_HEADLESS === "1";
+
+/** Finds the installed desktop app (or PROMO_APP). */
+async function findApp() {
+  const { existsSync } = await import("node:fs");
+  const candidates = [process.env.PROMO_APP];
+  for (const root of [process.env.LOCALAPPDATA, process.env.ProgramFiles, process.env["ProgramFiles(x86)"]].filter(Boolean)) {
+    for (const exe of ["Time Managing Assistant.exe", "personal-ai-desktop.exe"]) candidates.push(join(root, "Time Managing Assistant", exe));
+  }
+  const found = candidates.filter(Boolean).find((path) => existsSync(path));
+  if (!found) throw new Error("没找到安装好的软件。请先安装最新版，或者用 PROMO_APP 指定 exe 路径。");
+  return found;
+}
+
+/** Launches the installed app in demo mode with WebView2 remote debugging and connects to it. */
+async function openInstalledApp() {
+  if (await fetch("http://127.0.0.1:3000/health").then((r) => r.ok).catch(() => false)) {
+    throw new Error("软件正在运行。请先完全退出（右下角托盘图标 → 退出），再运行本脚本，避免碰到你的真实数据。");
+  }
+  const exe = await findApp();
+  const debugPort = await freePort();
+  console.log(`以演示模式启动软件：${exe}`);
+  const child = spawn(exe, [], {
+    detached: false, windowsHide: false, stdio: "ignore",
+    env: { ...process.env, TMA_DEMO_DATA_DIR: tempRoot, TMA_E2E_ISOLATED: "1", WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${debugPort}` },
+  });
+  children.push({ kill: () => { try { spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }); } catch {} } });
+  const api = "http://127.0.0.1:3000";
+  await waitFor(`${api}/health`, 90_000);
+  await waitFor(`http://127.0.0.1:${debugPort}/json/version`, 60_000);
+  const { slot } = await seed(api);
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`);
+  const context = browser.contexts()[0];
+  let page = null;
+  for (let i = 0; i < 60 && !page; i++) {
+    page = context.pages().find((candidate) => !candidate.url().includes("focus-mini") && /^(https?|tauri):/.test(candidate.url())) ?? null;
+    if (!page) await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!page) throw new Error("没连上软件窗口。");
+  await context.route("**/api/v1/growth/summary**", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ summary: growthSummary }) })).catch(() => {});
+  await page.reload({ waitUntil: "networkidle" });   // show the demo tasks just seeded
+  return { browser, context, page, slot, web: null };
+}
+
+/** Starts a throwaway API + web app and opens it in Edge, scaled to the app's proportions. */
+async function openInBrowser() {
   const [apiPort, webPort] = await Promise.all([freePort(), freePort()]);
   const api = `http://127.0.0.1:${apiPort}`, web = `http://127.0.0.1:${webPort}`;
   console.log("构建后台……");
@@ -139,19 +189,32 @@ try {
   start(process.execPath, [corepack, "pnpm", "exec", "vite", "--host", "127.0.0.1", "--port", String(webPort), "--strictPort"], env, join(workspace, "apps/web"));
   await waitFor(`${api}/health`); await waitFor(web);
   const { slot } = await seed(api);
-
-  const headless = process.env.PROMO_HEADLESS === "1";
   const browser = await chromium.launch({
     headless,
     channel: process.env.PROMO_BROWSER_PATH ? undefined : (process.env.PROMO_BROWSER ?? "msedge"),
     executablePath: process.env.PROMO_BROWSER_PATH,
-    args: headless ? [] : ["--start-fullscreen", "--hide-crash-restore-bubble", "--disable-infobars"],
+    args: headless ? [] : ["--hide-crash-restore-bubble", "--disable-infobars", "--no-first-run"],
   });
   const context = await browser.newContext(headless ? { viewport: { width: 1920, height: 1080 } } : { viewport: null });
-  await context.addInitScript(overlayScript);
   await context.route("**/api/v1/growth/summary**", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ summary: growthSummary }) }));
   const page = await context.newPage();
+  await page.goto("about:blank");
+  const cdp = await context.newCDPSession(page);
+  try {
+    const { windowId } = await cdp.send("Browser.getWindowForTarget");
+    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "fullscreen" } });
+  } catch (error) { console.warn("无法切换到全屏，请手动按 F11：", error.message); }
+  await page.waitForTimeout(1200);
+  const screenSize = await page.evaluate(() => ({ w: innerWidth * devicePixelRatio, h: innerHeight * devicePixelRatio }));
+  const LAYOUT_WIDTH = Number(process.env.PROMO_LAYOUT_WIDTH ?? 1440);
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: LAYOUT_WIDTH, height: Math.round(LAYOUT_WIDTH * screenSize.h / screenSize.w), deviceScaleFactor: screenSize.w / LAYOUT_WIDTH, mobile: false });
   await page.goto(web, { waitUntil: "networkidle" });
+  return { browser, context, page, slot, web };
+}
+
+try {
+  const { browser, context, page, slot, web } = appMode && !headless ? await openInstalledApp() : await openInBrowser();
+  await page.evaluate(overlayScript);
   await page.waitForTimeout(2500);
 
   // smooth pointer with ease-in-out, ~60 fps
@@ -186,7 +249,9 @@ try {
 
   await card("把一天排清楚", "PLANNER · 时间管理助手");
   if (process.env.PROMO_NO_WAIT !== "1" && !headless) {
-    console.log("\n浏览器已全屏打开。先开始录屏，然后在浏览器里按空格键开始演示。");
+    console.log(web === null
+      ? "\n软件已用演示模式打开。把软件窗口最大化，开始录屏，然后点一下软件窗口、按空格键开始演示。"
+      : "\n浏览器已全屏打开。先开始录屏，然后在浏览器里按空格键开始演示。");
     await page.evaluate(() => addEventListener("keydown", (event) => { if (event.code === "Space") window.__promoGo = true; }));
     await page.waitForFunction(() => window.__promoGo === true, null, { timeout: 0, polling: 200 });
   }
@@ -209,7 +274,7 @@ try {
     await glide(gridArea.x + gridArea.width * 0.5, Math.min(gridArea.y + 260, 700), 700);
     for (let i = 0; i < 40; i++) {
       const line = await hourLine.boundingBox();
-      const view = page.viewportSize() ?? { height: await page.evaluate(() => innerHeight) };
+      const view = { height: await page.evaluate(() => innerHeight) };
       if (line && line.y > view.height * 0.35 && line.y < view.height * 0.6) break;
       await page.mouse.wheel(0, line && line.y < view.height * 0.35 ? -60 : 60);
       await page.waitForTimeout(40);
@@ -227,6 +292,10 @@ try {
     await page.waitForTimeout(500);
     await click(page.getByRole("button", { name: "保存任务" }));
     await page.waitForTimeout(1600);
+    // if the slot was taken after all, close the overlap prompt and the form instead of leaving them on screen
+    if (await page.getByText("这项安排与现有任务重叠").isVisible().catch(() => false)) {
+      await page.keyboard.press("Escape"); await page.waitForTimeout(300); await page.keyboard.press("Escape"); await page.waitForTimeout(600);
+    }
   });
   await snap("today");
   await card("排进时间轴", "拖一拖就排好 · 状态一眼看清"); await page.waitForTimeout(1700); await card(null, null, false); await page.waitForTimeout(600);
@@ -260,18 +329,38 @@ try {
     await page.evaluate(() => scrollTo({ top: 0, behavior: "smooth" })); await page.waitForTimeout(800);
   });
   await snap("go");
-  // 3. The desktop focus popup slides in
-  await page.evaluate((src) => { const f = document.createElement("iframe"); f.id = "promo-popup"; f.src = src; document.body.appendChild(f); setTimeout(() => f.classList.add("on"), 1400); }, `${web}/?focus-mini=1`);
-  await page.waitForTimeout(2600);
-  const popup = await page.locator("#promo-popup").boundingBox();
-  if (popup) { await glide(popup.x + 60, popup.y + 90, 1000); await glide(popup.x + 300, popup.y + 250, 1600); await glide(popup.x + 180, popup.y + 160, 900); }
-  await page.waitForTimeout(2200);
-  await snap("popup");
-  await page.evaluate(() => document.getElementById("promo-popup")?.classList.remove("on")); await page.waitForTimeout(800);
+  // 3. The focus popup: the app's real window in app mode, a framed copy in the browser
+  await step("专注小窗", async () => {
+    if (web === null) {
+      let popup = null;
+      for (let i = 0; i < 20 && !popup; i++) {
+        popup = context.pages().find((candidate) => candidate.url().includes("focus-mini") && !candidate.url().includes("evaluation")) ?? null;
+        if (!popup) await page.waitForTimeout(500);
+      }
+      if (!popup) throw new Error("专注小窗没有弹出（设置里“专注计时窗”需要开着）");
+      await popup.evaluate(overlayScript);
+      await page.evaluate(() => { const c = document.getElementById("promo-cursor"); if (c) c.style.opacity = "0"; });
+      let at = { x: 180, y: 200 };
+      const move = async (x, y, ms) => { const frames = Math.round(ms / 16); const from = { ...at }; for (let i = 1; i <= frames; i++) { const t = i / frames, e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; await popup.mouse.move(from.x + (x - from.x) * e, from.y + (y - from.y) * e); await popup.waitForTimeout(16); } at = { x, y }; };
+      await popup.waitForTimeout(1500);
+      await move(60, 90, 900); await move(300, 260, 1600); await move(180, 170, 900);
+      await popup.waitForTimeout(2200);
+      await page.evaluate(() => { const c = document.getElementById("promo-cursor"); if (c) c.style.opacity = "1"; });
+    } else {
+      await page.evaluate((src) => { const f = document.createElement("iframe"); f.id = "promo-popup"; f.src = src; document.body.appendChild(f); setTimeout(() => f.classList.add("on"), 1400); }, `${web}/?focus-mini=1`);
+      await page.waitForTimeout(2600);
+      const popup = await page.locator("#promo-popup").boundingBox();
+      if (popup) { await glide(popup.x + 60, popup.y + 90, 1000); await glide(popup.x + 300, popup.y + 250, 1600); await glide(popup.x + 180, popup.y + 160, 900); }
+      await page.waitForTimeout(2200);
+      await snap("popup");
+      await page.evaluate(() => document.getElementById("promo-popup")?.classList.remove("on")); await page.waitForTimeout(800);
+    }
+  });
   await card("留下真实记录", "每一分钟专注都会被看见"); await page.waitForTimeout(1700); await card(null, null, false); await page.waitForTimeout(600);
 
   // 4. Growth
   await page.evaluate(() => document.getElementById("promo-popup")?.remove());
+  await page.bringToFront().catch(() => {});
   await nav("成长"); await page.waitForTimeout(2400);
   await glide(900, 520, 900); await page.waitForTimeout(800);
   await smoothScroll(700, 2200); await page.waitForTimeout(1600);
@@ -283,7 +372,7 @@ try {
   console.log("演示结束，可以停止录屏。");
   if (headless) await page.screenshot({ path: join(workspace, "promo-last-frame.png") });
   await page.waitForTimeout(2000);
-  await browser.close();
+  if (web === null) await browser.close().catch(() => {}); else await browser.close();
 } finally {
   await cleanup();
 }

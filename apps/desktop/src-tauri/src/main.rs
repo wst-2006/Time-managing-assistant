@@ -145,6 +145,23 @@ impl LocalRuntime {
         let data_directory = app_data_dir.join("data");
         fs::create_dir_all(&data_directory)
             .map_err(|error| format!("failed to create the data folder: {error}"))?;
+        // Demo mode, used only by the promo recording script: a throwaway data
+        // folder and an empty settings file, so a recording never touches the
+        // user's records and never sends Feishu cards.
+        let (data_directory, user_env) = match std::env::var_os("TMA_DEMO_DATA_DIR") {
+            Some(demo_root) => {
+                let demo_root = PathBuf::from(demo_root);
+                let demo_data = demo_root.join("data");
+                fs::create_dir_all(&demo_data)
+                    .map_err(|error| format!("failed to create the demo data folder: {error}"))?;
+                let demo_env = demo_root.join("demo.env");
+                fs::write(&demo_env, "")
+                    .map_err(|error| format!("failed to create the demo settings file: {error}"))?;
+                append_desktop_log(&app_data_dir, &format!("demo mode: data in {}", demo_data.display()));
+                (demo_data, demo_env)
+            }
+            None => (data_directory, user_env),
+        };
 
         // A previous release could leave its API child alive after its
         // desktop shell closed. Clean this app's known bundled runtimes before
