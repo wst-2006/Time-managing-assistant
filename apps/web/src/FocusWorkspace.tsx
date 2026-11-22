@@ -29,7 +29,7 @@ import { FocusMotionBackdrop } from "./FocusMotionBackdrop";
 import { focusQuote } from "./focus-quotes";
 import { invokeDesktop } from "./focus-session-client";
 import { GoButton, SegmentRuler, SessionTable, SliceText, TerminalPrompt, playLetsBegin } from "./ui/FocusTerminal";
-import { FocusDial } from "./ui/FocusDial";
+import { FocusRays } from "./ui/FocusRays";
 
 const IDLE_EVALUATION_TIMEOUT_MS = 60_000;
 
@@ -1265,7 +1265,7 @@ export function FocusWorkspace({
                 }}
               >
                 <span className="focus-timepiece-label">{stage === "reminded" ? "等待开始" : stage === "scheduled" ? "距离准备" : stage === "armed" ? "距离开始" : stage === "awaiting_late_start" ? "可用余时" : currentSegment?.segmentType === "break" ? "休息余时" : stage === "preparing" ? "准备倒计时" : "专注余时"}</span>
-                <FocusDial anchor=".ink-clepsydra strong" band={1.25} />
+                <FocusRays anchor=".ink-clepsydra strong" />
                 <ThemedFocusTimer theme={focusTheme} value={clockValue} progress={timerProgress} resting={currentSegment?.segmentType === "break"} empty={false} />
                 {displayTask?.startAt && displayTask.endAt ? <FocusRange startAt={displayTask.startAt} endAt={displayTask.endAt} timeZone={displayTask.timeZone} nowMs={nowMs} /> : null}
               </div>
@@ -1344,7 +1344,7 @@ export function FocusWorkspace({
               <p className="focus-meta">{displayTask ? displayTask.startAt && displayTask.endAt ? `${clock(displayTask.startAt, displayTask.timeZone)}–${clock(displayTask.endAt, displayTask.timeZone)} · ${selectedMinutes} 分钟固定时间块` : "这项任务尚未设置精确起止时间" : "从今日时间轴或右侧列表选择任务"}</p>
               <div className={`focus-timepiece ${currentSegment?.segmentType === "break" ? "resting" : ""}`}>
                 <span className="focus-timepiece-label">专注余时</span>
-                <FocusDial anchor=".ink-clepsydra strong" band={1.25} />
+                <FocusRays anchor=".ink-clepsydra strong" />
                 <ThemedFocusTimer theme={focusTheme} value={clockValue} progress={timerProgress} resting={currentSegment?.segmentType === "break"} empty={!displayTask} />
                 {displayTask?.startAt && displayTask.endAt ? <FocusRange startAt={displayTask.startAt} endAt={displayTask.endAt} timeZone={displayTask.timeZone} nowMs={nowMs} /> : null}
               </div>

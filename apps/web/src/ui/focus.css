@@ -994,13 +994,13 @@
 .focus-theme-ink .ink-clepsydra:not(.compact) strong::after { content: none; display: none; }
 .focus-theme-ink .focus-timepiece-execution:hover { transform: none; background: transparent; }
 .focus-theme-ink .focus-timepiece { position: relative; }
-.focus-theme-ink .focus-timepiece > .focus-dial {
-  position: absolute; z-index: -1; top: -6%; bottom: -6%;
+.focus-theme-ink .focus-timepiece > .focus-rays {
+  position: absolute; z-index: -1; top: -30%; bottom: -30%;
   left: calc(50% - 50cqw); width: 100cqw; height: auto;
-  color: var(--ink);
+  color: var(--ink); pointer-events: none;
 }
-.focus-theme-ink .focus-timepiece > :not(.focus-dial) { position: relative; z-index: 1; }
-@media (max-width: 640px) { .focus-theme-ink .focus-timepiece > .focus-dial { display: none; } }
+.focus-theme-ink .focus-timepiece > :not(.focus-rays) { position: relative; z-index: 1; }
+@media (max-width: 640px) { .focus-theme-ink .focus-timepiece > .focus-rays { display: none; } }
 
 .focus-theme-ink .focus-stage { isolation: isolate; transition: color 500ms var(--ease-standard); }
 .focus-theme-ink .focus-stage.room-black {
