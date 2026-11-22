@@ -884,3 +884,132 @@
 }
 /* keyboard shortcuts mean nothing on a touch screen */
 @media (hover: none) and (pointer: coarse) { .term-keys { display: none; } }
+
+/* ===========================================================================
+   Focus window (360 × 360), one room drawn two ways.
+   Red room while getting ready or resting, black room with a red dot grid
+   while focusing — the window's colour swap (--ink / --red) does the
+   inversion, so every rule below is written once. Layout follows the
+   reference site's framed cells: a head row, the dial room, a ticker strip,
+   the quote, and a row of action cells, all split by one rule weight.
+   =========================================================================== */
+.focus-mini.focus-theme-ink .focus-mini-body.mini-room {
+  --rule-c: var(--ink);
+  position: relative; z-index: 1; box-sizing: border-box;
+  display: grid; grid-template-rows: 30px minmax(0, 1fr) 24px 50px 46px;
+  width: 100%; max-width: none; height: calc(100% - 32px); min-height: 0;
+  margin: 32px 0 0; padding: 0; gap: 0;
+  align-content: stretch; justify-items: stretch;
+  color: var(--ink); background: var(--red);
+  transition: background-color 600ms var(--ease-standard), color 600ms var(--ease-standard);
+}
+.focus-mini.focus-theme-ink.ink-dark .mini-room {
+  --rule-c: rgba(255, 72, 102, .42);
+  background: radial-gradient(circle, rgba(255, 72, 102, .3) 0 1px, transparent 1.4px) 8px 8px / 16px 16px, #120306;
+}
+.focus-mini.focus-theme-ink .mini-room .mini-row { display: flex; align-items: stretch; min-width: 0; border-bottom: 1.5px solid var(--rule-c); }
+.focus-mini.focus-theme-ink .mini-room .mini-row:last-child { border-bottom: 0; }
+.focus-mini.focus-theme-ink .mini-room .mini-cell {
+  display: flex; align-items: center; justify-content: center; min-width: 0;
+  padding: 0 10px; border: 0; border-right: 1.5px solid var(--rule-c); border-radius: 0;
+  background: none; color: var(--ink); box-shadow: none;
+  font: 500 11px/1.2 var(--font-mono); letter-spacing: .12em; white-space: nowrap;
+}
+.focus-mini.focus-theme-ink .mini-room .mini-row > .mini-cell:last-child,
+.focus-mini.focus-theme-ink .mini-room .focus-mini-text-actions > .mini-cell:last-child { border-right: 0; }
+
+/* head: phase | title | end time */
+.focus-mini.focus-theme-ink .mini-room .mini-phase { flex: none; gap: 6px; }
+.focus-mini.focus-theme-ink .mini-room .mini-phase em { font-style: normal; opacity: .7; }
+.focus-mini.focus-theme-ink .mini-room .mini-head .mini-title { flex: 1; justify-content: flex-start; padding: 0 10px; margin: 0; }
+.focus-mini.focus-theme-ink .mini-room .mini-title strong {
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 0; background: none; color: var(--ink);
+  font: 400 17px/1 var(--font-display-zh) !important; letter-spacing: .04em;
+}
+.focus-mini.focus-theme-ink .mini-room .mini-end { flex: none; font-size: 12px; }
+
+/* the dial room: digits stay still, the ticks turn */
+.focus-mini.focus-theme-ink .mini-room .mini-dial-room { position: relative; display: grid; place-items: center; min-height: 0; width: auto; aspect-ratio: auto; margin: 0; padding: 0; background: none; border-bottom: 1.5px solid var(--rule-c); overflow: hidden; }
+.focus-dial { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; color: inherit; }
+.focus-mini.focus-theme-ink .mini-room .focus-mini-digits {
+  position: relative; z-index: 1; display: block; width: auto; margin: 0; padding: 0; background: none;
+  color: var(--ink); font: 400 112px/.86 var(--font-display) !important; letter-spacing: 0; white-space: nowrap;
+}
+.focus-mini.focus-theme-ink .mini-room .focus-mini-digits.long { font-size: 80px !important; }
+/* the black room gives the digits depth, like the reference's extruded type */
+.focus-mini.focus-theme-ink.ink-dark .mini-room .focus-mini-digits { text-shadow: 2px 2px 0 #7a1022, 4px 4px 0 #4a0914, 6px 6px 0 #2a050b; }
+
+/* ticker strip: ► text //////// ◄, or ► segment bar 42% ◄ while live */
+.focus-mini.focus-theme-ink .mini-room .mini-ticker { align-items: center; gap: 8px; padding: 0 10px; font: 500 10px/1 var(--font-mono); letter-spacing: .12em; overflow: hidden; }
+.focus-mini.focus-theme-ink .mini-room .mini-ticker-mark { flex: none; font-size: 8px; }
+.focus-mini.focus-theme-ink .mini-room .mini-ticker-text { flex: none; }
+.focus-mini.focus-theme-ink .mini-room .mini-ticker-fill { flex: 1; height: 8px; background: repeating-linear-gradient(115deg, var(--ink) 0 1px, transparent 1px 5px); opacity: .8; }
+.focus-mini.focus-theme-ink .mini-room .mini-segments { flex: 1; display: flex; align-items: center; gap: 8px; margin: 0; min-width: 0; }
+.focus-mini.focus-theme-ink .mini-room .mini-segments-track { flex: 1; display: flex; gap: 4px; height: 8px; }
+.focus-mini.focus-theme-ink .mini-room .mini-segment { position: relative; flex-basis: 0; border: 1px solid var(--ink); overflow: hidden; }
+.focus-mini.focus-theme-ink .mini-room .mini-segment b { position: absolute; inset: 0 auto 0 0; background: var(--ink); transition: width 1s linear; }
+.focus-mini.focus-theme-ink .mini-room .mini-segment.break { border-style: dashed; }
+.focus-mini.focus-theme-ink .mini-room .mini-segment.break b { background: repeating-linear-gradient(135deg, var(--ink) 0 1px, transparent 1px 4px); }
+.focus-mini.focus-theme-ink .mini-room .mini-segments small { flex: none; font: 500 10px/1 var(--font-mono); letter-spacing: .1em; opacity: 1; }
+
+/* quote: the one line of serif, set large */
+.focus-mini.focus-theme-ink .mini-room .focus-mini-quote {
+  position: static; display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap;
+  width: auto; max-width: none; margin: 0; padding: 6px 14px; background: none; border-left: 0; border-right: 0; border-top: 0;
+  text-align: center; color: var(--ink); overflow: hidden;
+}
+.focus-mini.focus-theme-ink .mini-room .focus-mini-quote q { font: 400 17px/1.25 var(--font-serif); letter-spacing: .02em; }
+.focus-mini.focus-theme-ink .mini-room .focus-mini-quote cite { font: 400 11px/1.2 var(--font-serif); font-style: normal; opacity: .75; }
+
+/* action cells */
+.focus-mini.focus-theme-ink .mini-room .mini-actions { margin: 0; padding: 0; gap: 0; flex-direction: row; flex-wrap: nowrap; justify-content: stretch; background: none; }
+.focus-mini.focus-theme-ink .mini-room .mini-actions > .mini-cell, .focus-mini.focus-theme-ink .mini-room .mini-actions .focus-mini-text-actions { flex: 1; }
+.focus-mini.focus-theme-ink .mini-room .mini-actions .focus-mini-text-actions { display: flex; gap: 0; width: auto; }
+.focus-mini.focus-theme-ink .mini-room .mini-actions .focus-mini-text-actions .mini-cell { flex: 1; padding: 0 6px; font-size: 11px; letter-spacing: .06em; cursor: pointer; }
+.focus-mini.focus-theme-ink .mini-room .mini-actions .focus-mini-text-actions .mini-cell:hover:not(:disabled) { background: var(--ink); color: var(--red); }
+.focus-mini.focus-theme-ink .mini-room .mini-primary {
+  flex: 1.5; gap: 8px; border-right: 1.5px solid var(--rule-c);
+  background: var(--ink); color: var(--red);
+  font: 400 18px/1 var(--font-display-zh); letter-spacing: .06em; cursor: pointer;
+  transition: letter-spacing 300ms var(--ease-standard);
+}
+.focus-mini.focus-theme-ink .mini-room .mini-primary:hover:not(:disabled) { letter-spacing: .14em; }
+.focus-mini.focus-theme-ink .mini-room .mini-primary b { font: 400 20px/1 var(--font-display); letter-spacing: .02em; }
+.focus-mini.focus-theme-ink .mini-room .mini-primary.is-static { cursor: default; font-size: 15px; }
+.focus-mini.focus-theme-ink .mini-room .mini-next { flex: 1.3; }
+.focus-mini.focus-theme-ink .mini-room .focus-mini-auto { position: static; inset: auto; transform: none; margin: 0; opacity: .75; cursor: pointer; font-size: 10px; letter-spacing: .06em; }
+.focus-mini.focus-theme-ink .mini-room .focus-mini-auto::before { content: ""; flex: none; width: 9px; height: 9px; margin-right: 6px; border: 1.2px solid currentColor; }
+.focus-mini.focus-theme-ink .mini-room .focus-mini-auto.active { opacity: 1; text-decoration: none; }
+.focus-mini.focus-theme-ink .mini-room .focus-mini-auto.active::before { background: currentColor; }
+.focus-mini.focus-theme-ink .mini-room .focus-mini-text-action { flex: 1; cursor: pointer; }
+
+/* ===========================================================================
+   Focus page, same space as the window.
+   The fixed rays are replaced by the turning dial; nothing scales on hover.
+   Once real focus starts the stage becomes the black room (red dot grid,
+   red type with depth), opening outward from the timer.
+   =========================================================================== */
+.focus-theme-ink .ink-clepsydra:not(.compact) strong::before,
+.focus-theme-ink .ink-clepsydra:not(.compact) strong::after { content: none; display: none; }
+.focus-theme-ink .focus-timepiece-execution:hover { transform: none; background: transparent; }
+.focus-theme-ink .focus-timepiece { position: relative; }
+.focus-theme-ink .focus-timepiece > .focus-dial {
+  position: absolute; z-index: -1; top: -6%; bottom: -6%;
+  left: calc(50% - 50cqw); width: 100cqw; height: auto;
+  color: var(--ink);
+}
+.focus-theme-ink .focus-timepiece > :not(.focus-dial) { position: relative; z-index: 1; }
+@media (max-width: 640px) { .focus-theme-ink .focus-timepiece > .focus-dial { display: none; } }
+
+.focus-theme-ink .focus-stage { isolation: isolate; transition: color 500ms var(--ease-standard); }
+.focus-theme-ink .focus-stage.room-black {
+  --ink: #ff4866; --red: #120306; --ink-2: rgba(255, 72, 102, .86); --ink-3: rgba(255, 72, 102, .64);
+  color: var(--ink);
+  background: radial-gradient(circle, rgba(255, 72, 102, .28) 0 1px, transparent 1.4px) 10px 10px / 20px 20px, #120306;
+  animation: room-open 900ms var(--ease-enter) both;
+}
+@keyframes room-open { from { clip-path: circle(0% at 50% 38%); } to { clip-path: circle(150% at 50% 38%); } }
+.focus-theme-ink .focus-stage.room-black .ink-clepsydra strong { color: var(--ink); text-shadow: 3px 3px 0 #7a1022, 6px 6px 0 #4a0914, 9px 9px 0 #2a050b; }
+.focus-theme-ink .focus-stage.room-black .focus-execution-backdrop, .focus-theme-ink .focus-stage.room-black .focus-scene-backdrop { opacity: 0; }
+.focus-theme-ink .focus-stage.room-black .focus-motion-backdrop { opacity: 0; transition: opacity 600ms; }

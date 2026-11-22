@@ -84,7 +84,9 @@ test.describe("独立专注窗口", () => {
     await expect(page.getByTitle("打开主界面")).toHaveCount(0);
 
     const actions = page.locator(".focus-mini-controls");
-    await expect(actions.getByRole("button")).toHaveCount(0);
+    // while running the only control left at the bottom is the auto-show setting
+    await expect(actions.getByRole("button")).toHaveCount(1);
+    await expect(actions.getByRole("button", { name: "开始时自动出现" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 
@@ -318,7 +320,7 @@ test.describe("独立专注窗口", () => {
       expect(await digits.evaluate((node) => getComputedStyle(node).fontFamily)).toContain("Anton");
       await expect(page.locator(".focus-mini")).toHaveClass(/ink-dark/);
       await expect(page.locator(".focus-mini")).toHaveCSS("background-color", "rgb(18, 3, 6)");
-      await expect(page.locator(".mini-poster-live")).toHaveCount(1);
+      await expect(page.locator(".mini-room.room-black")).toHaveCount(1);
       await expect(page.locator(".focus-motion-backdrop")).toHaveCount(0);
       const quote = page.locator(".focus-mini-quote");
       await expect(quote).toBeVisible();

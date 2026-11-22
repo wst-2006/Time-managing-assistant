@@ -29,6 +29,7 @@ import { FocusMotionBackdrop } from "./FocusMotionBackdrop";
 import { focusQuote } from "./focus-quotes";
 import { invokeDesktop } from "./focus-session-client";
 import { GoButton, SegmentRuler, SessionTable, SliceText, TerminalPrompt, playLetsBegin } from "./ui/FocusTerminal";
+import { FocusDial } from "./ui/FocusDial";
 
 const IDLE_EVALUATION_TIMEOUT_MS = 60_000;
 
@@ -1046,6 +1047,7 @@ export function FocusWorkspace({
     : null;
   const startButtonLabel = stage === "awaiting_late_start" ? "现在开始计时" : "我会准时开始";
   // The real start (confirmed earlier and the start time arrived) is when LET'S BEGIN plays.
+  const [dialSpin, setDialSpin] = useState(0);
   const previousStageRef = useRef<string>(stage);
   useEffect(() => {
     const previous = previousStageRef.current;
@@ -1053,6 +1055,7 @@ export function FocusWorkspace({
     if (stage !== "running" || !["armed", "preparing", "reminded", "scheduled"].includes(previous) || !isWorkspaceCurrent) return;
     const digits = document.querySelector(".focus-center .ink-clepsydra strong")?.getBoundingClientRect();
     if (digits) playLetsBegin(new DOMRect(digits.left + digits.width / 2 - 60, digits.top + digits.height / 2 - 60, 120, 120));
+    setDialSpin((value) => value + 1);
   }, [stage, isWorkspaceCurrent]);
 
   // Terminal grammar (default poster theme): prompt line, agenda, status table.
@@ -1187,7 +1190,7 @@ export function FocusWorkspace({
 
   return (
     <section className={`focus-workspace page focus-theme-${focusTheme} ${executionStage ? "focus-workspace-executing" : ""}`} aria-labelledby="focus-title">
-      <div className={`focus-stage focus-stage-${stage} focus-scene-${focusScene}`}>
+      <div className={`focus-stage focus-stage-${stage} focus-scene-${focusScene} ${stage === "running" && currentSegment?.segmentType !== "break" ? "room-black" : ""}`} data-dial-room>
         <div className="focus-stage-header">
           <button className="back-button" onClick={onBack}>
             <ChevronLeft />
@@ -1264,6 +1267,7 @@ export function FocusWorkspace({
                 }}
               >
                 <span className="focus-timepiece-label">{stage === "reminded" ? "等待开始" : stage === "scheduled" ? "距离准备" : stage === "armed" ? "距离开始" : stage === "awaiting_late_start" ? "可用余时" : currentSegment?.segmentType === "break" ? "休息余时" : stage === "preparing" ? "准备倒计时" : "专注余时"}</span>
+                <FocusDial anchor=".ink-clepsydra strong" ticking={stage === "running"} spinKey={dialSpin} band={1.25} />
                 <ThemedFocusTimer theme={focusTheme} value={clockValue} progress={timerProgress} resting={currentSegment?.segmentType === "break"} empty={false} />
                 {displayTask?.startAt && displayTask.endAt ? <FocusRange startAt={displayTask.startAt} endAt={displayTask.endAt} timeZone={displayTask.timeZone} nowMs={nowMs} /> : null}
               </div>
@@ -1342,6 +1346,7 @@ export function FocusWorkspace({
               <p className="focus-meta">{displayTask ? displayTask.startAt && displayTask.endAt ? `${clock(displayTask.startAt, displayTask.timeZone)}–${clock(displayTask.endAt, displayTask.timeZone)} · ${selectedMinutes} 分钟固定时间块` : "这项任务尚未设置精确起止时间" : "从今日时间轴或右侧列表选择任务"}</p>
               <div className={`focus-timepiece ${currentSegment?.segmentType === "break" ? "resting" : ""}`}>
                 <span className="focus-timepiece-label">专注余时</span>
+                <FocusDial anchor=".ink-clepsydra strong" spinKey={dialSpin} band={1.25} />
                 <ThemedFocusTimer theme={focusTheme} value={clockValue} progress={timerProgress} resting={currentSegment?.segmentType === "break"} empty={!displayTask} />
                 {displayTask?.startAt && displayTask.endAt ? <FocusRange startAt={displayTask.startAt} endAt={displayTask.endAt} timeZone={displayTask.timeZone} nowMs={nowMs} /> : null}
               </div>
