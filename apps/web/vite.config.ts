@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
     } : {},
     resolve: {
       alias: [
+        // Desktop builds get an empty stand-in so the phone backend is never bundled.
+        ...(mobile ? [] : [{ find: "@tma-mobile/backend", replacement: fileURLToPath(new URL("./src/mobile-backend-stub.ts", import.meta.url)) }]),
         { find: "@tma-mobile", replacement: mobileSource },
         // The shared API code imports node:crypto; the phone build gets a web version.
         ...(mobile ? [{ find: /^node:crypto$/, replacement: `${mobileSource}/node-crypto-shim.ts` }] : [])
