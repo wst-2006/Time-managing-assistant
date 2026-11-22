@@ -4,10 +4,10 @@ import { useEffect, useRef } from "react";
  * The dial: tick lines fanning out on both sides of the timer, read as the
  * ticks of one large knob centred on the digits.
  *
- *  - time turns it: one notch every second while `ticking`
- *  - the pointer turns it: moving over the room rotates the knob, with a
- *    little inertia, like dragging a real dial
- *  - `spinKey` changes give it a quick spin (LET'S BEGIN)
+ *  - it moves only when the pointer moves up or down over the timer box:
+ *    both sides roll in the pointer's direction, slowly, and keep gliding a
+ *    little after the pointer stops, like pushing a knob with a thumb
+ *  - otherwise it stays still
  *
  * The digits never move; only the ticks do. Colour comes from CSS `color`.
  */
@@ -15,25 +15,18 @@ const NOTCH = (5.6 * Math.PI) / 180;      // angle between ticks
 const SECTOR = (36 * Math.PI) / 180;      // ticks shown within ±36° of horizontal
 const FADE = (9 * Math.PI) / 180;         // fade near the sector edges
 
-export function FocusDial({ anchor, ticking = false, spinKey = 0, band = Infinity, className = "" }: {
-  /** CSS selector of the element the knob is centred on (looked up inside the dial's parent). */
+export function FocusDial({ anchor, band = Infinity, className = "" }: {
+  /** CSS selector of the element the knob is centred on (looked up inside the dial's parent, which is also where the pointer is read). */
   anchor: string;
-  ticking?: boolean;
-  spinKey?: number;
   /** Keep ticks within this many half-heights of the digits, vertically. */
   band?: number;
   className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const state = useRef({ angle: 0, target: 0, velocity: 0, lastSecond: -1, lastY: null as number | null, lastX: null as number | null });
-  const tickingRef = useRef(ticking);
-  tickingRef.current = ticking;
+  const state = useRef({ angle: 0, velocity: 0, lastY: null as number | null });
   const bandRef = useRef(band);
   bandRef.current = band;
 
-  useEffect(() => {
-    if (spinKey) state.current.target += NOTCH * 48;
-  }, [spinKey]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -48,16 +41,15 @@ export function FocusDial({ anchor, ticking = false, spinKey = 0, band = Infinit
 
     function onMove(event: PointerEvent) {
       const s = state.current;
-      if (s.lastY !== null && s.lastX !== null) {
-        const box = canvas!.getBoundingClientRect();
-        // Right half: moving down turns the knob clockwise; left half the opposite, like a real dial.
-        const side = event.clientX - box.left > box.width / 2 ? 1 : -1;
-        s.target += ((event.clientY - s.lastY) * side - (event.clientX - s.lastX) * 0.25) * 0.0042;
+      if (s.lastY !== null) {
+        // Only vertical movement counts: moving up rolls both sides up together,
+        // like pushing a knob forward with a thumb. It adds momentum, not position.
+        const dy = event.clientY - s.lastY;
+        s.velocity = Math.max(-0.45, Math.min(0.45, s.velocity + dy * 0.005));
       }
       s.lastY = event.clientY;
-      s.lastX = event.clientX;
     }
-    function onLeave() { state.current.lastY = null; state.current.lastX = null; }
+    function onLeave() { state.current.lastY = null; }
     room.addEventListener("pointermove", onMove);
     room.addEventListener("pointerleave", onLeave);
 
@@ -65,20 +57,11 @@ export function FocusDial({ anchor, ticking = false, spinKey = 0, band = Infinit
       const s = state.current;
       const dt = Math.min(64, now - previous) / 1000;
       previous = now;
-      // one notch per second while the clock runs
-      const second = Math.floor(Date.now() / 1000);
-      if (tickingRef.current && second !== s.lastSecond) {
-        if (s.lastSecond !== -1) s.target += NOTCH;
-        s.lastSecond = second;
-      }
-      // critically damped follow: no overshoot, settles in ~0.35s
-      if (reduced) { s.angle = s.target; s.velocity = 0; }
-      else {
-        const k = 90, c = 2 * Math.sqrt(k);
-        const acceleration = k * (s.target - s.angle) - c * s.velocity;
-        s.velocity += acceleration * dt;
-        s.angle += s.velocity * dt;
-      }
+      // flywheel: momentum carries on after the pointer stops and dies away slowly
+      if (reduced) s.velocity = 0;
+      s.angle += s.velocity * dt;
+      s.velocity *= Math.exp(-dt * 1.6);
+      if (Math.abs(s.velocity) < 0.0005) s.velocity = 0;
 
       const dpr = window.devicePixelRatio || 1;
       const width = canvas!.clientWidth, height = canvas!.clientHeight;
@@ -98,8 +81,10 @@ export function FocusDial({ anchor, ticking = false, spinKey = 0, band = Infinit
         const hh = box.height / 2;
         context!.strokeStyle = getComputedStyle(canvas!).color;
         context!.lineWidth = 1.2;
-        const phase = ((s.angle % NOTCH) + NOTCH) % NOTCH;
         for (const base of [0, Math.PI]) {
+          // right side: +angle moves lines down; the left side is mirrored so both move together
+          const offset = base === 0 ? s.angle : -s.angle;
+          const phase = ((offset % NOTCH) + NOTCH) % NOTCH;
           for (let a = -SECTOR - NOTCH + phase; a <= SECTOR; a += NOTCH) {
             const edge = SECTOR - Math.abs(a);
             if (edge < 0) continue;
