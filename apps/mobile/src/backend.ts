@@ -42,9 +42,29 @@ import { OverdueTaskWorker } from "../../worker/src/overdue-task-worker";
 const DATABASE = "idb://time-managing-assistant";
 
 export async function startLocalBackend(apiBase: string): Promise<void> {
-  const pglite = await PGlite.create(DATABASE, { relaxedDurability: true });
-  const db = drizzle(pglite, { schema });
-  await migrateInBrowser(db);
+  let stage = "打开本机数据库";
+  try {
+    let pglite: PGlite;
+    try {
+      pglite = await PGlite.create(DATABASE, { relaxedDurability: true });
+    } catch (first) {
+      // Some phone WebViews refuse one large up-front memory block; start smaller and let it grow.
+      console.warn("PGlite failed with default memory, retrying smaller", first);
+      stage = "以较小内存重新打开本机数据库";
+      pglite = await PGlite.create(DATABASE, { relaxedDurability: true, initialMemory: 32 * 1024 * 1024 });
+    }
+    stage = "建立数据表";
+    const db = drizzle(pglite, { schema });
+    await migrateInBrowser(db);
+    stage = "启动本机服务";
+    await startServices(db, apiBase);
+  } catch (error: any) {
+    const detail = error?.message ?? String(error);
+    throw new Error(`${stage}失败：${detail}`, { cause: error });
+  }
+}
+
+async function startServices(db: any, apiBase: string): Promise<void> {
 
   const taskService = new TaskService(new PostgresTaskStore(db as any));
   const services = {

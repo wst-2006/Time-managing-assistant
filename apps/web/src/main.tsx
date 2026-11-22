@@ -26,13 +26,45 @@ function render() {
   );
 }
 
+/** Phone build only: the built-in data store could not start, so say exactly why instead of showing empty pages. */
+function showBackendError(error: unknown) {
+  const message = error instanceof Error ? `${error.message}${error.cause instanceof Error && error.cause.stack ? `\n\n${error.cause.stack}` : ""}` : String(error);
+  const root = document.getElementById("root")!;
+  root.innerHTML = "";
+  const panel = document.createElement("div");
+  panel.style.cssText = "min-height:100vh;box-sizing:border-box;padding:48px 24px;background:#ff1446;color:#160000;font:16px/1.6 system-ui,sans-serif;display:grid;align-content:start;gap:16px";
+  const title = document.createElement("h1");
+  title.textContent = "本机数据没能启动";
+  title.style.cssText = "margin:0;font-size:28px";
+  const hint = document.createElement("p");
+  hint.textContent = "手机版的数据存在这台手机里，由 App 自己启动，不需要单独的 API。下面是具体原因，请截图发给开发者。";
+  hint.style.margin = "0";
+  const detail = document.createElement("pre");
+  detail.textContent = message;
+  detail.style.cssText = "margin:0;padding:12px;background:#160000;color:#ff4866;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow:auto";
+  const retry = document.createElement("button");
+  retry.textContent = "重试";
+  retry.style.cssText = "justify-self:start;padding:12px 28px;border:0;background:#160000;color:#ff1446;font-size:16px";
+  retry.onclick = () => location.reload();
+  panel.append(title, hint, detail, retry);
+  root.appendChild(panel);
+}
+
 // The phone build carries its own backend (database, services, timers) and
 // starts it before the first screen; the desktop build talks to its local API.
 if (import.meta.env.VITE_TMA_TARGET === "mobile") {
-  import("@tma-mobile/backend")
-    .then(({ startLocalBackend }) => startLocalBackend(import.meta.env.VITE_API_BASE_URL ?? "http://tma.local"))
-    .catch((error) => { console.error("The phone backend failed to start", error); document.body.dataset.backendError = String(error?.message ?? error); })
-    .finally(render);
+  const root = document.getElementById("root")!;
+  root.innerHTML = '<div style="min-height:100vh;display:grid;place-content:center;gap:10px;justify-items:center;background:#ff1446;color:#160000;font:15px/1.5 system-ui,sans-serif"><b style="font-size:20px">正在准备本机数据</b><span>第一次打开需要几秒钟</span></div>';
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("启动超时：40 秒内本机数据库没有准备好")), 40_000));
+  Promise.race([
+    import("@tma-mobile/backend").then(({ startLocalBackend }) => startLocalBackend(import.meta.env.VITE_API_BASE_URL ?? "http://tma.local")),
+    timeout,
+  ])
+    .then(() => { root.innerHTML = ""; render(); })
+    .catch((error) => {
+      console.error("The phone backend failed to start", error);
+      showBackendError(error);
+    });
 } else {
   render();
 }

@@ -6,6 +6,8 @@ const config: CapacitorConfig = {
   webDir: "www",
   android: {
     allowMixedContent: false,
+    // lets chrome://inspect on a computer show the app's console when a phone misbehaves
+    webContentsDebuggingEnabled: true,
     // Android 15 draws apps under the status bar; keep the app below it.
     adjustMarginsForEdgeToEdge: "force"
   },
