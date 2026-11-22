@@ -171,17 +171,24 @@ async function openInstalledApp() {
   });
   children.push({ kill: () => { try { spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }); } catch {} } });
   const api = "http://127.0.0.1:3000";
+  console.log("[1/4] 等待软件后台启动（端口 3000）……");
   await waitFor(`${api}/health`, 90_000);
-  await waitFor(`http://127.0.0.1:${debugPort}/json/version`, 60_000);
+  console.log(`[2/4] 后台已启动。等待软件窗口的调试端口 ${debugPort}……`);
+  try { await waitFor(`http://127.0.0.1:${debugPort}/json/version`, 45_000); }
+  catch { throw new Error(`软件窗口的调试端口 ${debugPort} 没有打开。可能装的还是旧版软件，或者 WebView2 已有别的实例在运行。请重启电脑后再试一次，并确认已安装最新安装包。`); }
+  const targets = await fetch(`http://127.0.0.1:${debugPort}/json/list`).then((r) => r.json()).catch(() => []);
+  console.log("[3/4] 调试端口已连上，软件里的页面：");
+  for (const target of targets) console.log(`      - ${target.type}  ${target.url}`);
   const { slot } = await seed(api);
   const browser = await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`);
   const context = browser.contexts()[0];
   let page = null;
   for (let i = 0; i < 60 && !page; i++) {
-    page = context.pages().find((candidate) => !candidate.url().includes("focus-mini") && /^(https?|tauri):/.test(candidate.url())) ?? null;
+    page = context.pages().find((candidate) => !candidate.url().includes("focus-mini") && !candidate.url().startsWith("devtools:") && candidate.url() !== "about:blank") ?? null;
     if (!page) await new Promise((r) => setTimeout(r, 500));
   }
-  if (!page) throw new Error("没连上软件窗口。");
+  if (!page) throw new Error(`没找到软件主窗口。看到的页面：${context.pages().map((candidate) => candidate.url()).join(" | ") || "（无）"}`);
+  console.log(`[4/4] 已连上软件主窗口：${page.url()}`);
   await context.route("**/api/v1/growth/summary**", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ summary: growthSummary }) })).catch(() => {});
   await page.reload({ waitUntil: "networkidle" });   // show the demo tasks just seeded
   return { browser, context, page, slot, web: null };
