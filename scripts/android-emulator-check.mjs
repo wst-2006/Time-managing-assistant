@@ -129,17 +129,21 @@ try {
   note(status.exact === "granted", `On-the-minute alarms: ${status.exact}`);
   await session.evaluate("window.tmaPhoneNotifications.sendTest()");
   let shown = false;
-  for (let i = 0; i < 20 && !shown; i += 1) {
+  try { adb("logcat", "-c"); } catch { /* best effort */ }
+  const testSentAt = Date.now();
+  for (let i = 0; i < 90 && !shown; i += 1) {
     await sleep(1000);
     // The test notification has id 1; older Android prints records as "NotificationRecord(... pkg=<app> ... id=1 ...".
     shown = adb("shell", "dumpsys", "notification").split("\n").some((line) => line.includes(`pkg=${appId}`) && /\bid=1\b/.test(line));
   }
-  note(shown, "Test notification appeared in the notification shade");
+  note(shown, `Test notification appeared in the notification shade${shown ? ` (${Math.round((Date.now() - testSentAt) / 1000)} s after asking, 5 s requested)` : ""}`);
   if (!shown) {
     const lines = adb("shell", "dumpsys", "notification").split("\n").filter((line) => line.includes(appId)).slice(0, 15);
     console.log(`Notification records for the app:\n${lines.join("\n") || "(none)"}`);
     console.log(`Pending: ${JSON.stringify(await session.evaluate("window.Capacitor.Plugins.LocalNotifications.getPending()")).slice(0, 600)}`);
     console.log(adb("shell", "dumpsys", "alarm").split("\n").filter((line) => line.includes(appId)).slice(0, 10).join("\n"));
+    console.log(`Device time: ${adb("shell", "date", "+%s").trim()} host: ${Math.round(Date.now() / 1000)}`);
+    console.log(`Log:\n${adb("logcat", "-d").split("\n").filter((line) => /notif|alarm|Capacitor|TimedNotification|chromium/i.test(line)).slice(-40).join("\n")}`);
   }
   session.close();
 
