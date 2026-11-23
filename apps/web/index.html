@@ -8,6 +8,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Written in old JavaScript on purpose: on a phone whose built-in browser
+      // (Android System WebView) is too old to run the app, say what to update
+      // instead of leaving a blank screen.
+      (function () {
+        var supported = true;
+        try { new Function("class A { static x = 1; static { } } var a = null; return a?.b ?? [1].at(-1);")(); } catch (error) { supported = false; }
+        if (supported) return;
+        var root = document.getElementById("root");
+        root.innerHTML = '<div style="min-height:100vh;box-sizing:border-box;padding:48px 24px;background:#ff1446;color:#160000;font:16px/1.6 sans-serif">' +
+          '<h1 style="margin:0 0 12px;font-size:26px">需要更新手机的网页组件</h1>' +
+          '<p style="margin:0 0 12px">这台手机的「Android System WebView」版本太旧，App 无法运行。请在应用商店搜索「Android System WebView」（或「WebView」）更新后再打开。</p>' +
+          '<p style="margin:0;font-size:12px;opacity:.75">' + navigator.userAgent.replace(/</g, "&lt;") + '</p></div>';
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
