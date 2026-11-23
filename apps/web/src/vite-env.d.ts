@@ -6,5 +6,5 @@ interface ImportMetaEnv {
 }
 
 declare module "@tma-mobile/backend" {
-  export function startLocalBackend(apiBase: string): Promise<void>;
+  export function startLocalBackend(apiBase: string, onStage?: (stage: string) => void): Promise<void>;
 }

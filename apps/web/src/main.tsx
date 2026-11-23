@@ -54,14 +54,22 @@ function showBackendError(error: unknown) {
 // starts it before the first screen; the desktop build talks to its local API.
 if (import.meta.env.VITE_TMA_TARGET === "mobile") {
   const root = document.getElementById("root")!;
-  root.innerHTML = '<div style="min-height:100vh;display:grid;place-content:center;gap:10px;justify-items:center;background:#ff1446;color:#160000;font:15px/1.5 system-ui,sans-serif"><b style="font-size:20px">正在准备本机数据</b><span>第一次打开需要几秒钟</span></div>';
-  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("启动超时：40 秒内本机数据库没有准备好")), 40_000));
+  root.innerHTML = '<div style="min-height:100vh;display:grid;place-content:center;gap:10px;justify-items:center;text-align:center;padding:0 24px;background:#ff1446;color:#160000;font:15px/1.5 system-ui,sans-serif"><b style="font-size:20px">正在准备本机数据</b><span>第一次打开可能要一分钟左右，请不要退出</span><small id="tma-stage" style="opacity:.7"></small></div>';
+  const startedAt = Date.now();
+  let stage = "加载程序";
+  const stageLabel = () => document.getElementById("tma-stage");
+  const showStage = () => { const el = stageLabel(); if (el) el.textContent = `${stage} · ${Math.round((Date.now() - startedAt) / 1000)} 秒`; };
+  const ticker = window.setInterval(showStage, 1000);
+  showStage();
+  // Slow phones can need well over a minute the first time; only give up when a step is truly stuck.
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`启动超时：3 分钟后仍停在「${stage}」这一步\n${navigator.userAgent}`)), 180_000));
   Promise.race([
-    import("@tma-mobile/backend").then(({ startLocalBackend }) => startLocalBackend(import.meta.env.VITE_API_BASE_URL ?? "http://tma.local")),
+    import("@tma-mobile/backend").then(({ startLocalBackend }) => startLocalBackend(import.meta.env.VITE_API_BASE_URL ?? "http://tma.local", (next) => { stage = next; showStage(); })),
     timeout,
   ])
-    .then(() => { root.innerHTML = ""; render(); })
+    .then(() => { window.clearInterval(ticker); root.innerHTML = ""; render(); })
     .catch((error) => {
+      window.clearInterval(ticker);
       console.error("The phone backend failed to start", error);
       showBackendError(error);
     });

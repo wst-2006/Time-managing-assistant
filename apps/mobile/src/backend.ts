@@ -41,27 +41,60 @@ import { OverdueTaskWorker } from "../../worker/src/overdue-task-worker";
 
 const DATABASE = "idb://time-managing-assistant";
 
-export async function startLocalBackend(apiBase: string): Promise<void> {
+export type StageListener = (stage: string) => void;
+
+export async function startLocalBackend(apiBase: string, onStage: StageListener = () => {}): Promise<void> {
   let stage = "打开本机数据库";
+  const enter = (next: string) => { stage = next; onStage(next); };
   try {
+    onStage(stage);
     let pglite: PGlite;
     try {
       pglite = await PGlite.create(DATABASE, { relaxedDurability: true });
     } catch (first) {
       // Some phone WebViews refuse one large up-front memory block; start smaller and let it grow.
       console.warn("PGlite failed with default memory, retrying smaller", first);
-      stage = "以较小内存重新打开本机数据库";
+      enter("以较小内存重新打开本机数据库");
       pglite = await PGlite.create(DATABASE, { relaxedDurability: true, initialMemory: 32 * 1024 * 1024 });
     }
-    stage = "建立数据表";
+    enter("建立数据表");
     const db = drizzle(pglite, { schema });
     await migrateInBrowser(db);
-    stage = "启动本机服务";
+    // Write the new tables to the phone's storage now, so a restart right after
+    // the first launch never finds a half-written database.
+    enter("保存到手机存储");
+    await pglite.syncToFs();
+    enter("启动本机服务");
     await startServices(db, apiBase);
   } catch (error: any) {
     const detail = error?.message ?? String(error);
     throw new Error(`${stage}失败：${detail}`, { cause: error });
   }
+}
+
+/**
+ * The screens only say "请确认 API 正在运行" when a call fails; on a phone there is
+ * no console to read, so the real reason is shown in a bar at the top.
+ */
+let faultBar: HTMLDivElement | null = null;
+let appVersion = "";
+void import("@capacitor/app").then(({ App }) => App.getInfo()).then((info) => { appVersion = `${info.version} (${info.build})`; }).catch(() => {});
+
+function reportFault(where: string, detail: string) {
+  console.error("Local API fault", where, detail);
+  if (!faultBar) {
+    faultBar = document.createElement("div");
+    faultBar.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:2147483647;max-height:45vh;overflow:auto;padding:10px 12px;background:#160000;color:#ff4866;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 4px 0 #ff1446";
+    faultBar.title = "点按关闭";
+    faultBar.onclick = () => { faultBar?.remove(); faultBar = null; };
+    document.body.appendChild(faultBar);
+  }
+  const header = `本机接口出错（截图发给开发者，点按关闭）\n版本 ${appVersion || "?"} · ${navigator.userAgent.match(/Chrome\/[\d.]+/)?.[0] ?? navigator.userAgent}\n`;
+  const lines = (faultBar.dataset.lines ? JSON.parse(faultBar.dataset.lines) as string[] : []);
+  const line = `${where}: ${detail.slice(0, 600)}`;
+  if (!lines.includes(line)) lines.push(line);
+  faultBar.dataset.lines = JSON.stringify(lines.slice(-4));
+  faultBar.textContent = header + lines.slice(-4).join("\n\n");
 }
 
 async function startServices(db: any, apiBase: string): Promise<void> {
@@ -104,12 +137,24 @@ async function startServices(db: any, apiBase: string): Promise<void> {
     const url = new URL(request ? request.url : String(input), window.location.href);
     if (url.origin !== base.origin) return networkFetch(input as any, init);
     const method = (init?.method ?? request?.method ?? "GET").toUpperCase();
-    const body = init?.body !== undefined && init.body !== null ? String(init.body) : request ? await request.text() || null : null;
-    const headers: Record<string, string> = {};
-    new Headers(init?.headers ?? request?.headers).forEach((value, key) => { headers[key] = value; });
-    const response = await app.handle(method, url, body, headers);
-    if (method !== "GET" && response.ok) notifications.refreshSoon();
-    return response;
+    try {
+      const body = init?.body !== undefined && init.body !== null ? String(init.body) : request ? await request.text() || null : null;
+      const headers: Record<string, string> = {};
+      new Headers(init?.headers ?? request?.headers).forEach((value, key) => { headers[key] = value; });
+      const response = await app.handle(method, url, body, headers);
+      if (method !== "GET" && response.ok) notifications.refreshSoon();
+      // 4xx answers are normal validation replies; anything 500+ is a fault worth showing.
+      if (response.status >= 500) {
+        const text = await response.clone().text().catch(() => "");
+        let message = text;
+        try { message = JSON.parse(text).message ?? text; } catch { /* keep raw text */ }
+        reportFault(`${method} ${url.pathname}`, `${response.status} ${message}`);
+      }
+      return response;
+    } catch (error: any) {
+      reportFault(`${method} ${url.pathname}`, error?.stack ?? error?.message ?? String(error));
+      throw error;
+    }
   };
 
   // The desktop API runs these every second in its own process; here they
