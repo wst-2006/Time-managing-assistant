@@ -114,9 +114,8 @@ try {
   const halfHour = 30 * 60 * 1000;
   const start = new Date(Math.ceil(Date.now() / halfHour) * halfHour + halfHour);
   const end = new Date(start.getTime() + 2 * halfHour);
-  const startDate = new Date(start.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10);
   const reminderTitle = `提醒检查 ${Date.now() % 100000}`;
-  const exact = await session.evaluate(call("/tasks", "POST", { title: reminderTitle, scheduleKind: "exact", localDate: startDate, startAt: start.toISOString(), endAt: end.toISOString(), timeZone: "Asia/Shanghai" }));
+  const exact = await session.evaluate(call("/tasks", "POST", { title: reminderTitle, scheduleKind: "exact", startAt: start.toISOString(), endAt: end.toISOString(), timeZone: "Asia/Shanghai" }));
   note(exact.status === 201, `Timed task saved → ${exact.status}${exact.status !== 201 ? ` ${exact.body.slice(0, 300)}` : ""}`);
   await sleep(4000);
   const pending = await session.evaluate("window.Capacitor.Plugins.LocalNotifications.getPending().then((r) => r.notifications.map((n) => ({ title: n.title, body: n.body })))");
@@ -128,9 +127,13 @@ try {
   note(status.permission === "granted", `Notification permission: ${status.permission}`);
   note(status.exact === "granted", `On-the-minute alarms: ${status.exact}`);
   await session.evaluate("window.tmaPhoneNotifications.sendTest()");
-  await sleep(9000);
-  const shade = adb("shell", "dumpsys", "notification", "--noredact");
-  note(shade.includes("测试通知"), "Test notification appeared in the notification shade");
+  let shown = false;
+  for (let i = 0; i < 20 && !shown; i += 1) {
+    await sleep(1000);
+    // The test notification has id 1; older Android prints records as "NotificationRecord(... pkg=<app> ... id=1 ...".
+    shown = adb("shell", "dumpsys", "notification").split("\n").some((line) => line.includes(`pkg=${appId}`) && /\bid=1\b/.test(line));
+  }
+  note(shown, "Test notification appeared in the notification shade");
   session.close();
 
   session = await launch("Second start");
