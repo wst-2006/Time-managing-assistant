@@ -49,6 +49,16 @@
 
 数据和设置保存在 `%APPDATA%\com.wst2006.timemanagingassistant\` 下（`data` 文件夹是数据库，`.env` 是可选设置）。
 
+<img width="356" height="362" alt="cecb5050a243e438a2e18cee16e7feb3" src="https://github.com/user-attachments/assets/4ed87e7d-b355-45f4-8616-1b4852672728" />
+<img width="887" height="605" alt="75395d991b6d8eeaba44abd90f85579b" src="https://github.com/user-attachments/assets/bf8c4466-5992-457d-8cbd-4db49e7b24a2" />
+<img width="887" height="526" alt="40d9cc2cb1e1b69ae2d90b3963b2ddaf" src="https://github.com/user-attachments/assets/8b2b0acc-4fce-46da-a084-78cc62cfed66" />
+<img width="899" height="600" alt="8d81aba9b38f44f09f9413c479e42278" src="https://github.com/user-attachments/assets/faa1d043-1180-469c-b18f-d35496ea782b" />
+<img width="895" height="526" alt="434f821336809178f1cd30aae405fd4f" src="https://github.com/user-attachments/assets/61bb68de-ef10-4238-b76c-045e4aed55ce" />
+<img width="899" height="482" alt="aecccfb3a4fc7c4a9b62d7bce2f7f08e" src="https://github.com/user-attachments/assets/ed0cfc1b-1b88-4dcd-9bb2-db4bf6881730" />
+<img width="890" height="557" alt="b1fc20db36cf80e6c24ad7347b8bf635" src="https://github.com/user-attachments/assets/d33ade94-00e0-40d9-afd1-86126dfc038a" />
+<img width="882" height="537" alt="f93055e83e1ce549872a05c70d2a4fba" src="https://github.com/user-attachments/assets/0ac691af-2bd4-4089-83c2-6c0b56e23c6c" />
+<img width="866" height="464" alt="98fa41e9e4e516c4f475db90ce3a6517" src="https://github.com/user-attachments/assets/bc3a122e-95dd-4a0d-bcc9-e5a7e7d53469" />
+
 ### 从源码运行
 
 需要 Node.js 22+（自带 Corepack）。
