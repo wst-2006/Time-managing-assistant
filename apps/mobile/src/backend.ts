@@ -4,6 +4,7 @@
  * into the app (see LocalSqlitePlugin.java), and the web app's fetch calls to
  * the API address are answered here instead of over the network.
  */
+import "./polyfills";
 import { SqlitePgClient, drizzleSqlite, migrateSqlite } from "../../../packages/db/src/sqlite/client";
 import { LocalApp } from "./local-app";
 import { bundledMigrations } from "./migrate";

@@ -1,3 +1,5 @@
+// First: adds newer browser functions on phones with an older WebView (see the file).
+import "@tma-mobile/polyfills";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./ui/tokens.css";
