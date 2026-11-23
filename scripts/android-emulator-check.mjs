@@ -111,9 +111,10 @@ try {
   note(created.status === 201, `New task saved → ${created.status}${created.status !== 201 ? ` ${created.body.slice(0, 300)}` : ""}`);
 
   // Reminders: an exact task starting at the next half hour + 30 min gets 15-min, 1-min, start and end notifications.
-  const halfHour = 30 * 60 * 1000;
-  const start = new Date(Math.ceil(Date.now() / halfHour) * halfHour + halfHour);
-  const end = new Date(start.getTime() + 2 * halfHour);
+  // Tomorrow 09:00–10:00 Shanghai time: inside the 07:00–23:00 scheduling hours whenever this runs.
+  const tomorrow = new Date(Date.now() + 8 * 3600 * 1000 + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const start = new Date(`${tomorrow}T01:00:00.000Z`);
+  const end = new Date(`${tomorrow}T02:00:00.000Z`);
   const reminderTitle = `提醒检查 ${Date.now() % 100000}`;
   const exact = await session.evaluate(call("/tasks", "POST", { title: reminderTitle, scheduleKind: "exact", startAt: start.toISOString(), endAt: end.toISOString(), timeZone: "Asia/Shanghai" }));
   note(exact.status === 201, `Timed task saved → ${exact.status}${exact.status !== 201 ? ` ${exact.body.slice(0, 300)}` : ""}`);
@@ -134,6 +135,12 @@ try {
     shown = adb("shell", "dumpsys", "notification").split("\n").some((line) => line.includes(`pkg=${appId}`) && /\bid=1\b/.test(line));
   }
   note(shown, "Test notification appeared in the notification shade");
+  if (!shown) {
+    const lines = adb("shell", "dumpsys", "notification").split("\n").filter((line) => line.includes(appId)).slice(0, 15);
+    console.log(`Notification records for the app:\n${lines.join("\n") || "(none)"}`);
+    console.log(`Pending: ${JSON.stringify(await session.evaluate("window.Capacitor.Plugins.LocalNotifications.getPending()")).slice(0, 600)}`);
+    console.log(adb("shell", "dumpsys", "alarm").split("\n").filter((line) => line.includes(appId)).slice(0, 10).join("\n"));
+  }
   session.close();
 
   session = await launch("Second start");
