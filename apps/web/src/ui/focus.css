@@ -875,12 +875,25 @@
 .focus-mini.focus-theme-ink .mini-poster .focus-mini-digits { width: 100%; max-width: none; margin: 0; }
 .focus-mini.focus-theme-ink .mini-poster-ready .focus-mini-confirmed-state { width: auto; text-align: left; }
 
-/* phone widths: long task names shrink inside the command line instead of widening the page */
+/* phone widths: long task names shrink inside the command line instead of widening the page.
+   Grid tracks default to their content's width, so every grid level on the way down is held to
+   the space it has (the running view's .focus-execution was widened to 407px by the command line). */
 .focus-center, .focus-center > * { min-width: 0; max-width: 100%; }
+.focus-execution { grid-template-columns: minmax(0, 1fr); }
+.focus-execution > *, .term-prompt { min-width: 0; max-width: 100%; }
 .term-prompt .term-state { flex: none; }
 @media (max-width: 640px) {
   .term-prompt { gap: 10px; font-size: 14px; }
+  .term-state { padding: 4px 8px; letter-spacing: .06em; }
+  .term-state .slice-text { font-size: 18px; }
   .focus-meta { overflow-wrap: anywhere; }
+  /* the clock fills the width it has: 5 characters ("39:10") at about 0.5em each */
+  .focus-workspace.focus-theme-ink .focus-center .ink-clepsydra strong { font-size: min(25vw, 130px); }
+  .focus-phase-line { overflow-wrap: anywhere; }
+  /* collapsed timer: the "展开计时" button goes under the clock instead of off the screen */
+  .focus-execution-minimized { flex-direction: column; align-items: stretch; gap: 10px; }
+  .focus-execution-minimized-copy { min-width: 0; }
+  .focus-execution-minimized > .focus-execution-quiet { align-self: flex-end; }
 }
 /* keyboard shortcuts mean nothing on a touch screen */
 @media (hover: none) and (pointer: coarse) { .term-keys { display: none; } }

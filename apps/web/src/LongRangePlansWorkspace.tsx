@@ -155,6 +155,7 @@ export function LongRangePlansWorkspace() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const loadRequestRef = useRef(0);
   const selectedPlan = useMemo(() => plans.find((plan) => plan.id === selectedId) ?? null, [plans, selectedId]);
   const scopeCopy = scopeOptions.find((option) => option.value === scope)!;
@@ -186,6 +187,7 @@ export function LongRangePlansWorkspace() {
 
 
   function chooseScope(nextScope: PlanScope) {
+    setNotice(null);
     setScope(nextScope);
     setSelectedId(null);
     setDraft(blankDraft(nextScope));
@@ -195,6 +197,7 @@ export function LongRangePlansWorkspace() {
   }
 
   function beginNewPlan() {
+    setNotice(null);
     setSelectedId(null);
     setDraft(blankDraft(scope));
     setError(null);
@@ -203,6 +206,7 @@ export function LongRangePlansWorkspace() {
   }
 
   function selectPlan(plan: LongRangePlan) {
+    setNotice(null);
     setSelectedId(plan.id);
     setDraft(draftFromPlan(plan));
     setError(null);
@@ -244,14 +248,18 @@ export function LongRangePlansWorkspace() {
     }
     setSaving(true);
     setError(null);
+    setNotice(null);
     try {
       const result = selectedPlan
         ? await requestPlan<{ plan: LongRangePlan }>(`/api/v1/long-range-plans/${selectedPlan.id}`, "PUT", { ...payload, expectedVersion: selectedPlan.version })
         : await requestPlan<{ plan: LongRangePlan }>("/api/v1/long-range-plans", "POST", payload);
       await loadPlans(result.plan.scope, includeArchived);
       if (result.plan.scope !== scope) setScope(result.plan.scope);
-      setSelectedId(result.plan.id);
-      setDraft(draftFromPlan(result.plan));
+      // Saving finishes this plan: open a blank one so the next can be written right away.
+      setSelectedId(null);
+      setDraft(blankDraft(result.plan.scope));
+      setEditorStep(1);
+      setNotice(`已保存「${result.plan.title}」，可以接着写下一条；要再改它，点左侧列表。`);
     } catch (saveError) {
       setError(textForFailure(saveError));
     } finally {
@@ -315,7 +323,7 @@ export function LongRangePlansWorkspace() {
 
     <div className="long-range-layout">
       <aside className="long-range-list" aria-label={`${scopeCopy.label}列表`}>
-        <header><div><strong>{scopeCopy.label}</strong><small>{scopeCopy.prompt}</small></div><label className="archive-toggle"><input aria-label="显示已归档规划" type="checkbox" checked={includeArchived} onChange={(event) => setIncludeArchived(event.target.checked)} /><span>已归档</span></label></header>
+        <header><div><strong>{scopeCopy.label}</strong><small>{scopeCopy.prompt}</small></div><div className="long-range-list-actions"><button className="text-button long-range-new" type="button" onClick={beginNewPlan} aria-label={`新建${scopeCopy.label}`}><Plus />新建</button><label className="archive-toggle"><input aria-label="显示已归档规划" type="checkbox" checked={includeArchived} onChange={(event) => setIncludeArchived(event.target.checked)} /><span>已归档</span></label></div></header>
         {loading ? <div className="long-range-loading"><LoaderCircle className="spin" />正在读取规划</div> : plans.length === 0 ? <div className="long-range-empty"><strong>这里还没有规划。</strong><p>从一个你愿意承担的主线开始。</p><button className="text-button" type="button" onClick={beginNewPlan}><Plus />新建这一项</button></div> : <div className="long-range-items">{plans.map((plan) => <button key={plan.id} className={`long-range-item ${selectedId === plan.id ? "active" : ""} ${plan.status}`} type="button" onClick={() => selectPlan(plan)}>
           <span className="long-range-item-period">{displayPeriod(plan)}</span><strong>{plan.title}</strong><small>{plan.status === "archived" ? "已归档" : "进行中"} · {plan.milestones.length} 个里程碑</small><ChevronRight />
         </button>)}</div>}
@@ -324,9 +332,10 @@ export function LongRangePlansWorkspace() {
       <form className="long-range-editor" onSubmit={savePlan} aria-label={selectedPlan ? "编辑规划" : "新建规划"}>
         <header>
           <div><p className="section-kicker">{selectedPlan ? selectedPlan.status === "archived" ? "已归档" : "正在编辑" : "新的主线"}</p><h2>{selectedPlan ? selectedPlan.title : "从一条清晰的线开始"}</h2></div>
-          {selectedPlan && <span className="plan-version">版本 {selectedPlan.version}</span>}
+          {selectedPlan && <div className="plan-editor-actions"><span className="plan-version">版本 {selectedPlan.version}</span><button className="text-button" type="button" onClick={beginNewPlan}><Plus />新建下一条</button></div>}
         </header>
         {error && <p className="long-range-error" role="alert"><CircleAlert />{error}</p>}
+        {notice && !error && <p className="long-range-notice" role="status"><Check />{notice}</p>}
         <nav className="plan-stepper" aria-label="规划创建步骤">
           {["基本信息", "想法与目标", "里程碑"].map((label, index) => { const step = (index + 1) as PlanEditorStep; return <button key={label} type="button" className={editorStep === step ? "active" : ""} aria-current={editorStep === step ? "step" : undefined} onClick={() => setEditorStep(step)}><span>0{step}</span>{label}</button>; })}
         </nav>

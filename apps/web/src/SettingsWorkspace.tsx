@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { invokeDesktop, type FocusMiniPositionMode, type FocusMiniSettings } from "./focus-session-client";
 import { PosterMark } from "./ui/poster";
+import { phoneNotificationControls, phoneNotificationLabels, readPhoneNotificationSettings, writePhoneNotificationSettings, type PhoneNotificationSettings } from "@tma-mobile/notification-settings";
 import {
   ProfileApiError,
   defaultUserProfileDraft,
@@ -120,7 +121,8 @@ export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
 
       {phoneApp ? <section className="settings-section">
         <header><div><h2>手机提醒</h2></div><Bell /></header>
-        <p className="settings-section-copy">每个排了精确时间的任务，会在开始前 15 分钟和开始时各收到一条系统通知。第一次使用时请允许通知；如果手机开了省电模式，可能需要在系统设置里允许本应用后台提醒。</p>
+        <p className="settings-section-copy">排了精确时间的任务会收到系统通知，标题就是任务名，可以随手划掉。每一种都可以单独关闭，改动立即生效。</p>
+        <PhoneNotificationSettingsPanel />
         {memoMode && <p className="settings-memo-mode"><CircleAlert />当前为备忘录模式：不创建专注会话、不记录专注时长，也不收集完成反馈。</p>}
       </section> : <>
       <div className="settings-columns">
@@ -213,6 +215,50 @@ export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
       </footer>
     </form>
   </section>;
+}
+
+/** Phone only: which reminders this phone sends, whether Android lets it, and a test button. */
+function PhoneNotificationSettingsPanel() {
+  const [settings, setSettings] = useState<PhoneNotificationSettings>(() => readPhoneNotificationSettings());
+  const [status, setStatus] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  async function refreshStatus() {
+    const controls = phoneNotificationControls();
+    if (!controls) return;
+    try {
+      const current = await controls.status();
+      const parts = [current.permission === "granted" ? "通知权限：已允许" : "通知权限：未允许，请在系统设置里打开"];
+      if (current.exact !== "granted") parts.push("准点提醒未开启，提醒可能晚几分钟");
+      parts.push(`已排好 ${current.pending} 条提醒`);
+      setStatus(parts.join(" · "));
+    } catch { setStatus(null); }
+  }
+  useEffect(() => { void refreshStatus(); }, []);
+
+  function toggle(key: keyof PhoneNotificationSettings, checked: boolean) {
+    const next = { ...settings, [key]: checked };
+    setSettings(next);
+    writePhoneNotificationSettings(next);
+    window.setTimeout(() => void refreshStatus(), 1500);
+  }
+
+  async function sendTest() {
+    const controls = phoneNotificationControls();
+    if (!controls) return;
+    setTesting(true);
+    try { await controls.sendTest(); setStatus("测试通知将在 5 秒后出现。"); }
+    catch (error) { setStatus(error instanceof Error ? error.message : String(error)); }
+    finally { setTesting(false); }
+  }
+
+  return <div className="settings-toggle-list">
+    {phoneNotificationLabels.map(([key, label, help]) => <SettingToggle key={key} label={label} help={help} checked={settings[key]} onChange={(checked) => toggle(key, checked)} />)}
+    <div className="phone-notification-test">
+      <button className="text-button" type="button" disabled={testing} onClick={() => void sendTest()}><Bell />发一条测试通知</button>
+      {status && <p className="settings-runtime-note" role="status">{status}</p>}
+    </div>
+  </div>;
 }
 
 function SettingToggle({ label, help, checked, disabled = false, onChange }: {

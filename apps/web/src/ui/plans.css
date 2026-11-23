@@ -165,3 +165,10 @@
 .long-range-scope { max-width: 100%; overflow-x: auto; scrollbar-width: none; border-radius: 0; background: transparent; padding: 0; gap: 6px; }
 .long-range-scope button { flex: none; border: var(--rule) solid var(--ink) !important; border-radius: 0; }
 @media (max-width: 820px) { .long-range-scope button { padding: 0 10px; } .long-range-scope button small { display: none; } }
+
+/* "新建" stays reachable while a plan is open, and after saving the editor says what happened. */
+.long-range-list > header > .long-range-list-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.long-range-new { white-space: nowrap; }
+.plan-editor-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.long-range-notice { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: var(--rule, 1px) solid var(--ink); color: var(--ink); font-size: var(--fs-13); }
+.long-range-notice svg { flex: none; width: 16px; height: 16px; }

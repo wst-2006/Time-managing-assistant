@@ -87,6 +87,8 @@ const call = (path, method = "GET", body) => `fetch("http://tma.local/api/v1${pa
 
 try {
   adb("install", "-r", apk);
+  // Android 13+ asks for notification permission with a dialog; grant it up front as a person would.
+  try { adb("shell", "pm", "grant", appId, "android.permission.POST_NOTIFICATIONS"); } catch { /* not needed before Android 13 */ }
   const sdk = adb("shell", "getprop", "ro.build.version.sdk").trim();
   const webview = adb("shell", "dumpsys", "package", "com.google.android.webview").match(/versionName=([\d.]+)/)?.[1] ?? "unknown";
   report.push(`Android API ${sdk}, WebView ${webview}`);
@@ -107,6 +109,28 @@ try {
   const title = `模拟器检查 ${Date.now()}`;
   const created = await session.evaluate(call("/tasks", "POST", { title, scheduleKind: "none", localDate: today, timeZone: "Asia/Shanghai" }));
   note(created.status === 201, `New task saved → ${created.status}${created.status !== 201 ? ` ${created.body.slice(0, 300)}` : ""}`);
+
+  // Reminders: an exact task starting at the next half hour + 30 min gets 15-min, 1-min, start and end notifications.
+  const halfHour = 30 * 60 * 1000;
+  const start = new Date(Math.ceil(Date.now() / halfHour) * halfHour + halfHour);
+  const end = new Date(start.getTime() + 2 * halfHour);
+  const startDate = new Date(start.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  const reminderTitle = `提醒检查 ${Date.now() % 100000}`;
+  const exact = await session.evaluate(call("/tasks", "POST", { title: reminderTitle, scheduleKind: "exact", localDate: startDate, startAt: start.toISOString(), endAt: end.toISOString(), timeZone: "Asia/Shanghai" }));
+  note(exact.status === 201, `Timed task saved → ${exact.status}${exact.status !== 201 ? ` ${exact.body.slice(0, 300)}` : ""}`);
+  await sleep(4000);
+  const pending = await session.evaluate("window.Capacitor.Plugins.LocalNotifications.getPending().then((r) => r.notifications.map((n) => ({ title: n.title, body: n.body })))");
+  const mine = pending.filter((n) => n.title === reminderTitle).map((n) => n.body);
+  for (const expected of ["15 分钟后开始", "1 分钟后开始", "现在开始", "计时结束"]) {
+    note(mine.some((body) => body.includes(expected)), `Reminder scheduled: 「${reminderTitle}」${expected}`);
+  }
+  const status = await session.evaluate("window.tmaPhoneNotifications.status()");
+  note(status.permission === "granted", `Notification permission: ${status.permission}`);
+  note(status.exact === "granted", `On-the-minute alarms: ${status.exact}`);
+  await session.evaluate("window.tmaPhoneNotifications.sendTest()");
+  await sleep(9000);
+  const shade = adb("shell", "dumpsys", "notification", "--noredact");
+  note(shade.includes("测试通知"), "Test notification appeared in the notification shade");
   session.close();
 
   session = await launch("Second start");

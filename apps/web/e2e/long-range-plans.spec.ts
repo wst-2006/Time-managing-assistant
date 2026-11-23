@@ -69,8 +69,14 @@ test("月度规划通过真实 API 持久化、编辑、提示过期版本、归
     const createdPlan = (await (await created).json()).plan as { id: string; version: number };
     ids.push(createdPlan.id);
     expect(taskWrites).toBe(0);
+    // Saving finishes the plan: the editor opens a blank one for the next plan.
+    await expect(page.getByRole("status")).toContainText(`已保存「${title}」`);
+    await expect(page.getByLabel("规划标题")).toHaveValue("");
+    await page.locator(".long-range-item").filter({ hasText: title }).click();
     await goStep(page, "里程碑");
     await expect(page.getByLabel("里程碑 1", { exact: true })).toHaveValue("资料收集");
+    await page.getByRole("button", { name: "新建下一条", exact: true }).click();
+    await expect(page.getByLabel("规划标题")).toHaveValue("");
 
     await page.reload();
     await page.getByRole("button", { name: "规划", exact: true }).click();
@@ -89,6 +95,8 @@ test("月度规划通过真实 API 持久化、编辑、提示过期版本、归
     await expect(page.locator(".long-range-item").filter({ hasText: editedTitle })).toBeVisible();
 
     await updateThroughApi(request, createdPlan.id, savedPlan.version, `${editedTitle} 已在另一处保存`);
+    // The list still holds the version saved here, so editing it now must hit the conflict.
+    await page.locator(".long-range-item").filter({ hasText: editedTitle }).click();
     await goStep(page, "想法与目标");
     await page.getByLabel("规划说明").fill("这个本地草稿不能静默覆盖服务器上的新版本。");
     await goStep(page, "里程碑");
