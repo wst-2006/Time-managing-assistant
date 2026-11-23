@@ -19,6 +19,14 @@
     "./schema": {
       "types": "./dist/schema.d.ts",
       "default": "./dist/schema.js"
+    },
+    "./sqlite": {
+      "types": "./dist/sqlite/index.d.ts",
+      "default": "./dist/sqlite/index.js"
+    },
+    "./sqlite/node": {
+      "types": "./dist/sqlite/node-driver.d.ts",
+      "default": "./dist/sqlite/node-driver.js"
     }
   },
   "scripts": {

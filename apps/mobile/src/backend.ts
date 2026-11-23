@@ -1,14 +1,13 @@
 /**
  * The phone app's backend: the same services and routes as the desktop API,
- * running inside the app's WebView. Data lives in the WebView's IndexedDB
- * (PGlite "idb://"), and the web app's fetch calls to the API address are
- * answered here instead of over the network.
+ * running inside the app's WebView. Data lives in SQLite, the database built
+ * into the app (see LocalSqlitePlugin.java), and the web app's fetch calls to
+ * the API address are answered here instead of over the network.
  */
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
-import * as schema from "@personal-ai/db/schema";
+import { SqlitePgClient, drizzleSqlite, migrateSqlite } from "../../../packages/db/src/sqlite/client";
 import { LocalApp } from "./local-app";
-import { migrateInBrowser } from "./migrate";
+import { bundledMigrations } from "./migrate";
+import { openPhoneSqlite } from "./sqlite-driver";
 import { startReminderNotifications } from "./notifications";
 
 import { taskRoutes } from "../../api/src/task-routes";
@@ -39,8 +38,6 @@ import { UnscheduledTaskWorker } from "../../worker/src/unscheduled-task-worker"
 import { RecycleRetentionWorker } from "../../worker/src/recycle-retention-worker";
 import { OverdueTaskWorker } from "../../worker/src/overdue-task-worker";
 
-const DATABASE = "idb://time-managing-assistant";
-
 export type StageListener = (stage: string) => void;
 
 export async function startLocalBackend(apiBase: string, onStage: StageListener = () => {}): Promise<void> {
@@ -48,24 +45,12 @@ export async function startLocalBackend(apiBase: string, onStage: StageListener 
   const enter = (next: string) => { stage = next; onStage(next); };
   try {
     onStage(stage);
-    let pglite: PGlite;
-    try {
-      pglite = await PGlite.create(DATABASE, { relaxedDurability: true });
-    } catch (first) {
-      // Some phone WebViews refuse one large up-front memory block; start smaller and let it grow.
-      console.warn("PGlite failed with default memory, retrying smaller", first);
-      enter("以较小内存重新打开本机数据库");
-      pglite = await PGlite.create(DATABASE, { relaxedDurability: true, initialMemory: 32 * 1024 * 1024 });
-    }
+    const driver = await openPhoneSqlite("tma.sqlite");
+    const client = new SqlitePgClient(driver);
     enter("建立数据表");
-    const db = drizzle(pglite, { schema });
-    await migrateInBrowser(db);
-    // Write the new tables to the phone's storage now, so a restart right after
-    // the first launch never finds a half-written database.
-    enter("保存到手机存储");
-    await pglite.syncToFs();
+    await migrateSqlite(client, bundledMigrations());
     enter("启动本机服务");
-    await startServices(db, apiBase);
+    await startServices(drizzleSqlite(client), apiBase);
   } catch (error: any) {
     const detail = error?.message ?? String(error);
     throw new Error(`${stage}失败：${detail}`, { cause: error });
@@ -85,12 +70,11 @@ function reportFault(where: string, detail: string) {
   if (!faultBar) {
     faultBar = document.createElement("div");
     faultBar.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:2147483647;max-height:45vh;overflow:auto;padding:10px 12px;background:#160000;color:#ff4866;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 4px 0 #ff1446";
-    faultBar.title = "点按关闭";
     faultBar.onclick = () => { faultBar?.remove(); faultBar = null; };
     document.body.appendChild(faultBar);
   }
   const header = `本机接口出错（截图发给开发者，点按关闭）\n版本 ${appVersion || "?"} · ${navigator.userAgent.match(/Chrome\/[\d.]+/)?.[0] ?? navigator.userAgent}\n`;
-  const lines = (faultBar.dataset.lines ? JSON.parse(faultBar.dataset.lines) as string[] : []);
+  const lines = faultBar.dataset.lines ? JSON.parse(faultBar.dataset.lines) as string[] : [];
   const line = `${where}: ${detail.slice(0, 600)}`;
   if (!lines.includes(line)) lines.push(line);
   faultBar.dataset.lines = JSON.stringify(lines.slice(-4));

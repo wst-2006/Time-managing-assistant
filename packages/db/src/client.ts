@@ -28,6 +28,12 @@ export function migrationsFolder(): string {
  * in `config.dataDir`, or in memory when it is null.
  */
 export async function openDatabase(config: DatabaseConfig): Promise<DatabaseConnection> {
+  // The phone stores its data in SQLite; this runs the desktop API the same way so the
+  // end-to-end tests can check the phone's database path. Not used by the desktop app.
+  if (process.env.TMA_DB_ENGINE === "sqlite") {
+    if (config.dataDir) mkdirSync(config.dataDir, { recursive: true });
+    return openSqliteDatabase(config);
+  }
   if (config.dataDir) mkdirSync(config.dataDir, { recursive: true });
   const pglite = await PGlite.create(config.dataDir ?? undefined);
   const db = drizzle(pglite, { schema });
@@ -41,3 +47,23 @@ export async function openDatabase(config: DatabaseConfig): Promise<DatabaseConn
 
 /** Kept for callers written against the previous PostgreSQL client. */
 export const connectVerifiedDatabase = openDatabase;
+
+async function openSqliteDatabase(config: DatabaseConfig): Promise<DatabaseConnection> {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const { SqlitePgClient, drizzleSqlite, migrateSqlite } = await import("./sqlite/index.js");
+  const { openNodeSqlite } = await import("./sqlite/node-driver.js");
+  const driver = openNodeSqlite(config.dataDir ? resolve(config.dataDir, "tma.sqlite") : ":memory:");
+  const client = new SqlitePgClient(driver);
+  const folder = migrationsFolder();
+  const journal = JSON.parse(readFileSync(resolve(folder, "meta/_journal.json"), "utf8")) as { entries: Array<{ tag: string }> };
+  const files = new Set(readdirSync(folder));
+  await migrateSqlite(client, journal.entries.map((entry) => {
+    if (!files.has(`${entry.tag}.sql`)) throw new Error(`Migration ${entry.tag} is missing`);
+    return { tag: entry.tag, sql: readFileSync(resolve(folder, `${entry.tag}.sql`), "utf8") };
+  }));
+  return {
+    client: { end: async () => driver.close() },
+    db: drizzleSqlite(client) as AppDatabase,
+    pglite: client as unknown as PGlite
+  };
+}

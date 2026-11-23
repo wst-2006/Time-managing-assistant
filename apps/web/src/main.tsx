@@ -67,10 +67,17 @@ if (import.meta.env.VITE_TMA_TARGET === "mobile") {
     import("@tma-mobile/backend").then(({ startLocalBackend }) => startLocalBackend(import.meta.env.VITE_API_BASE_URL ?? "http://tma.local", (next) => { stage = next; showStage(); })),
     timeout,
   ])
-    .then(() => { window.clearInterval(ticker); root.innerHTML = ""; render(); })
+    .then(() => {
+      window.clearInterval(ticker);
+      // Read by the emulator check in CI to confirm the phone app starts quickly.
+      (window as any).__tmaStartup = { ms: Math.round(performance.now()), ready: true };
+      root.innerHTML = "";
+      render();
+    })
     .catch((error) => {
       window.clearInterval(ticker);
       console.error("The phone backend failed to start", error);
+      (window as any).__tmaStartup = { ms: Math.round(performance.now()), ready: false, error: String(error?.message ?? error) };
       showBackendError(error);
     });
 } else {
