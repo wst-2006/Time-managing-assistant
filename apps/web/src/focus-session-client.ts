@@ -150,6 +150,7 @@ export type FocusMiniSettings = {
   notifyStart: boolean;
   notifyPhaseChange: boolean;
   notifyComplete: boolean;
+  notifyUpcoming?: boolean;
 };
 
 export type FocusEvaluationPayload = {

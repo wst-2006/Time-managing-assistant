@@ -920,3 +920,23 @@ test("手动专注结构可直接确认，也可暂存候选后刷新恢复", as
   }
 });
 
+
+test("按会话读取专注状态不会卡住后台（迷你窗点“我会准时开始”后会立即读取）", async ({ request }) => {
+  test.setTimeout(60_000);
+  const title = `E2E 会话快照 ${Date.now().toString(36)}`;
+  let taskId = "";
+  try {
+    const task = await createCurrentExactTask(title);
+    taskId = task.id;
+    const started = await request.post(`${apiBase}/api/v1/focus-sessions`, { data: { taskId, expectedTaskVersion: task.version, mode: "prepare" } });
+    expect(started.status()).toBe(201);
+    const sessionId = ((await started.json()) as { session: { id: string } }).session.id;
+    const snapshot = await request.get(`${apiBase}/api/v1/focus-sessions/${sessionId}/snapshot`, { timeout: 5_000 });
+    expect(snapshot.status()).toBe(200);
+    // the API must still answer afterwards
+    expect((await request.get(`${apiBase}/health`, { timeout: 5_000 })).status()).toBe(200);
+    expect((await request.get(`${apiBase}/api/v1/focus-sessions/current`, { timeout: 5_000 })).status()).toBe(200);
+  } finally {
+    if (taskId) await cleanup(request, taskId);
+  }
+});

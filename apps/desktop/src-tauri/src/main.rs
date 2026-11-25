@@ -754,6 +754,55 @@ fn stop_process_tree(mut child: Child) {
     let _ = child.wait();
 }
 
+/// Starts the bundled API (or the source-tree one while developing). Runs off the
+/// UI thread; on failure it logs, shows the error and lets the monitor retry.
+fn start_local_runtime(app_handle: &AppHandle) {
+    let started_at = std::time::Instant::now();
+    let bundled_runtime_available = match bundled_runtime_dir(app_handle) {
+        Ok(found) => found.is_some(),
+        Err(error) => {
+            show_startup_error(&error);
+            return;
+        }
+    };
+    let runtime = app_handle.state::<LocalRuntime>();
+    let start_result = if bundled_runtime_available {
+        runtime.start_bundled(app_handle)
+    } else if let Some(root) = workspace_root() {
+        // Keep source-tree launches usable while developing. Installed
+        // releases take the bundled branch above and do not need pnpm.
+        runtime.start_workspace(&root)
+    } else {
+        Err("standalone runtime is missing; rebuild the desktop installer".to_string())
+    };
+    let app_data_dir = app_handle.path().app_data_dir().ok();
+    if let Some(directory) = &app_data_dir {
+        let _ = fs::create_dir_all(directory);
+    }
+    match start_result {
+        Ok(()) => {
+            if let Some(directory) = &app_data_dir {
+                append_desktop_log(directory, &format!("local service ready in {} ms", started_at.elapsed().as_millis()));
+            }
+        }
+        Err(error) => {
+            let retrying = runtime.has_retryable_bundled_launch();
+            if let Some(directory) = &app_data_dir {
+                append_desktop_log(
+                    directory,
+                    &format!("startup failed: {error}; automatic retry: {}", if retrying { "enabled" } else { "disabled" }),
+                );
+            }
+            if !should_start_hidden() || !retrying {
+                show_startup_error(&format!(
+                    "后台服务暂时没有启动，软件不会再静默闪退。\n\n{error}\n\n{}\n请查看应用数据目录中的 desktop-runtime.log 和 api.stderr.log。",
+                    if retrying { "软件会留在后台自动重试。" } else { "请修正配置后重新启动软件。" }
+                ));
+            }
+        }
+    }
+}
+
 pub(crate) fn show_main_window(app: &AppHandle) {
     let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
         return;
@@ -872,59 +921,23 @@ fn main() {
             focus_companion::focus_mini_set_auto_show,
             focus_companion::focus_mini_set_position_mode,
             focus_companion::focus_mini_set_notification,
+            focus_companion::desktop_notify,
         ])
         .setup(|app| {
             focus_companion::install(app.handle())?;
-            let mut runtime_started = true;
-            if !cfg!(debug_assertions) {
-                let app_handle = app.handle();
-                let bundled_runtime_available = bundled_runtime_dir(app_handle)
-                    .map_err(std::io::Error::other)?
-                    .is_some();
-                let start_result = if bundled_runtime_available {
-                    app.state::<LocalRuntime>()
-                        .start_bundled(app_handle)
-                } else if let Some(root) = workspace_root() {
-                    // Keep source-tree launches usable while developing. Installed
-                    // releases take the bundled branch above and do not need pnpm.
-                    app.state::<LocalRuntime>().start_workspace(&root)
-                } else {
-                    Err("standalone runtime is missing; rebuild the desktop installer".to_string())
-                };
-
-                if let Err(error) = &start_result {
-                    let retrying = app
-                        .state::<LocalRuntime>()
-                        .has_retryable_bundled_launch();
-                    runtime_started = retrying;
-                    if let Ok(app_data_dir) = app.path().app_data_dir() {
-                        let _ = fs::create_dir_all(&app_data_dir);
-                        append_desktop_log(
-                            &app_data_dir,
-                            &format!(
-                                "startup failed: {error}; automatic retry: {}",
-                                if retrying { "enabled" } else { "disabled" }
-                            ),
-                        );
-                    }
-                    if !should_start_hidden() || !retrying {
-                        show_startup_error(&format!(
-                            "后台服务暂时没有启动，软件不会再静默闪退。\n\n{error}\n\n{}\n请查看应用数据目录中的 desktop-runtime.log 和 api.stderr.log。",
-                            if retrying {
-                                "软件会留在后台自动重试。"
-                            } else {
-                                "请修正配置后重新启动软件。"
-                            }
-                        ));
-                    }
-                }
-            }
-            if runtime_started && should_start_hidden() {
+            // Show the window right away (the page shows a launch screen until the
+            // local service answers) and start the service on its own thread, so
+            // clicking the icon never leaves the person waiting on nothing.
+            if should_start_hidden() {
                 if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
                     window.hide()?;
                 }
             } else {
                 show_main_window(app.handle());
+            }
+            if !cfg!(debug_assertions) {
+                let app_handle = app.handle().clone();
+                thread::spawn(move || start_local_runtime(&app_handle));
             }
             Ok(())
         })

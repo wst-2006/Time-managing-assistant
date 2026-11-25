@@ -213,7 +213,7 @@ export class FocusService {
       const scheduled = await this.materializeScheduled(transaction as AppDatabase, session, now);
       const prepared = await this.materializePreparation(transaction as AppDatabase, scheduled, now);
       const current = await this.materializeFixedEnd(transaction as AppDatabase, prepared, now);
-      return this.snapshotForSession(current);
+      return this.snapshotForSession(current, transaction as AppDatabase);
     });
   }
 
@@ -222,13 +222,18 @@ export class FocusService {
     return session ? this.snapshotForSession(session) : null;
   }
 
-  private async snapshotForSession(session: StoredFocusSession): Promise<FocusSessionSnapshot | null> {
-    const [task] = await this.db.select().from(tasks)
+  /**
+   * `db` must be the open transaction when called from inside one: the embedded
+   * database runs one transaction at a time, so a query on this.db would wait for
+   * the transaction that is waiting for it, and every later request would hang.
+   */
+  private async snapshotForSession(session: StoredFocusSession, db: AppDatabase = this.db): Promise<FocusSessionSnapshot | null> {
+    const [task] = await db.select().from(tasks)
       .where(and(eq(tasks.id, session.taskId), isNull(tasks.deletedAt))).limit(1);
     if (!task) return null;
 
     const execution = session.focusStructureId
-      ? await this.structureById(this.db, session.focusStructureId)
+      ? await this.structureById(db, session.focusStructureId)
       : null;
     let cursor = execution?.structure.totalStartAt.getTime() ?? 0;
     const segments: FocusSnapshotSegment[] = execution?.segments.map((segment) => {

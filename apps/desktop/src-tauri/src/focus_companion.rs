@@ -58,6 +58,8 @@ pub struct FocusMiniSettings {
     pub notify_start: bool,
     pub notify_phase_change: bool,
     pub notify_complete: bool,
+    /// "15 分钟后开始" reminders, sent by the main window (see desktop-reminders.ts).
+    pub notify_upcoming: bool,
 }
 
 impl Default for FocusMiniSettings {
@@ -75,6 +77,7 @@ impl Default for FocusMiniSettings {
             notify_start: true,
             notify_phase_change: true,
             notify_complete: true,
+            notify_upcoming: true,
         }
     }
 }
@@ -1218,12 +1221,12 @@ fn notify_transition(
         && prior.map(|old| old.session.state.as_str()) != Some("ended")
         && settings.notify_complete
     {
-        let title = if profile.focus_evaluation_enabled {
-            "专注结束，待评价"
+        let body = if profile.focus_evaluation_enabled {
+            "计时结束，记得给这次专注打个分"
         } else {
-            "专注结束"
+            "计时结束"
         };
-        Some((title.to_string(), current.task.title.clone()))
+        Some((current.task.title.clone(), body.to_string()))
     } else if current.session.state == "running"
         && prior.map(|old| old.session.state.as_str()) != Some("running")
         && settings.notify_start
@@ -1234,8 +1237,8 @@ fn notify_transition(
             .map(|segment| segment.duration_minutes)
             .unwrap_or(0);
         Some((
-            format!("已开始 {duration} 分钟专注"),
             current.task.title.clone(),
+            format!("专注开始 · 这一段 {duration} 分钟"),
         ))
     } else if settings.notify_phase_change
         && prior.map(|old| {
@@ -1251,20 +1254,21 @@ fn notify_transition(
                 .map(|segment| segment.position),
         ))
     {
+        let minutes = current
+            .current_segment
+            .as_ref()
+            .map(|segment| segment.duration_minutes)
+            .unwrap_or(0);
         if current.phase == "break" {
             Some((
-                "这一段完成了".to_string(),
-                format!(
-                    "休息 {} 分钟",
-                    current
-                        .current_segment
-                        .as_ref()
-                        .map(|segment| segment.duration_minutes)
-                        .unwrap_or(0)
-                ),
+                current.task.title.clone(),
+                format!("专注段结束，休息 {minutes} 分钟"),
             ))
         } else if current.phase == "focus" {
-            Some(("下一段专注开始".to_string(), current.task.title.clone()))
+            Some((
+                current.task.title.clone(),
+                format!("休息结束，继续专注 {minutes} 分钟"),
+            ))
         } else {
             None
         }
@@ -1650,8 +1654,21 @@ pub fn focus_mini_set_notification(
         "start" => settings.notify_start = enabled,
         "phase" => settings.notify_phase_change = enabled,
         "complete" => settings.notify_complete = enabled,
+        "upcoming" => settings.notify_upcoming = enabled,
         _ => {}
     })
+}
+
+/// A Windows notification from the main window (the 15-minute reminder): the
+/// title is the task's name, the body says what is coming.
+#[tauri::command]
+pub fn desktop_notify(app: AppHandle, title: String, body: String) -> Result<(), String> {
+    app.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show()
+        .map_err(|error| error.to_string())
 }
 
 fn update_settings(
@@ -1712,6 +1729,7 @@ fn load_settings(app: &AppHandle) -> FocusMiniSettings {
             "notify_start" => settings.notify_start = value != "false",
             "notify_phase_change" => settings.notify_phase_change = value != "false",
             "notify_complete" => settings.notify_complete = value != "false",
+            "notify_upcoming" => settings.notify_upcoming = value != "false",
             _ => {}
         }
     }
@@ -1754,7 +1772,7 @@ fn save_settings(app: &AppHandle, settings: &FocusMiniSettings) {
         let _ = fs::create_dir_all(directory);
     }
     let body = format!(
-        "x={}\ny={}\npreparation_x={}\npreparation_y={}\nposition_mode={}\npreparation_position_mode={}\nalways_on_top={}\nlocked={}\nauto_show={}\nnotify_start={}\nnotify_phase_change={}\nnotify_complete={}\n",
+        "x={}\ny={}\npreparation_x={}\npreparation_y={}\nposition_mode={}\npreparation_position_mode={}\nalways_on_top={}\nlocked={}\nauto_show={}\nnotify_start={}\nnotify_phase_change={}\nnotify_complete={}\nnotify_upcoming={}\n",
         settings.x.map(|value| value.to_string()).unwrap_or_default(),
         settings.y.map(|value| value.to_string()).unwrap_or_default(),
         settings.preparation_x.map(|value| value.to_string()).unwrap_or_default(),
@@ -1775,6 +1793,7 @@ fn save_settings(app: &AppHandle, settings: &FocusMiniSettings) {
         settings.notify_start,
         settings.notify_phase_change,
         settings.notify_complete,
+        settings.notify_upcoming,
     );
     let _ = fs::write(path, body);
 }

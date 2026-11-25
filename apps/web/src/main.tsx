@@ -82,6 +82,32 @@ if (import.meta.env.VITE_TMA_TARGET === "mobile") {
       (window as any).__tmaStartup = { ms: Math.round(performance.now()), ready: false, error: String(error?.message ?? error) };
       showBackendError(error);
     });
+} else if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+  // Desktop: the window opens at once while the local service starts behind it;
+  // keep the launch mark up until the service answers, then show the app.
+  void waitForDesktopService().then(() => {
+    render();
+    if (!isFocusMiniWindow) void import("./desktop-reminders").then(({ startDesktopReminders }) => startDesktopReminders());
+  });
 } else {
   render();
+}
+
+async function waitForDesktopService() {
+  const api = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3000";
+  // Only "does the service accept connections" matters here, so the check does not depend on CORS.
+  const ready = () => fetch(`${api}/health`, { cache: "no-store", mode: "no-cors" }).then(() => true).catch(() => false);
+  if (await ready()) return;
+  const root = document.getElementById("root")!;
+  root.innerHTML = '<section class="ink-loading-screen" aria-live="polite"><div class="ink-loading-center"><span class="ink-loading-seal" aria-hidden="true">序</span><p id="tma-desktop-wait" style="margin:18px 0 0;font:14px/1.6 system-ui,sans-serif;text-align:center">正在启动本机服务…</p></div></section>';
+  const startedAt = Date.now();
+  while (!(await ready())) {
+    const seconds = Math.round((Date.now() - startedAt) / 1000);
+    const label = document.getElementById("tma-desktop-wait");
+    if (label) label.textContent = seconds < 90
+      ? `正在启动本机服务… ${seconds} 秒`
+      : "本机服务还没有启动。请稍等，或退出后重新打开；仍不行请把应用数据目录里的 desktop-runtime.log 和 api.stderr.log 发给开发者。";
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  root.innerHTML = "";
 }

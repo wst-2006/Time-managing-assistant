@@ -86,7 +86,7 @@ export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
     }
   }
 
-  async function updateDesktopBoolean(command: string, enabled: boolean, kind?: "start" | "phase" | "complete") {
+  async function updateDesktopBoolean(command: string, enabled: boolean, kind?: "start" | "phase" | "complete" | "upcoming") {
     try {
       const updated = await invokeDesktop<FocusMiniSettings>(command, { enabled, ...(kind ? { kind } : {}) });
       setDesktopSettings(updated);
@@ -203,6 +203,7 @@ export function SettingsWorkspace({ onProfileSaved }: SettingsWorkspaceProps) {
           />)}
         </div>
         {desktopRuntime && desktopSettings ? <div className="sound-preference-grid windows-notifications">
+          <SettingToggle label="Windows：开始前 15 分钟" help="通知标题是任务名，例如「高等数学 · 15 分钟后开始」。" checked={desktopSettings.notifyUpcoming !== false} onChange={(checked) => void updateDesktopBoolean("focus_mini_set_notification", checked, "upcoming")} />
           <SettingToggle label="Windows：专注开始" help="只在真正开始计时时通知。" checked={desktopSettings.notifyStart} onChange={(checked) => void updateDesktopBoolean("focus_mini_set_notification", checked, "start")} />
           <SettingToggle label="Windows：阶段切换" help="进入休息或下一段专注时通知。" checked={desktopSettings.notifyPhaseChange} onChange={(checked) => void updateDesktopBoolean("focus_mini_set_notification", checked, "phase")} />
           <SettingToggle label="Windows：任务完成" help="到达固定结束时间时通知。" checked={desktopSettings.notifyComplete} onChange={(checked) => void updateDesktopBoolean("focus_mini_set_notification", checked, "complete")} />
